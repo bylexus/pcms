@@ -1,0 +1,9 @@
+{
+    "title": "pcms documentation",
+    "port": 3000,
+    "webroot": "",
+    "theme": "pcms-doc",
+    "metaTags": [
+        {"name": "author", "content": "Alexander Schenkel"}
+    ]
+}

@@ -1,0 +1,17 @@
+header {
+    display: flex;
+    padding: 0.5rem;
+    background-color: #ddd;
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+    .title {
+        a {
+            text-decoration: none;
+            &:hover {
+                background-color: transparent;
+            }
+        }
+        font-family: "Roboto Mono";
+        font-weight: bold;
+        font-size: 1.5rem;
+    }
+}

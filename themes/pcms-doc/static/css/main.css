@@ -1,0 +1,50 @@
+header {
+  display: flex;
+  padding: 0.5rem;
+  background-color: #ddd;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+}
+header .title {
+  font-family: "Roboto Mono";
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+header .title a {
+  text-decoration: none;
+}
+header .title a:hover {
+  background-color: transparent;
+}
+
+footer {
+  font-family: "Roboto Mono";
+  font-weight: 300;
+  font-size: 0.8rem;
+  margin-top: 2rem;
+  padding: 1rem;
+  border-top: 1px solid #aaa;
+  text-align: center;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  width: 100%;
+  font-family: "Source Sans Pro", sans-serif;
+  font-weight: 300;
+  font-size: 13pt;
+  color: black;
+}
+
+a {
+  text-decoration: none;
+  font-weight: normal;
+  color: black;
+  text-decoration: underline;
+}
+a:hover {
+  background-color: #d7eaff;
+}
+
+/*# sourceMappingURL=main.css.map */

@@ -1,63 +1,20 @@
 {
-    "name": "pcms",
+    "name": "pcms-doc",
     "version": "0.0.1",
-    "description": "The Programmer's CMS - clutter-free, code-centric, developer-friendly page delivery system",
+    "description": "Documentation page for pcms",
+    "main": "server.js",
+    "scripts": {
+        "css-watch": "sass --watch themes/pcms-doc/sass/main.scss:themes/pcms-doc/static/css/main.css",
+        "build-css": "NODE_ENV=production sass -s compressed themes/pcms-doc/sass/main.scss:themes/pcms-doc/static/css/main.css",
+        "dev-server": "NODE_ENV=development DEBUG=server,pcms npx nodemon -w server.js -w site/ -w themes/pcms-doc/ server.js"
+    },
     "author": "Alexander Schenkel <alex@alexi.ch>",
     "license": "MIT",
-    "main": "lib/server.js",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/bylexus/pcms.git"
-    },
-    "homepage": "https://github.com/bylexus/pcms",
     "dependencies": {
-        "compression": "^1.7.3",
-        "debug": "^4.1.1",
-        "express": "^4.16.4",
-        "marked": "^0.6.1",
-        "nunjucks": "^3.1.7"
+        "pcms": "git+https://github.com/bylexus/pcms.git"
     },
     "devDependencies": {
-        "eslint": "^5.14.1",
-        "eslint-config-prettier": "^4.1.0",
-        "eslint-plugin-prettier": "^3.0.1",
-        "prettier": "^1.16.4"
-    },
-    "eslintConfig": {
-        "extends": [
-            "eslint:recommended",
-            "plugin:prettier/recommended"
-        ],
-        "plugins": [
-            "prettier"
-        ],
-        "env": {
-            "node": true,
-            "es6": true
-        },
-        "parserOptions": {
-            "ecmaVersion": "2018",
-            "sourceType": "module",
-            "ecmaFeatures": {
-                "jsx": false
-            }
-        },
-        "rules": {
-            "no-unused-vars": [
-                "error",
-                {
-                    "vars": "all",
-                    "args": "none"
-                }
-            ]
-        }
-    },
-    "prettier": {
-        "printWidth": 120,
-        "tabWidth": 4,
-        "useTabs": false,
-        "semi": true,
-        "singleQuote": true,
-        "trailingComma": "none"
+        "nodemon": "^1.18.10",
+        "sass": "^1.17.3"
     }
 }
