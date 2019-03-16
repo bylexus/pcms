@@ -19,8 +19,32 @@ Features
 Getting Started
 -----------------
 
-//TODO
+### Create a new site
 
+To start from scratch, you can generate a skeleton site from a template:
+
+```
+$ mkdir my-new-site
+$ cd my-new-site
+$ npm init
+$ npm install --save pcms
+$ node_modules/.bin/pcms-generate
+# or, of you have npx:
+$ npx pcms-generate
+```
+This will generate a fully-working demo site. Your content live in the `site/` folder.
+
+### Start your server
+
+You can start the site immediately:
+
+```
+$ DEBUG=server,pcms node server.js
+```
+
+Open a browser and browse to http://localhost:3000/
+
+For more information, see below or read the official docs.
 
 The Architecture
 -----------------
@@ -134,4 +158,4 @@ TODO: Framework documentation
 ### Page templating, themes
 
 
-(c) alex@alexi.ch
+(c) 2019 Alexander Schenkel

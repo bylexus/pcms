@@ -10,10 +10,17 @@
         "url": "https://github.com/bylexus/pcms.git"
     },
     "homepage": "https://github.com/bylexus/pcms",
+    "bin": {
+        "pcms-generate": "./generate.js"
+    },
+    "engines": {
+        "node": ">=10"
+    },
     "dependencies": {
         "compression": "^1.7.3",
         "debug": "^4.1.1",
         "express": "^4.16.4",
+        "fs-extra": "^7.0.1",
         "marked": "^0.6.1",
         "nunjucks": "^3.1.7"
     },

@@ -1,0 +1,59 @@
+html, body {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: "Helvetica Neue", "Helvetiva", sans-serif;
+    font-size: 13pt;
+}
+
+.img-fluid {
+    max-width: 100%;
+}
+
+#content {
+    margin: 3rem;
+}
+
+.home {
+    text-align: center;
+}
+
+.home h1 {
+    font-weight: 100;
+    font-size: 4rem;
+}
+
+.home ul {
+    list-style-type: none;
+}
+
+.json table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.json thead {
+    background-color: #ccc;
+    border-bottom: 1px solid #aaa;
+}
+
+.json thead th {
+    text-align: left;
+    font-weight: bold;
+    padding: 0.2rem;
+}
+
+.json tbody tr:nth-child(even) {
+    background-color: #eee;
+}
+
+.json tbody td {
+    text-align: left;
+    padding: 0.2rem;
+}
+
+footer {
+    text-align: center;
+    margin: 1rem;
+    padding-top: 0.3rem;
+    border-top: 1px solid #aaa;
+}

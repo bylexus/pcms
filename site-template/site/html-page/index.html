@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>HTML Page Demo</h1>
+
+<p><a href="{{base}}/"><i class="fas fa-home"></i> Back to home</a></p>
+
+<p>Your actual Route: {{base}}{{route}}</page>
+
+<p>Actual time injected from preprocessor script: {{actTime}}</p>
+
+<pre>
+Page config (page.json), injected by the preprocessor script:
+{{pageConfig | dump(4)}}
+</pre>
+
+Some static content:
+
+<p>Relative addressed image: <img src="sunset.webp" class="img-fluid" /></p>
+
+<p>Absolute addressed image: <img src="{{route}}/sunset2.webp" class="img-fluid" /></p>
+
+<p>Image from theme: <img src="/theme/static/sunset.webp" /></p>
+
+{% endblock %}
