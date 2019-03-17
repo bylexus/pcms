@@ -1,0 +1,15 @@
+version: '3'
+services:
+  server:
+    build: ./docker
+    image: pcms-doc
+    container_name: "pcms-doc"
+    ports:
+        - 3001:3000
+    environment:
+        - DEBUG=server,pcms
+        - NODE_ENV
+    command: /bin/sh -c "NODE_ENV=${NODE_ENV} npm install && NODE_ENV=${NODE_ENV} npm run build-css && NODE_ENV=${NODE_ENV} npx pm2 start ecosystem.config.js --env ${NODE_ENV} --no-daemon"
+    tty: true
+    volumes:
+        - .:/src

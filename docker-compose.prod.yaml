@@ -1,0 +1,24 @@
+version: '3'
+services:
+  server:
+    build: ./docker
+    image: pcms-doc
+    container_name: "pcms-doc"
+    networks:
+        - pcms.alexi.ch
+    restart: always
+    expose:
+        - 3000
+    environment:
+        - DEBUG
+        - NODE_ENV=production
+        - VIRTUAL_HOST=pcms.alexi.ch
+        - LETSENCRYPT_HOST=pcms.alexi.ch
+        - LETSENCRYPT_EMAIL=info@alexi.ch
+    command: /bin/sh -c "NODE_ENV=${NODE_ENV} npm install && NODE_ENV=${NODE_ENV} npm run build-css && NODE_ENV=${NODE_ENV} npx pm2 start ecosystem.config.js --env ${NODE_ENV} --no-daemon"
+    tty: true
+    volumes:
+        - .:/src
+networks:
+    pcms.alexi.ch:
+        external: true

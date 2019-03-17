@@ -1,7 +1,7 @@
 {
-    "title": "pcms - documentation",
     "shortTitle": "pcms doc",
-    "index": "index.html",
+    "index": "index.md",
+    "template": "page-template.html",
     "iconCls": "fas fa-home",
     "mainClass": "home",
     "metaTags": [

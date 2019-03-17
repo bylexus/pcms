@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <title>{%if page.title %}{{page.title}} - {% endif%}{{ site.title }}</title>
+        <title>{%if page.pageConfig.title %}{{page.pageConfig.title}} - {% endif%}{{ site.title }}</title>
         <link rel="icon" href="{{base}}/favicon.png" type="image/png">
         {% for meta in site.metaTags %}
         <meta name="{{meta.name}}" content="{{meta.content}}" />
@@ -21,17 +21,34 @@
     </head>
     <body>
         <header>
-            <div class="title"><a href="{{base}}/">pcms documentation</a></div>
+            <div class="title"><a href="{{base}}/"><i class="fas fa-pencil-ruler"></i> pcms documentation</a></div>
+            <div class="github"><a href="https://github.com/bylexus/pcms"><i class="fab fa-github"></i> checkout the source</a></div>
         </header>
         <div id="content" class={{page.pageConfig.mainClass}}>
-            {% block content %}{% endblock %}
+            <div class="row">
+                <div class="col-3 toc">
+                    <h2>Table of contents</h2>
+                    <ul>
+                    <li><a href="{{base}}/">[home]</a></li>
+                    {% for child in rootPage.childPages %}
+                    <li class="{% if child.route === page.route %}active{% endif %}"><a href="{{child.route}}">{{child.pageConfig.shortTitle}}</a></li>
+                    {% endfor %}
+                    </ul>
+                </div>
+                <div class="col-9 main">
+                {% block content %}{% endblock %}
+                </div>
+            </div>
         </div>
 
         <footer>
+            &copy; {% if now.getFullYear() !== 2019 %}2019-{% endif %}{{now.getFullYear()}} <a href="https://github.com/bylexus">Alexander Schenkel</a><br />
             powered by <i class="fas fa-heart" style="color:red"></i> <a href="https://github.com/bylexus/pcms">pcms, the master himself</a> :-)
         </footer>
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
         <script>hljs.initHighlightingOnLoad();</script>
+        {% block bodyScripts %}
+        {% endblock %}
     </body>
 </html>

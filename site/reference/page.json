@@ -1,0 +1,11 @@
+{
+    "title": "reference",
+    "shortTitle": "Reference",
+    "index": "index.md",
+    "template": "../page-template.html",
+    "metaTags": [
+        {"name": "keywords", "content": "reference,pcms,cms"},
+        {"name": "description", "content": "pcms reference"}
+    ],
+    "order": 6
+}

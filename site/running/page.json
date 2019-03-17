@@ -1,0 +1,11 @@
+{
+    "title": "running",
+    "shortTitle": "Running the site",
+    "index": "index.md",
+    "template": "../page-template.html",
+    "metaTags": [
+        {"name": "keywords", "content": "running,pcms,cms"},
+        {"name": "description", "content": "Running the site"}
+    ],
+    "order": 5
+}

@@ -1,0 +1,11 @@
+{
+    "title": "architecture",
+    "shortTitle": "Architecture",
+    "index": "index.md",
+    "template": "../page-template.html",
+    "metaTags": [
+        {"name": "keywords", "content": "architecture,pcms,cms"},
+        {"name": "description", "content": "System and Software architecture of pcms"}
+    ],
+    "order": 4
+}

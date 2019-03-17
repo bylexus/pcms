@@ -1,0 +1,11 @@
+{
+    "title": "requirements",
+    "shortTitle": "Requirements",
+    "index": "index.md",
+    "template": "../page-template.html",
+    "metaTags": [
+        {"name": "keywords", "content": "requirements,pcms,cms"},
+        {"name": "description", "content": "Requirements of running pcms"}
+    ],
+    "order": 2
+}
