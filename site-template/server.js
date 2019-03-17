@@ -1,7 +1,5 @@
 const server = require('pcms');
 const path = require('path');
-
-// Read the site's config file: This is needed by the server.
 const debug = require('debug')('server');
 
 /**
