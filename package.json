@@ -1,6 +1,6 @@
 {
     "name": "pcms",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "description": "The Programmer's CMS - clutter-free, code-centric, developer-friendly page delivery system",
     "author": "Alexander Schenkel <alex@alexi.ch>",
     "license": "MIT",
