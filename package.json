@@ -11,12 +11,15 @@
     },
     "homepage": "https://github.com/bylexus/pcms",
     "bin": {
-        "pcms-generate": "./generate.js"
+        "pcms-generate": "./generate.js",
+        "pcms-password": "./bcrypt-password.js"
     },
     "engines": {
         "node": ">=10"
     },
     "dependencies": {
+        "basic-auth": "^2.0.1",
+        "bcrypt": "^3.0.6",
         "compression": "^1.7.4",
         "debug": "^4.1.1",
         "express": "^4.17.1",
