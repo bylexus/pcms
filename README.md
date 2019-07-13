@@ -15,6 +15,7 @@ Features
 * serves HTML and markdown (which is rendered to HTML, too :-))
 * Uses [Nunjucks](https://mozilla.github.io/nunjucks) for html/markdown files to create pages based on templates
 * separates theme / layout from content
+* Support for restricted pages using basic authentication
 
 Getting Started
 -----------------
