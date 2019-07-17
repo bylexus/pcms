@@ -1,6 +1,6 @@
 {
     "name": "pcms-doc",
-    "version": "0.0.1",
+    "version": "0.2.0",
     "description": "Documentation page for pcms",
     "main": "server.js",
     "scripts": {
@@ -11,7 +11,7 @@
     "author": "Alexander Schenkel <alex@alexi.ch>",
     "license": "MIT",
     "dependencies": {
-        "pcms": "git+https://github.com/bylexus/pcms.git"
+        "pcms": "^0.2.0"
     },
     "devDependencies": {
         "nodemon": "^1.18.10",

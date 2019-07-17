@@ -1,9 +1,6 @@
 const server = require('pcms');
 const path = require('path');
 
-// Read the site's config file: This is needed by the server.
-const debug = require('debug')('server');
-
 /**
  * Start the server, which is an expressjs app. You can get the express app instance if you
  * need to configure things in advance:
@@ -15,8 +12,8 @@ server
     // about your directory origin:
     .start(path.join(__dirname, 'site-config.json'))
     .then(app => {
-        debug(`Site is now serving at port: ${app.serverConfig.siteConfig.port}`);
+        console.log(`Site is now serving at port: ${app.serverConfig.siteConfig.port}`);
     })
     .catch(err => {
-        debug('ERROR: ', err);
+        console.error('ERROR: ', err);
     });
