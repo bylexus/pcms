@@ -11,6 +11,7 @@ import (
 
 	"alexi.ch/pcms/src/model"
 	"alexi.ch/pcms/src/webserver"
+	"github.com/flosch/pongo2/v4"
 	"gopkg.in/yaml.v3"
 )
 
@@ -88,6 +89,14 @@ func createRouteFromRelPath(relPath string, config *model.Config) string {
 	return route
 }
 
+func configPongoTemplatePathLoader(conf *model.Config) {
+	loader, err := pongo2.NewLocalFileSystemLoader(conf.Site.GetTemplatePath())
+	if err != nil {
+		log.Panic(err)
+	}
+	pongo2.DefaultSet.AddLoader(loader)
+}
+
 /**
  * Step 1: Startup:
  * - Read config from yaml file in same dir as bin
@@ -131,6 +140,7 @@ func main() {
 		}
 		config.Site.ThemePath = absThemePath
 	}
+	configPongoTemplatePathLoader(&config)
 
 	pages = make(model.PageMap)
 
@@ -143,8 +153,6 @@ func main() {
 		Dir:   config.Site.ThemePath,
 	}
 	pages.BuildPageTree()
-
-	log.Printf("%v", pages)
 
 	h := &webserver.RequestHandler{
 		ServerConfig: &config,

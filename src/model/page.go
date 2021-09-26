@@ -24,6 +24,7 @@ type Page struct {
 	Dir        string
 	Metadata   Metadata
 	Parent     *Page
+	Template   string
 	Children   []*Page
 }
 
@@ -43,6 +44,11 @@ func (p *Page) ExtractKnownMetadata(meta Metadata) {
 	p.IndexFile, present = meta["index"].(string)
 	if present != true {
 		p.IndexFile = "index.html"
+	}
+
+	p.Template, present = meta["template"].(string)
+	if present != true {
+		p.Template = "index.html"
 	}
 
 	ext := filepath.Ext(p.IndexFile)

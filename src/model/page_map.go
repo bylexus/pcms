@@ -12,6 +12,11 @@ type PageMap map[string]*Page
 
 var rootPage *Page = nil
 
+/**
+ * Creates a tree structure from the flat page map. Note that
+ * the actual PageMap ist NOT reset: if this function is called twice,
+ * it will append an already inserted child again.
+ */
 func (pm *PageMap) BuildPageTree() {
 	rootPage = nil
 	// build tree:
@@ -33,6 +38,11 @@ func (pm *PageMap) BuildPageTree() {
 	}
 }
 
+/**
+ * Sorts the page.Children entries in-place according to their Metadata.order property.
+ * It can sort them if all childs use the same data type (strings, int, float64 supported).
+ * If this is not the case, the childs are just let unsorted.
+ */
 func sortChildsByOrderMeta(page *Page) {
 	sort.Slice(page.Children, func(i, j int) bool {
 		c1 := page.Children[i]
@@ -68,6 +78,12 @@ func sortChildsByOrderMeta(page *Page) {
 	})
 }
 
+/**
+ * Returns the (cached) root page, that is the (hopefully) only page without a parent.
+ *
+ * Note that if you modify the page map, you have to clear the rootPage pointer first. It is
+ * used to cache the actual rootPage of the tree.
+ */
 func (pm *PageMap) GetRootPage() *Page {
 	if rootPage == nil {
 		for _, page := range *pm {
@@ -80,6 +96,10 @@ func (pm *PageMap) GetRootPage() *Page {
 	return rootPage
 }
 
+/**
+ * Returns the nearest parent page for a given route string.
+ * returns nil + error if not found.
+ */
 func (pm *PageMap) FindMatchingRoute(routePath string) (*Page, error) {
 	for parts := strings.Split(routePath, "/"); len(parts) > 0; parts = parts[:len(parts)-1] {
 		partialRoute := strings.Join(parts, "/")

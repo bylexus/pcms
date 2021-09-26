@@ -3,6 +3,7 @@ package webserver
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -91,39 +92,71 @@ func (h *RequestHandler) renderPage(page *model.Page, w http.ResponseWriter, req
 	}
 	switch page.Type {
 	case model.PAGE_TYPE_HTML:
-		content, err = h.renderTemplate(page, &content)
-		if err != nil {
-			h.errorHandler(w, err, http.StatusInternalServerError)
-		}
-		w.Write(content)
+		h.renderHtmlPageContent(page, w, req, &content)
+	case model.PAGE_TYPE_MARKDOWN:
+		h.renderMarkdownPageContent(page, w, req, &content)
+
 	default:
 		w.Write([]byte(fmt.Sprintf("Not yet implemented - page type %v", page.Type)))
 	}
 }
 
-var templateLoaderAdded bool = false
-
-func (h *RequestHandler) renderTemplate(page *model.Page, content *[]byte) ([]byte, error) {
-	if templateLoaderAdded != true {
-		loader, err3 := pongo2.NewLocalFileSystemLoader(filepath.Join(h.ServerConfig.Site.ThemePath, "templates"))
-		if err3 != nil {
-			return nil, err3
-		}
-		pongo2.DefaultSet.AddLoader(loader)
-		templateLoaderAdded = true
+func (h *RequestHandler) renderHtmlPageContent(page *model.Page, w http.ResponseWriter, req *http.Request, content *[]byte) {
+	result, err := h.renderTemplateFromBytes(page, content, pongo2.Context{})
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
 	}
+	w.Write(result)
+}
 
+func (h *RequestHandler) renderMarkdownPageContent(page *model.Page, w http.ResponseWriter, req *http.Request, content *[]byte) {
+	// markdown uses a html template, which has to be set in the "Metadata.template" page property
+	template, ok := page.Metadata["template"].(string)
+	if ok {
+		// content is the markdown content of the page
+		result, err := h.renderTemplateFromBytes(page, content, pongo2.Context{})
+		if err != nil {
+			h.errorHandler(w, err, http.StatusInternalServerError)
+		}
+		// template content is the html template, filled with the result from the content rendering above:
+		templateContent, err := h.renderTemplateFromFile(page, template, pongo2.Context{"content": string(result)})
+		if err != nil {
+			h.errorHandler(w, err, http.StatusInternalServerError)
+		}
+		w.Write(templateContent)
+	}
+}
+
+func (h *RequestHandler) getTemplatePath() string {
+	return filepath.Join(h.ServerConfig.Site.ThemePath, "templates")
+}
+
+func (h *RequestHandler) renderTemplateFromFile(page *model.Page, templateFile string, context pongo2.Context) ([]byte, error) {
+	tpl, err := pongo2.FromFile(templateFile)
+	if err != nil {
+		return nil, err
+	}
+	return h.renderTemplate(page, tpl, context)
+}
+
+func (h *RequestHandler) renderTemplateFromBytes(page *model.Page, content *[]byte, context pongo2.Context) ([]byte, error) {
 	tpl, err := pongo2.FromBytes(*content)
 	if err != nil {
 		return nil, err
 	}
-	out, err2 := tpl.ExecuteBytes(pongo2.Context{
+	return h.renderTemplate(page, tpl, context)
+}
+
+func (h *RequestHandler) renderTemplate(page *model.Page, template *pongo2.Template, context pongo2.Context) ([]byte, error) {
+	finalContext := pongo2.Context{
 		"site":     h.ServerConfig.Site,
 		"page":     page,
 		"rootPage": h.Pages.GetRootPage(),
 		"base":     h.ServerConfig.Site.Webroot,
 		"meta":     page.Metadata["metaTags"],
-	})
+	}
+	finalContext.Update(context)
+	out, err2 := template.ExecuteBytes(finalContext)
 
 	rp := h.Pages.GetRootPage()
 	fmt.Print(rp.Title)
@@ -158,30 +191,31 @@ func (h *RequestHandler) deliverStaticFile(route string, page *model.Page, w htt
 	}
 
 	// If the route points to a regular file, deliver ite:
-	finfo, err2 := os.Stat(filePath)
-	if err2 != nil {
-		h.errorHandler(w, err2, 404)
+	finfo, err := os.Stat(filePath)
+	if err != nil {
+		h.errorHandler(w, err, 404)
 		return
 	}
 	if finfo.Mode().IsRegular() {
-		mtype, err4 := h.findMimeType(filePath)
-		if err4 == nil {
+		mtype, err := h.findMimeType(filePath)
+		if err == nil {
 			w.Header().Add("Content-Type", mtype)
 		}
-		// TODO: stream file content instead of read it all
-		content, err4 := ioutil.ReadFile(filePath)
-		if err4 != nil {
-			h.errorHandler(w, err4, 500)
+		// stream file content instead of read it all
+		fh, err := os.Open(filePath)
+		if err != nil {
+			h.errorHandler(w, err, 500)
 			return
 		}
-		// w.Write([]byte(fmt.Sprintf("URL Path: %v\n", req.URL.Path)))
-		// w.Write([]byte(fmt.Sprintf("URL Query: %v\n", req.URL.Query())))
-		// w.Write([]byte(fmt.Sprintf("RequestURI: %v\n", req.RequestURI)))
-		// w.Write([]byte(fmt.Sprintf("Request URL: %v\n", req.URL)))
-		// w.Write([]byte(fmt.Sprintf("Found page: %v\n", page.Route)))
-		// w.Write([]byte(fmt.Sprintf("   Title: %s\n", page.Title)))
-
-		w.Write(content)
+		defer fh.Close()
+		buffer := make([]byte, 8192)
+		for {
+			count, err := fh.Read(buffer)
+			if err == io.EOF {
+				break
+			}
+			w.Write(buffer[:count])
+		}
 	} else {
 		h.errorHandler(w, errors.New("Not found"), 404)
 		return

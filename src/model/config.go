@@ -1,5 +1,7 @@
 package model
 
+import "path/filepath"
+
 type ServerConfig struct {
 	Listen string
 }
@@ -11,6 +13,10 @@ type SiteConfig struct {
 	ThemePath string
 	Webroot   string
 	MetaTags  []Metadata `yaml:"metaTags"`
+}
+
+func (c *SiteConfig) GetTemplatePath() string {
+	return filepath.Join(c.ThemePath, "templates")
 }
 
 type Config struct {
