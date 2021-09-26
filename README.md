@@ -35,6 +35,8 @@ and is meant as a learning project for myself.
 * builds page structure in memory
 * watches for changes, rebuilds the page structure on the fly without restart
 * configurable 404 page
+* support some real webserver features:
+  * Range header to seek / stream files
 * support all today's server config and page.json config, see https://pcms.alexi.ch/reference
 
 
@@ -63,3 +65,4 @@ needs to be changed:
 * changes to special functions / filters:
   * `{% now %}` is now a Django Tag, but with a twist: its date format is that from the golang time format specification.
     So instead of `{% now "Y" %}` it is now `{% now "2006" %}`.
+  * `{% for in in data | reverse %}` now becomes ´{% for in in data reversed %}`
