@@ -12,6 +12,7 @@ import (
 
 	"github.com/flosch/pongo2/v4"
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/russross/blackfriday/v2"
 
 	"alexi.ch/pcms/src/model"
 )
@@ -101,6 +102,13 @@ func (h *RequestHandler) renderPage(page *model.Page, w http.ResponseWriter, req
 	}
 }
 
+/**
+ * Does the rendering for a html page content. 'content' is the raw content read by the
+ * page's index file. It is rendered using the pongo template engine, to
+ * fill in the placeholder.
+ *
+ * Outputs the result using the given response writer.
+ */
 func (h *RequestHandler) renderHtmlPageContent(page *model.Page, w http.ResponseWriter, req *http.Request, content *[]byte) {
 	result, err := h.renderTemplateFromBytes(page, content, pongo2.Context{})
 	if err != nil {
@@ -109,6 +117,19 @@ func (h *RequestHandler) renderHtmlPageContent(page *model.Page, w http.Response
 	w.Write(result)
 }
 
+/**
+ * Does the rendering for a Markdown page content. 'content' is the raw Markdown content read by the
+ * page's index file.
+ *
+ * Markdown is rendered in the following steps:
+ * 1. the Markdown file is read from the Page's index property and processed with
+ *    the pongo template engine
+ * 2. Then HTML is generated from it
+ * 3. The page's html template (Metadata.template property) is load and also parsed using pongo,
+ *    in addition with the rendered Markdown html in the "content" context variable
+ *
+ * Outputs the result using the given response writer.
+ */
 func (h *RequestHandler) renderMarkdownPageContent(page *model.Page, w http.ResponseWriter, req *http.Request, content *[]byte) {
 	// markdown uses a html template, which has to be set in the "Metadata.template" page property
 	template, ok := page.Metadata["template"].(string)
@@ -118,6 +139,7 @@ func (h *RequestHandler) renderMarkdownPageContent(page *model.Page, w http.Resp
 		if err != nil {
 			h.errorHandler(w, err, http.StatusInternalServerError)
 		}
+		result = blackfriday.Run(result)
 		// template content is the html template, filled with the result from the content rendering above:
 		templateContent, err := h.renderTemplateFromFile(page, template, pongo2.Context{"content": string(result)})
 		if err != nil {
@@ -127,10 +149,12 @@ func (h *RequestHandler) renderMarkdownPageContent(page *model.Page, w http.Resp
 	}
 }
 
-func (h *RequestHandler) getTemplatePath() string {
-	return filepath.Join(h.ServerConfig.Site.ThemePath, "templates")
-}
-
+/**
+ * Takes a template file name and a partial pongo context, then renders the
+ * template. The template file is searched using its configured loaders.
+ *
+ * Returns the rendered content as byte array.
+ */
 func (h *RequestHandler) renderTemplateFromFile(page *model.Page, templateFile string, context pongo2.Context) ([]byte, error) {
 	tpl, err := pongo2.FromFile(templateFile)
 	if err != nil {
@@ -139,6 +163,12 @@ func (h *RequestHandler) renderTemplateFromFile(page *model.Page, templateFile s
 	return h.renderTemplate(page, tpl, context)
 }
 
+/**
+ * Takes a byte array and a partial pongo context, then renders the
+ * content using pongo.
+ *
+ * Returns the rendered content as byte array.
+ */
 func (h *RequestHandler) renderTemplateFromBytes(page *model.Page, content *[]byte, context pongo2.Context) ([]byte, error) {
 	tpl, err := pongo2.FromBytes(*content)
 	if err != nil {
@@ -147,6 +177,12 @@ func (h *RequestHandler) renderTemplateFromBytes(page *model.Page, content *[]by
 	return h.renderTemplate(page, tpl, context)
 }
 
+/**
+ * Renders a pongo template with the given partial pongo context. The context is
+ * enriched with the data below, so the context is meant to provide additional data, if needed.
+
+ * Returns the rendered content as byte array.
+ */
 func (h *RequestHandler) renderTemplate(page *model.Page, template *pongo2.Template, context pongo2.Context) ([]byte, error) {
 	finalContext := pongo2.Context{
 		"site":     h.ServerConfig.Site,
