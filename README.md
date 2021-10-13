@@ -11,28 +11,28 @@ love to code, also while producing content.
 
 * simple, fast, node-based page delivery system. No database needed, file-based only.
 * serves HTML and markdown (which is rendered to HTML, too :-))
-* Uses _TODO: DEFINE_ for html/markdown files to create pages based on templates
+* Uses [pongo template engine, a django-like template engine](https://github.com/flosch/pongo2) for html/markdown files to create pages based on templates
 * separates theme / layout from content
 * Support for restricted pages using basic authentication
 
 ## Project Status
 
-This is a rewrite of the existing pcms source, which is in JavaScript: This project is written in GO,
+This is a rewrite of the existing pcms source, which is in JavaScript: This project is now re-written in GO,
 and is meant as a learning project for myself.
 
 ### TODOs, Requirements to the Go App
 
-* Write my own Webserver in GO
+* + Write my own Webserver in GO
 * Logging: both request and application logging to files
 * read config from .env file or similar
-* supports html and markdown as templates
-* prepares the templates by using a template engine to apply the final output
-* supports themes - aka different base layouts 
-* supports the existing pcms structure: 
+* + supports html and markdown as templates
+* + prepares the templates by using a template engine to apply the final output
+* + supports themes - aka different base layouts 
+* + supports the existing pcms structure: 
   * a folder with page.json config and content represents a page
   * sub-folders / files are served statically, or as sub-page
 * supports route/folder authentication (basic auth)
-* builds page structure in memory
+* + builds page structure in memory
 * watches for changes, rebuilds the page structure on the fly without restart
 * configurable 404 page
 * support some real webserver features:
@@ -57,7 +57,8 @@ needs to be changed:
   * `page.pageConfig` ==> `page.Metadata`
     * No default metadata anymore: `page.Metadata.enabled` is NOT true by default anymore, only if explicitely set
   * `page.childPages` ==> `page.Children`
-* `route` ==> `page.route`
+  * `page.childPagesByRoute[routestr]` ==> `page.ChildPageByRoute(routeStr)`
+* `route` ==> `page.Route`
 * `rootPage`: see `page` (same object)
 * Changes on the `site` object:
   * in general: All properties are `Uppercased`:

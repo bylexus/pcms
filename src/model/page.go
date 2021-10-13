@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"path"
 	"path/filepath"
 )
@@ -84,4 +85,13 @@ func (p *Page) IsPageRoute(route string) bool {
 		return true
 	}
 	return false
+}
+
+func (p *Page) ChildPageByRoute(route string) (*Page, error) {
+	for _, page := range p.Children {
+		if route == page.Route {
+			return page, nil
+		}
+	}
+	return nil, errors.New("Child page not found")
 }

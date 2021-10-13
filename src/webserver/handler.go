@@ -26,6 +26,11 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	route := getRoute(req, h.ServerConfig)
 	page, err := h.findMatchingRoute(route)
 	if page != nil {
+		// do not deliver content from disabled pages:
+		if enabled, present := page.Metadata["enabled"]; present && enabled.(bool) == false {
+			h.errorHandler(w, errors.New("Page not found"), 404)
+			return
+		}
 
 		if page.IsPageRoute(route) {
 			// deliver page itself
