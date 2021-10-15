@@ -13,6 +13,7 @@ type SiteConfig struct {
 	ThemePath string
 	Webroot   string
 	MetaTags  []Metadata `yaml:"metaTags"`
+	Users     map[string]string
 }
 
 func (c *SiteConfig) GetTemplatePath() string {

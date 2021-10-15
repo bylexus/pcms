@@ -24,14 +24,15 @@ and is meant as a learning project for myself.
 
 * + Write my own Webserver in GO
 * Logging: both request and application logging to files
-* read config from .env file or similar
+* + read config from .env file or similar
 * + supports html and markdown as templates
 * + prepares the templates by using a template engine to apply the final output
 * + supports themes - aka different base layouts 
 * + supports the existing pcms structure: 
-  * a folder with page.json config and content represents a page
-  * sub-folders / files are served statically, or as sub-page
-* supports route/folder authentication (basic auth)
+  * + a folder with page.json config and content represents a page
+  * + sub-folders / files are served statically, or as sub-page
+* + supports route/folder authentication (basic auth)
+  * add rate limiting for auth requests, to prevent brute-force attacks
 * + builds page structure in memory
 * watches for changes, rebuilds the page structure on the fly without restart
 * configurable 404 page

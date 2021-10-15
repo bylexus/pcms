@@ -95,3 +95,12 @@ func (p *Page) ChildPageByRoute(route string) (*Page, error) {
 	}
 	return nil, errors.New("Child page not found")
 }
+
+// Checks if a page must be protected (by an authentication mechanism)
+// to be accessed.
+func (p *Page) IsProtected() bool {
+	if _, present := p.Metadata["requiredUsers"]; present == true {
+		return true
+	}
+	return false
+}

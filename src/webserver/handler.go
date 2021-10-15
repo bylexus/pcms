@@ -13,6 +13,7 @@ import (
 	"github.com/flosch/pongo2/v4"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/russross/blackfriday/v2"
+	"golang.org/x/crypto/bcrypt"
 
 	"alexi.ch/pcms/src/model"
 )
@@ -30,6 +31,13 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		if enabled, present := page.Metadata["enabled"]; present && enabled.(bool) == false {
 			h.errorHandler(w, errors.New("Page not found"), 404)
 			return
+		}
+
+		if page.IsProtected() {
+			ok := h.handleBasicAuth(page, w, req)
+			if !ok {
+				return
+			}
 		}
 
 		if page.IsPageRoute(route) {
@@ -261,4 +269,77 @@ func (h *RequestHandler) deliverStaticFile(route string, page *model.Page, w htt
 		h.errorHandler(w, errors.New("Not found"), 404)
 		return
 	}
+}
+
+// Checks and handles the basic auth mechanism for a given page.
+// The golang mechanism is taken from the following blog:
+// https://www.alexedwards.net/blog/basic-authentication-in-go
+//
+// If the authentication was successful, then true is returned.
+// If not, then a 401 is returned and the WWW-Authenticate header is set,
+// while returning false to indicate a failure.
+func (r *RequestHandler) handleBasicAuth(page *model.Page, w http.ResponseWriter, req *http.Request) bool {
+	username, password, ok := req.BasicAuth()
+	if ok {
+		pageUsers := getPageUsers(page)
+		ok := r.validateLogin(username, password, pageUsers)
+		if ok {
+			return true
+		}
+	}
+
+	w.Header().Add("WWW-Authenticate", `Basic realm="Restricted Area", charset="UTF-8"`)
+	r.errorHandler(w, errors.New("Unauthorized"), http.StatusUnauthorized)
+	return false
+}
+
+// Validates a username / password pair:
+// - username must be present in pageUsers (or be 'valid-user').
+// - then the username/password pair must match an entry in the server's site config (requiredUsers)
+// returns true if ok, false if not.
+func (r *RequestHandler) validateLogin(username string, password string, pageUsers []string) bool {
+	configUsers := r.ServerConfig.Site.Users
+	expectedPassword := "noop"
+	present := false
+
+	// check if the given username is a valid user for the page:
+	for _, pageUser := range pageUsers {
+		if pageUser == "valid-user" || pageUser == username {
+			present = true
+			break
+		}
+	}
+	if !present {
+		return false
+	}
+
+	// OK so far, so now validate the username / password
+	configPassword, present := configUsers[username]
+	if present {
+		expectedPassword = configPassword
+	}
+
+	// compare the password in any case, even if not present in usertable,
+	// to generate the same timing for all tries (to prevent timing attacks)
+	err := bcrypt.CompareHashAndPassword([]byte(expectedPassword), []byte(password))
+	if err == nil {
+		return true
+	}
+
+	return false
+}
+
+func getPageUsers(page *model.Page) []string {
+	extractedUsers := make([]string, 0)
+	users, ok := page.Metadata["requiredUsers"]
+
+	if ok {
+		users, ok := users.([]interface{})
+		if ok {
+			for _, user := range users {
+				extractedUsers = append(extractedUsers, user.(string))
+			}
+		}
+	}
+	return extractedUsers
 }
