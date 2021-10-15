@@ -86,7 +86,7 @@ func main() {
 
 	h := &webserver.RequestHandler{
 		ServerConfig: &config,
-		Pages:        pageBuilder.GetPages(),
+		PageMap:      pageBuilder.GetPageMap(),
 	}
 	server := &http.Server{
 		Addr:    ":3000",

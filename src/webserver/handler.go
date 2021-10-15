@@ -20,7 +20,7 @@ import (
 
 type RequestHandler struct {
 	ServerConfig *model.Config
-	Pages        *model.PageMap
+	PageMap      *model.PageMap
 }
 
 func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -73,7 +73,7 @@ func (h *RequestHandler) errorHandler(w http.ResponseWriter, err error, status i
 }
 
 func (h *RequestHandler) findMatchingRoute(routePath string) (*model.Page, error) {
-	return h.Pages.FindMatchingRoute(routePath)
+	return h.PageMap.FindMatchingRoute(routePath)
 }
 
 func (h *RequestHandler) findMimeType(file string) (string, error) {
@@ -200,14 +200,14 @@ func (h *RequestHandler) renderTemplate(page *model.Page, template *pongo2.Templ
 	finalContext := pongo2.Context{
 		"site":     h.ServerConfig.Site,
 		"page":     page,
-		"rootPage": h.Pages.GetRootPage(),
+		"rootPage": h.PageMap.RootPage,
 		"base":     h.ServerConfig.Site.Webroot,
 		"meta":     page.Metadata["metaTags"],
 	}
 	finalContext.Update(context)
 	out, err2 := template.ExecuteBytes(finalContext)
 
-	rp := h.Pages.GetRootPage()
+	rp := h.PageMap.RootPage
 	fmt.Print(rp.Title)
 
 	if err2 != nil {

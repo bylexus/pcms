@@ -7,9 +7,18 @@ import (
 	"strings"
 )
 
-type PageMap map[string]*Page
+// type PageMap map[string]*Page
+type PageMap struct {
+	PagesByRoute map[string]*Page
+	RootPage     *Page
+}
 
-var rootPage *Page = nil
+func NewPageMap() PageMap {
+	return PageMap{
+		PagesByRoute: make(map[string]*Page),
+		RootPage:     nil,
+	}
+}
 
 /**
  * Creates a tree structure from the flat page map. Note that
@@ -17,9 +26,9 @@ var rootPage *Page = nil
  * it will append an already inserted child again.
  */
 func (pm *PageMap) BuildPageTree() {
-	rootPage = nil
+	pm.RootPage = nil
 	// build tree:
-	for _, page := range *pm {
+	for _, page := range pm.PagesByRoute {
 		parentPage, _ := pm.FindMatchingRoute(filepath.Dir(page.Route))
 		if parentPage != nil && parentPage != page {
 			page.Parent = parentPage
@@ -28,11 +37,11 @@ func (pm *PageMap) BuildPageTree() {
 	}
 
 	// sort children by their Metadata.order property:
-	for _, page := range *pm {
+	for _, page := range pm.PagesByRoute {
 		sortChildsByOrderMeta(page)
 	}
 
-	rootPage = pm.GetRootPage()
+	pm.RootPage = pm.findRootPage()
 }
 
 /**
@@ -81,16 +90,13 @@ func sortChildsByOrderMeta(page *Page) {
  * Note that if you modify the page map, you have to clear the rootPage pointer first. It is
  * used to cache the actual rootPage of the tree.
  */
-func (pm *PageMap) GetRootPage() *Page {
-	if rootPage == nil {
-		for _, page := range *pm {
-			if page.Parent == nil {
-				rootPage = page
-				break
-			}
+func (pm *PageMap) findRootPage() *Page {
+	for _, page := range pm.PagesByRoute {
+		if page.Parent == nil {
+			return page
 		}
 	}
-	return rootPage
+	return nil
 }
 
 /**
@@ -103,7 +109,7 @@ func (pm *PageMap) FindMatchingRoute(routePath string) (*Page, error) {
 		if partialRoute == "" {
 			partialRoute = "/"
 		}
-		page, _ := (*pm)[partialRoute]
+		page, _ := pm.PagesByRoute[partialRoute]
 		if page != nil {
 			return page, nil
 		}

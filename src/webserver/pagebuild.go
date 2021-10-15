@@ -10,26 +10,32 @@ import (
 	"alexi.ch/pcms/src/model"
 )
 
+// The PageBuilder's responsibility is to
+// create a Page Map (a map of routes to page objects)
+// from the filesystem structure.
+// The PageMap represents a map between an URL route (e.g. '/projects') and a (parent) page.
 type PageBuilder struct {
-	pages *model.PageMap
+	pageMap *model.PageMap
 }
 
+// Creates a new PageBuilder struct, initializing the Page Map memory
 func NewPageBuilder() PageBuilder {
+	pm := model.NewPageMap()
 	return PageBuilder{
-		pages: &model.PageMap{},
+		pageMap: &pm,
 	}
 }
 
 func (pb *PageBuilder) BuildPageTree() {
-	pb.pages.BuildPageTree()
+	pb.pageMap.BuildPageTree()
 }
 
 func (pb *PageBuilder) AddPage(route string, page *model.Page) {
-	(*pb.pages)[route] = page
+	pb.pageMap.PagesByRoute[route] = page
 }
 
-func (pb *PageBuilder) GetPages() *model.PageMap {
-	return pb.pages
+func (pb *PageBuilder) GetPageMap() *model.PageMap {
+	return pb.pageMap
 }
 
 func (pb *PageBuilder) createPage(route string, dir string) (*model.Page, error) {
@@ -76,7 +82,7 @@ func (pb *PageBuilder) ExaminePageDir(rootDir string, config *model.Config) erro
 			log.Printf("Page Route: %s", route)
 			page, err2 := pb.createPage(route, dir)
 			if page != nil && err2 == nil {
-				(*pb.pages)[route] = page
+				pb.AddPage(route, page)
 			}
 		}
 
