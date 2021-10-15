@@ -39,9 +39,19 @@ and is meant as a learning project for myself.
 * support some real webserver features:
   * Range header to seek / stream files
 * support all today's server config and page.json config, see https://pcms.alexi.ch/reference
+* cmd line sub-commands:
+  * `serve` to start the web server
+  * `hash` to hash a password for entering in the config file
+  * `reload` to signal a reload to a running process
+  * `build` to build a static build of the web page
 
+### Migrating from pcms V1 (nodejs) to V2 (Golang)
 
-### Migrating nunjucks templates from pcms V1
+Becuase V2 is a complete re-write, there are some breaking changes you need to consider and adapt:
+
+* bcrypt password format: The used GO bcrypt library uses another algorithm than the previously used JavaScript libraray. So you have to re-generate all of your passwords. Sorry.
+
+#### Migrating nunjucks templates from pcms V1
 
 pcms-go uses [pongo](https://pkg.go.dev/github.com/flosch/pongo2/v4@v4.0.2) instead of nunjucks as a template engine.
 Therefore, and for the fact that I changed from nodejs to golang, there are several changes for the templates.

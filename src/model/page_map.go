@@ -2,7 +2,6 @@ package model
 
 import (
 	"errors"
-	"log"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -20,15 +19,11 @@ var rootPage *Page = nil
 func (pm *PageMap) BuildPageTree() {
 	rootPage = nil
 	// build tree:
-	for route, page := range *pm {
-		log.Printf("Finding parent for %s\n", route)
+	for _, page := range *pm {
 		parentPage, _ := pm.FindMatchingRoute(filepath.Dir(page.Route))
 		if parentPage != nil && parentPage != page {
 			page.Parent = parentPage
 			parentPage.Children = append(parentPage.Children, page)
-			log.Printf("    found parent: %s\n", parentPage.Route)
-		} else {
-			log.Print("    found no parent.\n")
 		}
 	}
 
@@ -36,6 +31,8 @@ func (pm *PageMap) BuildPageTree() {
 	for _, page := range *pm {
 		sortChildsByOrderMeta(page)
 	}
+
+	rootPage = pm.GetRootPage()
 }
 
 /**

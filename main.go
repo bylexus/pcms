@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"io/fs"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,80 +12,6 @@ import (
 	"github.com/flosch/pongo2/v4"
 	"gopkg.in/yaml.v3"
 )
-
-var pages model.PageMap
-
-func createPage(route string, dir string) (*model.Page, error) {
-	page := model.Page{
-		Route: route,
-		Dir:   dir,
-	}
-	pageJson, err := ioutil.ReadFile(page.PageJsonPath())
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	pageMeta := make(map[string]interface{})
-	err = json.Unmarshal(pageJson, &pageMeta)
-	if err != nil {
-		log.Println(err)
-		return nil, err
-	}
-	page.Metadata = pageMeta
-	page.ExtractKnownMetadata(pageMeta)
-
-	return &page, nil
-}
-
-func examinePageDir(rootDir string, pageMap *model.PageMap, config *model.Config) error {
-	var err error
-	rootDir, err = filepath.Abs(rootDir)
-
-	if err != nil {
-		return err
-	}
-
-	err = filepath.Walk(rootDir, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		path, err = filepath.Rel(rootDir, path)
-		if err != nil {
-			return filepath.SkipDir
-		}
-		if filepath.Base(path) == "page.json" {
-			route := createRouteFromRelPath(filepath.Dir(path), config)
-			dir := filepath.Join(rootDir, filepath.Dir(path))
-			log.Printf("Page Route: %s", route)
-			page, err2 := createPage(route, dir)
-			if page != nil && err2 == nil {
-				pages[route] = page
-			}
-		}
-
-		return nil
-	})
-	return err
-}
-
-/**
- * Creates a valid page route from a given site directory / file:
- */
-func createRouteFromRelPath(relPath string, config *model.Config) string {
-	if relPath == "." {
-		relPath = ""
-	}
-	route := "/" + relPath
-	if route == "/" {
-		route = ""
-	}
-	// we prepend the webroot from the config:
-	route = config.Site.Webroot + route
-	if route == "" {
-		route = "/"
-	}
-	return route
-}
 
 func configPongoTemplatePathLoader(conf *model.Config) {
 	loader, err := pongo2.NewLocalFileSystemLoader(conf.Site.GetTemplatePath())
@@ -103,7 +27,17 @@ func configPongoTemplatePathLoader(conf *model.Config) {
  */
 func main() {
 	// Read config from actual dir:
-	confFile, err := ioutil.ReadFile("pcms-config.yaml")
+	basePath, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+	conffilePath, err := filepath.Abs(filepath.Join(basePath, "pcms-config.yaml"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Reading config file: %v", conffilePath)
+
+	confFile, err := ioutil.ReadFile(conffilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -115,11 +49,6 @@ func main() {
 		Site: model.SiteConfig{
 			Theme: "default",
 		},
-	}
-
-	basePath, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	config.BasePath = basePath
@@ -142,21 +71,22 @@ func main() {
 	}
 	configPongoTemplatePathLoader(&config)
 
-	pages = make(model.PageMap)
+	pageBuilder := webserver.NewPageBuilder()
 
-	err = examinePageDir(config.Site.Path, &pages, &config)
+	err = pageBuilder.ExaminePageDir(config.Site.Path, &config)
 
 	// add theme route manually:
-	pages[config.Site.Webroot+"/theme"] = &model.Page{
+	pageBuilder.AddPage(config.Site.Webroot+"/theme", &model.Page{
 		Type:  model.PAGE_TYPE_THEME,
 		Route: config.Site.Webroot + "/theme",
 		Dir:   config.Site.ThemePath,
-	}
-	pages.BuildPageTree()
+	})
+
+	pageBuilder.BuildPageTree()
 
 	h := &webserver.RequestHandler{
 		ServerConfig: &config,
-		Pages:        &pages,
+		Pages:        pageBuilder.GetPages(),
 	}
 	server := &http.Server{
 		Addr:    ":3000",
