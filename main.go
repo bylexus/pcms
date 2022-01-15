@@ -6,16 +6,17 @@ import (
 	"os"
 	"path/filepath"
 
+	"alexi.ch/pcms/src/logging"
 	"alexi.ch/pcms/src/model"
 	"alexi.ch/pcms/src/webserver"
 )
 
-func createPageTree(config *model.Config) webserver.PageBuilder {
-	pageBuilder := webserver.NewPageBuilder()
+func createPageTree(config *model.Config, logger *logging.Logger) webserver.PageBuilder {
+	pageBuilder := webserver.NewPageBuilder(logger)
 
 	err := pageBuilder.ExaminePageDir(config.Site.Path, config)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err.Error())
 	}
 
 	// add theme route manually:
@@ -41,20 +42,35 @@ func main() {
 	}
 	config := model.NewConfig(conffilePath)
 
+	// setup logging:
+	accessLogger := logging.NewLogger(
+		config.Server.Logging.Access.File,
+		logging.DEBUG,
+		"{{message}}",
+	)
+	errorLogger := logging.NewLogger(
+		config.Server.Logging.Error.File,
+		logging.StrToLevel(config.Server.Logging.Error.Level),
+		"",
+	)
+	defer accessLogger.Close()
+	defer errorLogger.Close()
+
 	// create page tree:
-	pageBuilder := createPageTree(&config)
+	pageBuilder := createPageTree(&config, errorLogger)
 
 	// initialize web server:
 	h := &webserver.RequestHandler{
 		ServerConfig: &config,
 		PageMap:      pageBuilder.GetPageMap(),
+		ErrorLogger:  errorLogger,
 	}
 	server := &http.Server{
 		Addr:    ":3000",
-		Handler: h,
+		Handler: webserver.CreateAccessLoggerMiddleware(accessLogger, h),
 	}
 
-	log.Printf("Server starting, listening to %s\n", config.Server.Listen)
-	log.Printf("Serving site from %s\n", config.Site.Path)
-	log.Fatal(server.ListenAndServe())
+	errorLogger.Info("Server starting, listening to %s", config.Server.Listen)
+	errorLogger.Info("Serving site from %s", config.Site.Path)
+	errorLogger.Fatal(server.ListenAndServe().Error())
 }

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"io/fs"
 	"io/ioutil"
-	"log"
 	"path/filepath"
 
+	"alexi.ch/pcms/src/logging"
 	"alexi.ch/pcms/src/model"
 )
 
@@ -16,13 +16,15 @@ import (
 // The PageMap represents a map between an URL route (e.g. '/projects') and a (parent) page.
 type PageBuilder struct {
 	pageMap *model.PageMap
+	logger  *logging.Logger
 }
 
 // Creates a new PageBuilder struct, initializing the Page Map memory
-func NewPageBuilder() PageBuilder {
+func NewPageBuilder(logger *logging.Logger) PageBuilder {
 	pm := model.NewPageMap()
 	return PageBuilder{
 		pageMap: &pm,
+		logger:  logger,
 	}
 }
 
@@ -45,13 +47,13 @@ func (pb *PageBuilder) createPage(route string, dir string) (*model.Page, error)
 	}
 	pageJson, err := ioutil.ReadFile(page.PageJsonPath())
 	if err != nil {
-		log.Println(err)
+		pb.logger.Error(err.Error())
 		return nil, err
 	}
 	pageMeta := make(map[string]interface{})
 	err = json.Unmarshal(pageJson, &pageMeta)
 	if err != nil {
-		log.Println(err)
+		pb.logger.Error(err.Error())
 		return nil, err
 	}
 	page.Metadata = pageMeta
@@ -79,7 +81,7 @@ func (pb *PageBuilder) ExaminePageDir(rootDir string, config *model.Config) erro
 		if filepath.Base(path) == "page.json" {
 			route := pb.createRouteFromRelPath(filepath.Dir(path), config)
 			dir := filepath.Join(rootDir, filepath.Dir(path))
-			log.Printf("Page Route: %s", route)
+			pb.logger.Debug("Creating Page Route: %s", route)
 			page, err2 := pb.createPage(route, dir)
 			if page != nil && err2 == nil {
 				pb.AddPage(route, page)

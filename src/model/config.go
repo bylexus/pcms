@@ -10,7 +10,19 @@ import (
 )
 
 type ServerConfig struct {
-	Listen string
+	Listen  string
+	Logging LoggingConfig
+}
+
+type LoggingConfig struct {
+	Access LoggingConfigEntry
+	Error  LoggingConfigEntry
+}
+
+type LoggingConfigEntry struct {
+	File   string
+	Format string
+	Level  string
 }
 
 type SiteConfig struct {

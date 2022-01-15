@@ -35,6 +35,7 @@ and is meant as a learning project for myself.
   * add rate limiting for auth requests, to prevent brute-force attacks
 * + builds page structure in memory
 * watches for changes, rebuilds the page structure on the fly without restart
+* page cache - cache templates as pre-rendered html files
 * configurable 404 page
 * support some real webserver features:
   * Range header to seek / stream files
@@ -44,6 +45,7 @@ and is meant as a learning project for myself.
   * `hash` to hash a password for entering in the config file
   * `reload` to signal a reload to a running process
   * `build` to build a static build of the web page
+  * help for all commands
 
 ### Migrating from pcms V1 (nodejs) to V2 (Golang)
 

@@ -9,18 +9,35 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/flosch/pongo2/v4"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/russross/blackfriday/v2"
 	"golang.org/x/crypto/bcrypt"
 
+	"alexi.ch/pcms/src/logging"
 	"alexi.ch/pcms/src/model"
 )
 
 type RequestHandler struct {
 	ServerConfig *model.Config
 	PageMap      *model.PageMap
+	ErrorLogger  *logging.Logger
+}
+
+func NewRequestHandler(
+	config *model.Config,
+	pageMap *model.PageMap,
+	accessLogger *logging.Logger,
+	errorLogger *logging.Logger,
+) *RequestHandler {
+	r := RequestHandler{
+		ServerConfig: config,
+		PageMap:      pageMap,
+		ErrorLogger:  errorLogger,
+	}
+	return &r
 }
 
 func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -207,9 +224,6 @@ func (h *RequestHandler) renderTemplate(page *model.Page, template *pongo2.Templ
 	finalContext.Update(context)
 	out, err2 := template.ExecuteBytes(finalContext)
 
-	rp := h.PageMap.RootPage
-	fmt.Print(rp.Title)
-
 	if err2 != nil {
 		return nil, err2
 	}
@@ -342,4 +356,71 @@ func getPageUsers(page *model.Page) []string {
 		}
 	}
 	return extractedUsers
+}
+
+// Factory function to create a http.Handler middleware that logs all access.
+// Should be used when constructing the http server to act as a middleware between the
+// real request handler.
+func CreateAccessLoggerMiddleware(logger *logging.Logger, next http.Handler) http.Handler {
+	// TODO: missing:
+	// - last entry (-) should be response bytes
+	// - make it configurable in config
+	t, err := pongo2.FromString("{{clientIp}} - {{userId}} [{{time}}] {{httpMethod}} {{url}} {{protocol}} {{statusCode}} -")
+	if err != nil {
+		panic(err)
+	}
+
+	middleware := &AccessLoggerMiddleware{
+		AccessLogger:      logger,
+		AccessLogTemplate: t,
+	}
+
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		// replacing the original writer to use our own, to capture the HTTP status code:
+		loggingWriter := loggingResponseWriter{
+			rw, http.StatusOK,
+		}
+
+		next.ServeHTTP(&loggingWriter, r)
+		middleware.LogAccess(&loggingWriter, r)
+	})
+}
+
+type AccessLoggerMiddleware struct {
+	AccessLogTemplate *pongo2.Template
+	AccessLogger      *logging.Logger
+}
+
+func (l *AccessLoggerMiddleware) LogAccess(rw *loggingResponseWriter, req *http.Request) {
+	username, _, _ := req.BasicAuth()
+	if len(username) == 0 {
+		username = "-"
+	}
+	url := req.URL.String()
+	clientIp := req.RemoteAddr
+	now := time.Now().Format(time.RFC3339)
+	ctx := pongo2.Context{
+		"clientIp":   clientIp,
+		"userId":     username,
+		"time":       now,
+		"httpMethod": req.Method,
+		"url":        url,
+		"protocol":   req.Proto,
+		"statusCode": rw.StatusCode,
+	}
+	msg, err := l.AccessLogTemplate.Execute(ctx)
+	if err == nil {
+		l.AccessLogger.Info(msg)
+	}
+}
+
+// Used to capture status code when writing
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	StatusCode int
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.StatusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
 }
