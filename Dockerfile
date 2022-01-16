@@ -31,6 +31,7 @@ LABEL author="Alexander Schenkel <alex@alexi.ch>"
 EXPOSE 3000
 
 ENV PCMS_PATH /pcms
+ENV PATH "${PATH}:/pcms/bin"
 RUN mkdir -p ${PCMS_PATH}/bin ${PCMS_PATH}/doc/log ${PCMS_PATH}/site-template
 COPY --from=builder ${PCMS_PATH}/bin/pcms ${PCMS_PATH}/bin/pcms
 COPY site-template/ ${PCMS_PATH}/site-template/
@@ -43,4 +44,4 @@ RUN adduser -D -s /bin/sh -G pcms pcms
 USER pcms
 
 WORKDIR ${PCMS_PATH}/doc
-CMD ../bin/pcms
+CMD pcms

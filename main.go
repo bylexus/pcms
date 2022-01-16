@@ -53,6 +53,7 @@ func main() {
 		logging.StrToLevel(config.Server.Logging.Error.Level),
 		"",
 	)
+	log.Printf("Server is starting. System log goes to %s\n", errorLogger.Filepath)
 	defer accessLogger.Close()
 	defer errorLogger.Close()
 

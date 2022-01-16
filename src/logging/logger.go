@@ -3,6 +3,7 @@ package logging
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -54,6 +55,7 @@ func LevelToStr(level Level) string {
 }
 
 type Logger struct {
+	Filepath string
 	level    Level
 	file     *os.File
 	format   string
@@ -62,6 +64,7 @@ type Logger struct {
 
 func NewLogger(filename string, level Level, format string) *Logger {
 	var f *os.File
+	var fpath = ""
 	var err error
 	if len(format) == 0 {
 		format = defaultFormat()
@@ -69,9 +72,12 @@ func NewLogger(filename string, level Level, format string) *Logger {
 
 	if strings.ToLower(filename) == "stdout" {
 		f = os.Stdout
+		fpath = "STDOUT"
 	} else if strings.ToLower(filename) == "stderr" {
 		f = os.Stderr
+		fpath = "STDERR"
 	} else {
+		fpath, _ = filepath.Abs(filename)
 		f, err = os.OpenFile(filename, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
 			panic(err)
@@ -83,6 +89,7 @@ func NewLogger(filename string, level Level, format string) *Logger {
 	}
 
 	l := Logger{
+		Filepath: fpath,
 		level:    level,
 		file:     f,
 		format:   format,
