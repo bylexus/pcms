@@ -73,5 +73,7 @@ func main() {
 
 	errorLogger.Info("Server starting, listening to %s", config.Server.Listen)
 	errorLogger.Info("Serving site from %s", config.Site.Path)
+	log.Printf("Server starting, listening to %s\n", config.Server.Listen)
+	log.Printf("Serving site from %s\n", config.Site.Path)
 	errorLogger.Fatal(server.ListenAndServe().Error())
 }
