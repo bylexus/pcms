@@ -1,0 +1,11 @@
+{
+    "title": "features",
+    "shortTitle": "Features",
+    "index": "index.md",
+    "template": "page-template.html",
+    "metaTags": [
+        {"name": "keywords", "content": "features,feature list,pcms,cms"},
+        {"name": "description", "content": "Feature list of pcms"}
+    ],
+    "order": 1
+}

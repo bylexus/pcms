@@ -9,3 +9,7 @@ build:
 exec:
 	@GOBIN=$(GOBIN) $(run)
 
+serve-doc: build
+	$(shell cd $(GOBASE)/doc && $(GOBIN)/$(PROJECTNAME))
+
+

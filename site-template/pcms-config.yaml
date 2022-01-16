@@ -1,0 +1,34 @@
+# This is the pcms configuration file. It configures the whole system.
+server:
+  # listen address. This couls also be e.g. "localhost:3000"
+  listen: ":3000"
+  # Logging configuration: there are 2 diffenrent logs written:
+  logging:
+    # The access log: Logs all web access, like a webserver would.
+    # Define the file (or STDOUT/STDERR), and the format (TBD).
+    access:
+      file: STDOUT
+      format: ""
+    # The error, or system log. Define the file (or STDOUT/STDERR), and the max log level:
+    error:
+      file: STDERR
+      level: DEBUG
+
+# The site config defines all things about your site.
+site:
+  # webroot: If you don't serve your page from '/', define the webroot here.
+  webroot: 
+  # Choose the theme - this is a folder in themes/
+  theme: default
+  # Page title - can be used in your templates
+  title: alexi.ch - my digital home
+  # metaTags are available in your templates as {{site.MetaTags}}
+  metaTags:
+    - name: foo
+      content: bar
+    - name: moo
+      content: baz
+  # any part of your website that needs protection? Define users and
+  # bcrypt passwords here:
+  users:
+    alex: your-bcrypt-password

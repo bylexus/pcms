@@ -1,0 +1,11 @@
+{
+    "title": "quick start",
+    "shortTitle": "Quick Start",
+    "index": "index.md",
+    "template": "page-template.html",
+    "metaTags": [
+        {"name": "keywords", "content": "quick start,pcms,cms"},
+        {"name": "description", "content": "Quick start of running pcms"}
+    ],
+    "order": 3
+}

@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <title>{%if page.Metadata.Title %}{{page.Metadata.Title}} - {% endif%}{{ site.Title }}</title>
+        <link rel="icon" href="{{base}}/favicon.png" type="image/png">
+        {% for meta in site.metaTags %}
+        <meta name="{{meta.name}}" content="{{meta.content}}" />
+        {% endfor %}
+        {% for meta in page.Metadata.metaTags %}
+        <meta name="{{meta.name}}" content="{{meta.content}}" />
+        {% endfor %}
+
+        <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:300,400|Source+Sans+Pro:300,400" rel="stylesheet">
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/monokai.min.css">
+        <link rel="stylesheet" href="{{base}}/theme/static/css/main.css" />
+    </head>
+    <body>
+        <header>
+            <div class="title"><a href="{{base}}/"><i class="fas fa-pencil-ruler"></i> pcms documentation</a></div>
+            <div class="github"><a href="https://github.com/bylexus/pcms"><i class="fab fa-github"></i> checkout the source</a></div>
+        </header>
+        <div id="content" class={{page.Metadata.mainClass}}>
+            <div class="row">
+                <div class="col-3 toc">
+                    <h2>Table of contents</h2>
+                    <ul>
+                    <li><a href="{{base}}/">[home]</a></li>
+                    {% for child in rootPage.Children %}
+                    {% if child.Metadata.shortTitle %}
+                    <li class="{% if child.Route == page.Route %}active{% endif %}"><a href="{{child.Route}}">{{child.Metadata.shortTitle}}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    </ul>
+                </div>
+                <div class="col-9 main">
+                {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            &copy; 2019-{% now "2006" %} <a href="https://github.com/bylexus">Alexander Schenkel</a><br />
+            powered by <i class="fas fa-heart" style="color:red"></i> <a href="https://github.com/bylexus/pcms">pcms, the master himself</a> :-)
+        </footer>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
+        {% block bodyScripts %}
+        {% endblock %}
+    </body>
+</html>

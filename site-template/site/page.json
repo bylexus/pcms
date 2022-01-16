@@ -1,0 +1,11 @@
+{
+    "title": "home",
+    "shortTitle": "home",
+    "index": "index.html",
+    "iconCls": "fas fa-home",
+    "mainClass": "home",
+    "metaTags": [
+        {"name": "keywords", "content": "pcms,cms"},
+        {"name": "description", "content": "Example description your page"}
+    ]
+}

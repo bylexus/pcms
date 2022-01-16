@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>JSON Test page</h1>
+
+<p><a href="{{base}}/"><i class="fas fa-home"></i> Back to home</a></p>
+
+<p>This page's date come from a JSON file, which is rendered according to the template.</p>
+
+<p>The data below has been imported from <a href="https://swapi.co/">The StarWars API</a></p>
+
+<table>
+    <thead>
+        <tr><th>Name</th><th>Height</th><th>Mass</th><th>Birthyear</th><th>Gender</th></tr>
+    </thead>
+    <tbody>
+        {% for character in content.results %}
+        <tr>
+            <td>{{character.name}}</td>
+            <td>{{character.height}}cm</td>
+            <td>{{character.mass}}kg</td>
+            <td>{{character.birth_year}}</td>
+            <td>{{character.gender}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+{% endblock %}

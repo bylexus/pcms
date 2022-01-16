@@ -1,0 +1,7 @@
+{
+    "title": "JSON Test page",
+    "shortTitle": "JTP",
+    "index": "data.json",
+    "mainClass": "json",
+    "template": "page-template.html"
+}

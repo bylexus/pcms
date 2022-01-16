@@ -1,0 +1,28 @@
+header {
+    display: flex;
+    align-items: baseline;
+    padding: 0.5rem;
+    background-color: #12134f;
+    color: white;
+    background: linear-gradient(to bottom, #374599 0%,#12134f 100%);
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+    .title {
+        flex-grow: 1;
+        a {
+            text-decoration: none;
+            color: white;
+            &:hover {
+                background-color: transparent;
+            }
+        }
+        font-family: "Roboto Mono";
+        font-weight: bold;
+        font-size: 1.5rem;
+    }
+    .github {
+        a {
+            color: #aaa;
+        }
+        text-align: right;
+    }
+}

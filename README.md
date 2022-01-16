@@ -26,6 +26,7 @@ and is meant as a learning project for myself.
 * Logging: both request and application logging to files
 * + read config from .env file or similar
 * + supports html and markdown as templates
+* supports JSON data pages 
 * + prepares the templates by using a template engine to apply the final output
 * + supports themes - aka different base layouts 
 * + supports the existing pcms structure: 
@@ -46,6 +47,9 @@ and is meant as a learning project for myself.
   * `reload` to signal a reload to a running process
   * `build` to build a static build of the web page
   * help for all commands
+* include documentation as built-in site
+* include template site for generating a starter project
+* create a docker image with PCMS on-board
 
 ### Migrating from pcms V1 (nodejs) to V2 (Golang)
 

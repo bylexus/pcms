@@ -1,0 +1,13 @@
+server:
+  listen: ":3000"
+  logging:
+    access:
+      file: STDOUT
+      format: ""
+    error:
+      file: STDERR
+      level: DEBUG
+site:
+  webroot:
+  theme: pcms-doc
+  title: pcms-go - Documentation
