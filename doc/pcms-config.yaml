@@ -5,7 +5,7 @@ server:
       file: STDOUT
       format: ""
     error:
-      file: STDERR
+      file: log/server.log
       level: DEBUG
 site:
   webroot:
