@@ -20,40 +20,42 @@ love to code, also while producing content.
 This is a rewrite of the existing pcms source, which is in JavaScript: This project is now re-written in GO,
 and is meant as a learning project for myself.
 
+At the moment this is a work in progress. Soon<sup>TM</sup> it will be available as "First Viable Product".
+
 ### TODOs, Requirements to the Go App
 
-* + Write my own Webserver in GO
-* Logging: both request and application logging to files
-* + read config from .env file or similar
-* + supports html and markdown as templates
-* supports JSON data pages 
-* + prepares the templates by using a template engine to apply the final output
-* + supports themes - aka different base layouts 
-* + supports the existing pcms structure: 
-  * + a folder with page.json config and content represents a page
-  * + sub-folders / files are served statically, or as sub-page
-* + supports route/folder authentication (basic auth)
-  * add rate limiting for auth requests, to prevent brute-force attacks
-* + builds page structure in memory
-* watches for changes, rebuilds the page structure on the fly without restart
-* page cache - cache templates as pre-rendered html files
-* configurable 404 page
-* support some real webserver features:
-  * Range header to seek / stream files
-* support all today's server config and page.json config, see https://pcms.alexi.ch/reference
-* cmd line sub-commands:
+* [+] Write my own Webserver in GO
+* [-] Logging: both request and application logging to files
+* [+] read config from .env file or similar
+* [+] supports html and markdown as templates
+* [-] supports JSON data pages 
+* [+] prepares the templates by using a template engine to apply the final output
+* [+] supports themes - aka different base layouts 
+* [+] supports the existing pcms structure: 
+  * [+] a folder with page.json config and content represents a page
+  * [+] sub-folders / files are served statically, or as sub-page
+* [+] supports route/folder authentication (basic auth)
+  * [-] add rate limiting for auth requests, to prevent brute-force attacks
+* [+] builds page structure in memory
+* [-] watches for changes, rebuilds the page structure on the fly without restart
+* [-] page cache - cache templates as pre-rendered html files
+* [-] configurable 404 page
+* [-] support some real webserver features:
+  * [-] Range header to seek / stream files
+* [-] support all today's server config and page.json config, see https://pcms.alexi.ch/reference
+* [-] cmd line sub-commands:
   * `serve` to start the web server
   * `hash` to hash a password for entering in the config file
   * `reload` to signal a reload to a running process
   * `build` to build a static build of the web page
   * help for all commands
-* include documentation as built-in site
-* include template site for generating a starter project
-* create a docker image with PCMS on-board
+* [-] include documentation as built-in site (partially done - doc not upated)
+* [-] include template site for generating a starter project
+* [-] create a docker image with PCMS on-board (partially done, not yet published)
 
 ### Migrating from pcms V1 (nodejs) to V2 (Golang)
 
-Becuase V2 is a complete re-write, there are some breaking changes you need to consider and adapt:
+Because V2 is a complete re-write, there are some breaking changes you need to consider and adapt:
 
 * bcrypt password format: The used GO bcrypt library uses another algorithm than the previously used JavaScript libraray. So you have to re-generate all of your passwords. Sorry.
 
