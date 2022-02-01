@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,36 +13,68 @@ import (
 	"alexi.ch/pcms/src/webserver"
 )
 
-func createPageTree(config *model.Config, logger *logging.Logger) webserver.PageBuilder {
-	pageBuilder := webserver.NewPageBuilder(logger)
+type CmdArgs struct {
+	confFilePath string
+}
 
-	err := pageBuilder.ExaminePageDir(config.Site.Path, config)
-	if err != nil {
-		logger.Fatal(err.Error())
+func printUsage(mainFlags *flag.FlagSet) {
+	fmt.Fprint(os.Stderr, "Usage:\n\npcms [options] <sub-command>\n\n")
+	fmt.Fprint(os.Stderr, "options:\n\n")
+	mainFlags.PrintDefaults()
+	fmt.Fprint(os.Stderr, "\nA sub-command is expected. Supported sub-commands:\n\n")
+	fmt.Fprint(os.Stderr, "serve:      Starts the web server and serves the page\n")
+	fmt.Fprintln(os.Stderr)
+}
+
+func parseCmdArgs() CmdArgs {
+	args := CmdArgs{
+		confFilePath: "",
 	}
 
-	// add theme route manually:
-	pageBuilder.AddPage(config.Site.Webroot+"/theme", &model.Page{
-		Type:  model.PAGE_TYPE_THEME,
-		Route: config.Site.Webroot + "/theme",
-		Dir:   config.Site.ThemePath,
-	})
+	confFilePathPtr := flag.String("c", "", "path to the pcms-config.yaml file, also defines the site dir")
+	helpFlag := flag.Bool("h", false, "Prints this help")
+	// serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
+	flag.Parse()
 
-	pageBuilder.BuildPageTree()
-	return pageBuilder
+	// read conf file path:
+	if len(*confFilePathPtr) > 0 {
+		conffilePath, err := filepath.Abs(*confFilePathPtr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		args.confFilePath = conffilePath
+	} else {
+		// Read config from actual dir:
+		basePath, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+		conffilePath, err := filepath.Abs(filepath.Join(basePath, "pcms-config.yaml"))
+		if err != nil {
+			log.Fatal(err)
+		}
+		args.confFilePath = conffilePath
+	}
+
+	if *helpFlag || flag.NArg() < 1 {
+		printUsage(flag.CommandLine)
+		os.Exit(1)
+	}
+
+	switch flag.Args()[0] {
+	case "serve":
+	default:
+		printUsage(flag.CommandLine)
+		os.Exit(1)
+	}
+
+	return args
 }
 
 func main() {
-	// Read config from actual dir:
-	basePath, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-	conffilePath, err := filepath.Abs(filepath.Join(basePath, "pcms-config.yaml"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	config := model.NewConfig(conffilePath)
+	args := parseCmdArgs()
+
+	config := model.NewConfig(args.confFilePath)
 
 	// setup logging:
 	accessLogger := logging.NewLogger(
@@ -58,12 +92,12 @@ func main() {
 	defer errorLogger.Close()
 
 	// create page tree:
-	pageBuilder := createPageTree(&config, errorLogger)
+	pageMap := webserver.CreatePageTree(&config, errorLogger)
 
 	// initialize web server:
 	h := &webserver.RequestHandler{
 		ServerConfig: &config,
-		PageMap:      pageBuilder.GetPageMap(),
+		PageMap:      pageMap,
 		ErrorLogger:  errorLogger,
 	}
 	server := &http.Server{

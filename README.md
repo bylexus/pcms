@@ -25,7 +25,7 @@ At the moment this is a work in progress. Soon<sup>TM</sup> it will be available
 ### TODOs, Requirements to the Go App
 
 * [+] Write my own Webserver in GO
-* [-] Logging: both request and application logging to files
+* [+] Logging: both request and application logging to files
 * [+] read config from .env file or similar
 * [+] supports html and markdown as templates
 * [-] supports JSON data pages 

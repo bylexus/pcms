@@ -28,6 +28,29 @@ func NewPageBuilder(logger *logging.Logger) PageBuilder {
 	}
 }
 
+// Creates a page tree by walking the file system and creating a
+// page map struct.
+// The page map struct is a map of route => Page, while each Page object
+// contains its children, forming a page tree.
+func CreatePageTree(config *model.Config, logger *logging.Logger) *model.PageMap {
+	pageBuilder := NewPageBuilder(logger)
+
+	err := pageBuilder.ExaminePageDir(config.Site.Path, config)
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
+
+	// add theme route manually:
+	pageBuilder.AddPage(config.Site.Webroot+"/theme", &model.Page{
+		Type:  model.PAGE_TYPE_THEME,
+		Route: config.Site.Webroot + "/theme",
+		Dir:   config.Site.ThemePath,
+	})
+
+	pageBuilder.BuildPageTree()
+	return pageBuilder.GetPageMap()
+}
+
 func (pb *PageBuilder) BuildPageTree() {
 	pb.pageMap.BuildPageTree()
 }
