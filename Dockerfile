@@ -44,4 +44,4 @@ RUN adduser -D -s /bin/sh -G pcms pcms
 USER pcms
 
 WORKDIR ${PCMS_PATH}/doc
-CMD pcms
+CMD pcms serve
