@@ -52,6 +52,15 @@ func parseCmdArgs() CmdArgs {
 	}
 	subCommands[initCmd.Name()] = initCmd
 
+	passwordCmd := flag.NewFlagSet("password", flag.ExitOnError)
+	prevPwUsage := passwordCmd.Usage
+	passwordCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "password:      Creates a new encrypted password to be used in the site.users config\n")
+		prevPwUsage()
+		fmt.Fprintln(os.Stderr, "password [your-password]")
+	}
+	subCommands[passwordCmd.Name()] = passwordCmd
+
 	if *helpFlag || flag.CommandLine.NArg() < 1 {
 		printUsage(subCommands)
 		os.Exit(1)
@@ -72,6 +81,10 @@ func main() {
 	args := parseCmdArgs()
 	switch args.flagSet.Name() {
 	case "serve":
-		runServe(args)
+		runServeCmd(args)
+	case "init":
+		runInitCmd(args)
+	case "password":
+		runPasswordCmd(args)
 	}
 }
