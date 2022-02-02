@@ -18,10 +18,10 @@ server:
 site:
   # webroot: If you don't serve your page from '/', define the webroot here.
   webroot: 
-  # Choose the theme - this is a folder in themes/
+  # Choose the theme - this maps to a folder in themes/
   theme: default
   # Page title - can be used in your templates
-  title: alexi.ch - my digital home
+  title: My Site Title
   # metaTags are available in your templates as {{site.MetaTags}}
   metaTags:
     - name: foo
@@ -30,5 +30,6 @@ site:
       content: baz
   # any part of your website that needs protection? Define users and
   # bcrypt passwords here:
+  # bcrypt passwords can be generated with 'pcms password [your password]'
   users:
-    alex: your-bcrypt-password
+    user1: your-bcrypt-password

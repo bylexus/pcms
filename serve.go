@@ -38,7 +38,7 @@ func getConfFilePath(flagSet *flag.FlagSet) string {
 
 // Run the 'serve' sub-command:
 // build the page tree and start the web engine.
-func runServe(args CmdArgs) {
+func runServeCmd(args CmdArgs) {
 	confFilePath := getConfFilePath(args.flagSet)
 
 	// change the app's CWD to the conf file location's dir:

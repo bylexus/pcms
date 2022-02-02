@@ -48,7 +48,7 @@ func parseCmdArgs() CmdArgs {
 	initCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, "init:      initializes a new pcms project dir using a skeleton\n")
 		prevInitUsage()
-		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "init [path]: initializes a new pcms skeleton in the given path, creating it if does not exist")
 	}
 	subCommands[initCmd.Name()] = initCmd
 
