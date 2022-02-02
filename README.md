@@ -52,6 +52,7 @@ At the moment this is a work in progress. Soon<sup>TM</sup> it will be available
 * [-] include documentation as built-in site (partially done - doc not upated)
 * [-] include template site for generating a starter project
 * [-] create a docker image with PCMS on-board (partially done, not yet published)
+* [-] embed the `doc` folder into the binary, to run a doc page with only the binary.
 
 ### Migrating from pcms V1 (nodejs) to V2 (Golang)
 

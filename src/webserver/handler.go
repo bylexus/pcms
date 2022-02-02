@@ -112,8 +112,6 @@ func (h *RequestHandler) findMimeType(file string) (string, error) {
  * renders a page and outputs it (html, markdown, ...).
  */
 func (h *RequestHandler) renderPage(page *model.Page, w http.ResponseWriter, req *http.Request) {
-	// w.Write([]byte(fmt.Sprintf("URL Path: %v\n", req.URL.Path)))
-	// w.Write([]byte(fmt.Sprint("Delivering page ", page.Title)))
 	w.Header().Add("Content-Type", "text/html")
 
 	content, err := ioutil.ReadFile(page.PageIndexPath())

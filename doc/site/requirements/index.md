@@ -3,7 +3,7 @@
 In order to use and run pcms, you need to fullfil the following requirements:
 
 * If you want to compile for yourself: [ GO Lang >= 1.17 ]( https://go.dev/dl/ )
-* The `pcms` binary. Check the [Releases Page on Github](https://github.com/bylexus/alexi.ch/releases) for pre-built binaries.
+* The `pcms` binary. Check the [Releases Page on Github](https://github.com/bylexus/pcms/releases) for pre-built binaries.
 
 ... Really, that's it?? Well, yes! That's all you need. No database, no fancy infrastructure, no air plane. Oh, yes, and some idea for your content, but this is your problem ;-)
 

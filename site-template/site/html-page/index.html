@@ -5,12 +5,12 @@
 
 <p><a href="{{base}}/"><i class="fas fa-home"></i> Back to home</a></p>
 
-<p>Your actual Route: {{base}}{{route}}</page>
+<p>Your actual Route: {{base}}{{page.Route}}</page>
 
-<p>Actual time injected from preprocessor script: {{actTime}}</p>
+<p>Access to pongo2 syntax, e.g. actual time: {% now "02.01.2006 15:04:05" %}</p>
 
 <pre>
-Page config (page.json), injected by the preprocessor script:
+Page config (page.json):
 {{page.Metadata | stringformat:"%#v"}}
 </pre>
 

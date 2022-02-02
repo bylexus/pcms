@@ -3,5 +3,6 @@
     "shortTitle": "JTP",
     "index": "data.json",
     "mainClass": "json",
+    "order": 4,
     "template": "page-template.html"
 }

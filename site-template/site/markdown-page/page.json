@@ -1,0 +1,13 @@
+{
+    "title": "Markdown sample page",
+    "shortTitle": "Markdown",
+    "index": "index.md",
+    "template": "markdown.html",
+    "iconCls": "fab fa-markdown",
+    "mainClass": "markdown",
+    "order": 2,
+    "metaTags": [
+        {"name": "keywords", "content": "pcms,cms"},
+        {"name": "description", "content": "Markdown sample page"}
+    ]
+}

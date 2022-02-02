@@ -2,5 +2,7 @@
     "title": "HTML Test page",
     "shortTitle": "HTP",
     "index": "index.html",
+    "iconCls": "fab fa-html5",
+    "order":1,
     "preprocessor": "preprocessor.js"
 }
