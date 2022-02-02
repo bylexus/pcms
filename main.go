@@ -3,111 +3,75 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
-	"path/filepath"
-
-	"alexi.ch/pcms/src/logging"
-	"alexi.ch/pcms/src/model"
-	"alexi.ch/pcms/src/webserver"
 )
 
 type CmdArgs struct {
-	confFilePath string
+	flagSet *flag.FlagSet
 }
 
-func printUsage(mainFlags *flag.FlagSet) {
-	fmt.Fprint(os.Stderr, "Usage:\n\npcms [options] <sub-command>\n\n")
+func printUsage(flagMap map[string]*flag.FlagSet) {
+	fmt.Fprint(os.Stderr, "Usage:\n\npcms [options] <sub-command> [sub-command options]\n\n")
 	fmt.Fprint(os.Stderr, "options:\n\n")
-	mainFlags.PrintDefaults()
+	flagMap["__main__"].PrintDefaults()
+	delete(flagMap, "__main__")
+
 	fmt.Fprint(os.Stderr, "\nA sub-command is expected. Supported sub-commands:\n\n")
-	fmt.Fprint(os.Stderr, "serve:      Starts the web server and serves the page\n")
-	fmt.Fprintln(os.Stderr)
+	for _, flagSet := range flagMap {
+		flagSet.Usage()
+	}
 }
 
 func parseCmdArgs() CmdArgs {
-	args := CmdArgs{
-		confFilePath: "",
-	}
+	args := CmdArgs{}
 
-	confFilePathPtr := flag.String("c", "", "path to the pcms-config.yaml file, also defines the site dir")
+	subCommands := make(map[string]*flag.FlagSet)
+
 	helpFlag := flag.Bool("h", false, "Prints this help")
-	// serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
 	flag.Parse()
 
-	// read conf file path:
-	if len(*confFilePathPtr) > 0 {
-		conffilePath, err := filepath.Abs(*confFilePathPtr)
-		if err != nil {
-			log.Fatal(err)
-		}
-		args.confFilePath = conffilePath
+	subCommands["__main__"] = flag.CommandLine
+
+	serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
+	serveCmd.String("c", "", "path to the pcms-config.yaml file. The base dir used is the path of the config file.")
+	prevServeUsage := serveCmd.Usage
+	serveCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "serve:      Starts the web server and serves the page\n")
+		prevServeUsage()
+		fmt.Fprintln(os.Stderr, "")
+
+	}
+	subCommands[serveCmd.Name()] = serveCmd
+
+	initCmd := flag.NewFlagSet("init", flag.ExitOnError)
+	prevInitUsage := initCmd.Usage
+	initCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "init:      initializes a new pcms project dir using a skeleton\n")
+		prevInitUsage()
+		fmt.Fprintln(os.Stderr, "")
+	}
+	subCommands[initCmd.Name()] = initCmd
+
+	if *helpFlag || flag.CommandLine.NArg() < 1 {
+		printUsage(subCommands)
+		os.Exit(1)
+	}
+
+	if flagSet, defined := subCommands[flag.Args()[0]]; defined == true {
+		args.flagSet = flagSet
+		flagSet.Parse(flag.Args()[1:])
 	} else {
-		// Read config from actual dir:
-		basePath, err := os.Getwd()
-		if err != nil {
-			log.Fatal(err)
-		}
-		conffilePath, err := filepath.Abs(filepath.Join(basePath, "pcms-config.yaml"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		args.confFilePath = conffilePath
-	}
-
-	if *helpFlag || flag.NArg() < 1 {
-		printUsage(flag.CommandLine)
+		printUsage(subCommands)
 		os.Exit(1)
-	}
 
-	switch flag.Args()[0] {
-	case "serve":
-	default:
-		printUsage(flag.CommandLine)
-		os.Exit(1)
 	}
-
 	return args
 }
 
 func main() {
 	args := parseCmdArgs()
-
-	config := model.NewConfig(args.confFilePath)
-
-	// setup logging:
-	accessLogger := logging.NewLogger(
-		config.Server.Logging.Access.File,
-		logging.DEBUG,
-		"{{message}}",
-	)
-	errorLogger := logging.NewLogger(
-		config.Server.Logging.Error.File,
-		logging.StrToLevel(config.Server.Logging.Error.Level),
-		"",
-	)
-	log.Printf("Server is starting. System log goes to %s\n", errorLogger.Filepath)
-	defer accessLogger.Close()
-	defer errorLogger.Close()
-
-	// create page tree:
-	pageMap := webserver.CreatePageTree(&config, errorLogger)
-
-	// initialize web server:
-	h := &webserver.RequestHandler{
-		ServerConfig: &config,
-		PageMap:      pageMap,
-		ErrorLogger:  errorLogger,
+	switch args.flagSet.Name() {
+	case "serve":
+		runServe(args)
 	}
-	server := &http.Server{
-		Addr:    ":3000",
-		Handler: webserver.CreateAccessLoggerMiddleware(accessLogger, h),
-	}
-
-	errorLogger.Info("Server starting, listening to %s", config.Server.Listen)
-	errorLogger.Info("Serving site from %s", config.Site.Path)
-	log.Printf("Server starting, listening to %s\n", config.Server.Listen)
-	log.Printf("Serving site from %s\n", config.Site.Path)
-	errorLogger.Fatal(server.ListenAndServe().Error())
 }

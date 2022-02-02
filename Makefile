@@ -43,3 +43,4 @@ build-release:
 			zip -r $(PROJECTNAME)-$$d.zip $$d/; \
 		fi; \
 	done
+	echo "Releases exported in $(RELEASE_DIR)."
