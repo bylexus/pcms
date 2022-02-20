@@ -1,14 +1,18 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
 	"os"
+
+	"alexi.ch/pcms/src/commands"
+	"alexi.ch/pcms/src/model"
 )
 
-type CmdArgs struct {
-	flagSet *flag.FlagSet
-}
+// embed the site-template/ dir into the binary:
+//go:embed site-template
+var templateContent embed.FS
 
 func printUsage(flagMap map[string]*flag.FlagSet) {
 	fmt.Fprint(os.Stderr, "Usage:\n\npcms [options] <sub-command> [sub-command options]\n\n")
@@ -22,8 +26,8 @@ func printUsage(flagMap map[string]*flag.FlagSet) {
 	}
 }
 
-func parseCmdArgs() CmdArgs {
-	args := CmdArgs{}
+func parseCmdArgs() model.CmdArgs {
+	args := model.CmdArgs{}
 
 	subCommands := make(map[string]*flag.FlagSet)
 
@@ -49,15 +53,17 @@ func parseCmdArgs() CmdArgs {
 		fmt.Fprintf(os.Stderr, "init:      initializes a new pcms project dir using a skeleton\n")
 		prevInitUsage()
 		fmt.Fprintln(os.Stderr, "init [path]: initializes a new pcms skeleton in the given path, creating it if does not exist")
+		fmt.Fprintln(os.Stderr, "")
 	}
 	subCommands[initCmd.Name()] = initCmd
 
 	passwordCmd := flag.NewFlagSet("password", flag.ExitOnError)
 	prevPwUsage := passwordCmd.Usage
 	passwordCmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, "password:      Creates a new encrypted password to be used in the site.users config\n")
+		fmt.Fprintf(os.Stderr, "password:      Creates a new encrypted password to be used in the site.users config")
 		prevPwUsage()
 		fmt.Fprintln(os.Stderr, "password [your-password]")
+		fmt.Fprintln(os.Stderr, "")
 	}
 	subCommands[passwordCmd.Name()] = passwordCmd
 
@@ -67,7 +73,7 @@ func parseCmdArgs() CmdArgs {
 	}
 
 	if flagSet, defined := subCommands[flag.Args()[0]]; defined == true {
-		args.flagSet = flagSet
+		args.FlagSet = flagSet
 		flagSet.Parse(flag.Args()[1:])
 	} else {
 		printUsage(subCommands)
@@ -79,12 +85,12 @@ func parseCmdArgs() CmdArgs {
 
 func main() {
 	args := parseCmdArgs()
-	switch args.flagSet.Name() {
+	switch args.FlagSet.Name() {
 	case "serve":
-		runServeCmd(args)
+		commands.RunServeCmd(args)
 	case "init":
-		runInitCmd(args)
+		commands.RunInitCmd(args, &templateContent)
 	case "password":
-		runPasswordCmd(args)
+		commands.RunPasswordCmd(args)
 	}
 }

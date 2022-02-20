@@ -44,7 +44,7 @@ At the moment this is a work in progress. Soon<sup>TM</sup> it will be available
   * [-] Range header to seek / stream files
 * [-] support all today's server config and page.json config, see https://pcms.alexi.ch/reference
 * [-] cmd line sub-commands:
-  * `serve` to start the web server
+  * `serve` to start the web server (_done_)
   * `hash` to hash a password for entering in the config file
   * `reload` to signal a reload to a running process
   * `build` to build a static build of the web page

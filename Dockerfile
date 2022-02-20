@@ -16,6 +16,7 @@ RUN mkdir -p ${GOPATH}/src ${GOPATH}/bin
 RUN mkdir -p ${PCMS_PATH}
 
 COPY src/ ${PCMS_PATH}/src/
+COPY site-template/ ${PCMS_PATH}/site-template/
 COPY main.go ${PCMS_PATH}/
 COPY go.mod ${PCMS_PATH}/
 COPY go.sum ${PCMS_PATH}/

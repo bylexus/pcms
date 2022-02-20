@@ -1,99 +1,136 @@
 # Installation / Setup of pcms-driven sites
 
-pcms has two parts:
-
-* a site generator that helps you starting a new site. It will create a skeleton site / structure for you so you don't have to start from scratch.
+`pcms` comes with a site template which helps you getting startet. It will create a skeleton site / structure for you so you don't have to start from scratch.
   You don't need to generate a skeleton site if you want to do it manually.
-* The server part that serves a pcms-compatible site structure. This is yet another npm package which allows you to start / deliver the site.
 
-This documentation shows you both parts: Setup a skeleton site and run the server.
+This documentation shows you how to install `pcms` and generate a new site from scratch, as well as running it / an existing site.
+
+- [Install pcms](#install-pcms)
+  - [As pre-built binary](#as-pre-built-binary)
+  - [As go source code](#as-go-source-code)
+  - [Build a Docker image](#build-a-docker-image)
+- [Generate a skeleton site](#generate-a-skeleton-site)
+- [Site configuration: `pcms-config.yaml`](#site-configuration-pcms-configyaml)
+- [Page config with `page.json`](#page-config-with-pagejson)
+- [Page content](#page-content)
+- [Starting the site](#starting-the-site)
+  - [Start `pcms` with the local binary](#start-pcms-with-the-local-binary)
+  - [Start `pcms` in a docker container](#start-pcms-in-a-docker-container)
 
 ## Install pcms
 
-In your project directory, require `pcms` from npm. If you don't have a project directory yet, create one:
+This section was already covered in the [Quick Start]({{base}}/quickstart/) section. If you already followed there, you don't have to repeat this steps.
+
+You only need a single `pcms` binary to run a website. Check out the next chapters for a brief description how you get one.
+
+### As pre-built binary
+
+You can download a `pcms` binary from a pre-built release from github:
+
+https://github.com/bylexus/pcms/releases
+
+Download and extract the `pcms` binary that fits your OS and architecture.
+
+### As go source code
+
+You can build `pcms` from the go source code:
+
+* install the [go build toolchain](https://go.dev/dl/)
+* clone the `pcms` source code from git:
 
 ```sh
-# Optional steps: setup a new site directory:
-$ mkdir my-site
-$ cd my-site
-$ npm init
-# install pcms:
-$ npm install --save pcms
+$ git clone https://github.com/bylexus/pcms.git
+```
+* build it:
+
+```sh
+$ cd pcms
+$ make build # ==> build goes to bin/pcms
 ```
 
-## Setup a skeleton site
+### Build a Docker image
+
+You can build and run `pcms` as a Linux container, using [Docker](https://www.docker.com/) or [Podman](https://podman.io/).
+
+**Build the Docker image:**
+
+```sh
+$ docker build -t pcms https://github.com/bylexus/pcms.git
+```
+
+
+## Generate a skeleton site
 
 If you don't want to start from scratch, generate a skeleton site:
 
 ```sh
-# if you have npx (https://www.npmjs.com/package/npx) installed:
-$ npx pcms-generate
-# if you don't have npx:
-$ node_modules/.bin/pcms-generate
+# local binary:
+$ pcms init path-to-site
+
+# with the docker image:
+$ mkdir path-to-site
+$ docker run --rm -v $(pwd)/path-to-site:/site pcms pcms init /site
 ```
 
-This will generate a fully-working demo site into the local folder. Note that no existing files will be overwritten. You end with a folder structure like this:
+This will generate a fully-working demo site into the given folder (here: `path-to-site`). Note that existing files **will be overwritten**. You end up with a folder structure like this:
 
 ```sh
-.
-├── package.json
-├── server.js
+path-to-site/
+├── pcms-config.yaml
 ├── site
-│   ├── index.html
-│   └── page.json
-├── site-config.json
+│   ├── favicon.png
+│   ├── page.json
+│   └── ... more files ...
 └── themes
-    └── default
-        ├── static
-        │   └── css
-        │       ├── main.css
-        │       └── main.css.map
-        └── templates
-            ├── base.html
-            ├── error.html
-            └── markdown-template.md
+    └── default
+        ├── static
+        └── templates
 ```
 
-* `server.js` is the entrypoint of your application. This is the script you can start with node right away. It sets up and starts the pcms-driven server.
-* `site-config.json` is the site-wide configuration. It contains pcms-specific settings like server port as well as user-defined content which can be used in your site templates.
+* `pcms-config.yaml` is the site-wide configuration. It contains pcms-specific settings like server port as well as user-defined content which can be used in your site templates.
 * `site/` is the folder where all your page content goes. Every pcms-visible page is a folder within `site` with a `page.json` file.
 * `themes/` contains (the / several) layouts and styles for your site: It is the folder where your site-wide HTML and CSS layouts / files are stored and fetched. Each theme corresponds to
-  the folder name within `themes/`. The actual theme can be set up in `site-config.json`.
+  the folder name within `themes/`. The actual theme can be set up in `pcms-config.yaml`.
 
 
-## Site-wide configuration: `site-config.json`
+## Site configuration: `pcms-config.yaml`
 
-The main config file is `site-config.json`. It servers the following purposes:
+The main config file is `pcms-config.yaml`. It servers the following purposes:
 
-* It defines the folder where pcms looks for content: The folder where `site-config.json` is placed must contain the `themes` and `site` folder.
+* It defines the folder where pcms looks for content: The folder where `pcms-config.yaml` is placed must contain the `themes` and `site` folder.
 * It defines pcms configuration like server settings (port).
 * It offers you a global configuration for additional data / configs that is available in all your templates.
 
-An example `site-config.json`:
+A minimal example `pcms-config.yaml`:
 
-```json
-{
-    "title": "pcms documentation",
-    "port": 3000,
-    "webroot": "",
-    "theme": "pcms-doc",
-    "metaTags": [
-        {"name": "author", "content": "Alexander Schenkel"}
-    ]
-}
+```yaml
+# Server config:
+server:
+  listen: ":3000"
+  logging:
+    access:
+      file: STDOUT
+    error:
+      file: STDERR
+      level: DEBUG
+
+# The site config defines all things about your site.
+site:
+  theme: default
+  title: My Site Title
 ```
 
 There are only two properties you must define in order to run pcms:
 
 * `port`: This is the TCP port the webserver listens to
-* `theme`: The theme to use (a folder with the same name in `themes/`)
+* `site.theme`: The theme to use (a folder with the same name in `themes/`)
 
 All the other config options can be chosen freely by the theme / site creator.
 
-## Page config with`page.json`
+## Page config with `page.json`
 
 Each (sub-)folder within `site/` that contains a `page.json` is considered a "page" by pcms, and is indexed in the site tree. So each page has its own `page.json`.
-Other folders or sub-folders that exists are not indexed in the site tree, but can server as static content containers, belonging to an upper page.
+Other folders or sub-folders that exists are not indexed in the site tree, but can serve as static content containers, belonging to an upper page.
 
 An example `page.json` file:
 
@@ -102,7 +139,6 @@ An example `page.json` file:
     "enabled": true,
     "index": "index.md",
     "template": "page-template.html",
-    "preprocessor": "script.js",
     "shortTitle": "pcms doc",
     "iconCls": "fas fa-home",
     "mainClass": "home",
@@ -113,78 +149,76 @@ An example `page.json` file:
 }
 ```
 
-Also here, only the pcms relevant configs must be set, all other configs are available in that page's templates / context.
+The page config consists of pcms-needed configs, but can contain any other value you may need to
+generate your page (e.g. here, 'shortTitle' or 'iconCls' are used by the template, not by pcms). All  config is available in that page's template / context.
+
+Configs needed by pcms are:
 
 * `enabled`: If false, the page including its sub-pages and static content are not delivered. You can use this flag to disable a page temporarily.
 * `index`: The file that is read as content file. This can be html, Markdown, json or js, depending of the file ending pcms will act accordingly.
 * `template`: for non-HTML index files, this html template file is read and processed by the template engine. The content from `index` is available as `content` template variable.
-* `preprocessor`: A JS script that is executed before the page rendering happens. It has access to the actual page's context information and can enrich it with additional
-  data. It must return either an object with additional data that is merged with the Page's context data, or a `Promise` that resolves that Object later.
 
 ## Page content
 
-The `index` property of the `page.json` file defines the page content file. In the simplest form, this is a plain HTML file that is rendered via Nunjucks template engine.
+The `index` property of the `page.json` file defines the page content file. In the simplest form, this is a plain HTML file that is rendered via pongo2 (django-like) template engine.
 The template engine injects a page context: This is an object with available template variables that can be used within the template.
 
-The page context contains the following variables:
+The page context contains the following variables.
 
-* site: This object contains the `site-config.json` entries.
-* base: the configured webroot in `site-config.json`
-* route: the actual page's route, without the index part (so e.g. /folder/to/page/)
-* fullRoute: the actual's page full route, inluding the index part (e.g. /folder/to/page/index.html)
-* page: The Page Node object, containing several information about the page, including the `page.json` entries (`page.pageConfig`)
-* rootPage: The site's root node object. Same entries as in `page`, but for the site's root page.
-* now: The actual date (JavaScript `Date` object)
+* `site`: This object contains the `pcms-config.yaml` entries.
+* `base`: the configured webroot in `pcms-config.yaml`
+* `page`: The Page Node object, containing several information about the page, including the `page.json` entries (`page.Metadata`), actual route (`page.Route`), child pages (`page.Children`).
+* `rootPage`: The site's root node object. Same type as `page`, but for the site's root page.
+* `now`: The actual date, to be used as in django, but with the Go time format strings
 
 All these variables can be used within the template. An example:
 
 ```html
-{% raw %}<!-- index.html -->
+{% verbatim %}<!-- index.html -->
 {% extends "base.html" %}
 
-<h1>{{page.pageConfig.title}}</h1>
-<p>Hello. It is now {{now}}.</p>
-<a href="{{rootPage.route}}">Back to home</a>
+<h1>{{page.Metadata.title}}</h1>
+<p>Hello. It is now {% now "03:04 on 02.01.2006" %}.</p>
+<a href="{{rootPage.Route}}">Back to home</a>
 
-A relative link: <a href="{{route}}/sub/folder/picture.png">Image</a>
-{% endraw %}
+A relative link: <a href="{{page.Route}}/sub/folder/picture.png">Image</a>
+{% endverbatim %}
 ```
 
 ## Starting the site
 
-The pre-generated server.js file is the main file you can run using nodejs:
+Now your site is generated / ready, you can start the server. The site's root folder is the
+directory where `pcms-config.yaml` is located. The easiest way to start `pcms` is from within
+this directory.
+
+### Start `pcms` with the local binary
+
+Execute `pcms serve` from within your site's root folder:
 
 ```sh
-$ DEBUG=server,pcms node server.js
+$ cd path-to-site/
+$ pcms serve
 ```
 
-The pre-configured `server.js` file can be modified to satisfy your needs. The initial script works as follows:
+You can also give the location of the config file, so you don't have to change to the dir:
 
-
-```javascript
-const server = require('pcms');
-const path = require('path');
-const debug = require('debug')('server');
-
-/**
- * Start the server, which is an expressjs app. You can get the express app instance if you
- * need to configure things in advance:
- *
- * const app = server.expressApp;
- */
-server
-    // give the full path to your site-config.json: The server needs it to gather information
-    // about your directory origin:
-    .start(path.join(__dirname, 'site-config.json'))
-    .then(app => {
-        debug(`Site is now serving at port: ${app.serverConfig.siteConfig.port}`);
-    })
-    .catch(err => {
-        debug('ERROR: ', err);
-    });
+```sh
+$ pcms serve -c path-to-site/pcms-config.yaml
 ```
 
-This is it. You can modify the server.js file as needed, as long as you start the server somewhen using
-`server.start(path-to-site-config.json)`.
+### Start `pcms` in a docker container
 
-For more options on how to start the site see the <a href="{{base}}/running">Running</a> section.
+If you are using the `pcms` docker image, you can create and run a container as follows:
+
+```sh
+$ docker run -d \
+    --name mysite \
+    -v path/to/site:/site \
+    -p 3000:3000 \
+    -w /site
+    pcms
+```
+
+This will mount your local site directory to the docker's `/site` directory, and also
+uses this dir as working dir. Export the port you configured, and you're good to go!
+

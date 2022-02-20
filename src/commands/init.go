@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"embed"
@@ -8,22 +8,20 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+
+	"alexi.ch/pcms/src/model"
 )
 
 const siteTemplateDir string = "site-template"
 
-// embed the site-template/ dir into the binary:
-// go:embed site-template
-var templateContent embed.FS
-
 // init creates a skeleton application in a specified dir.
-func runInitCmd(args CmdArgs) {
-	if len(args.flagSet.Args()) < 1 {
+func RunInitCmd(args model.CmdArgs, templateContent *embed.FS) {
+	if len(args.FlagSet.Args()) < 1 {
 		fmt.Fprintln(os.Stderr, "Error: no path given.")
-		args.flagSet.Usage()
+		args.FlagSet.Usage()
 		os.Exit(1)
 	}
-	path := getDestPath(args.flagSet.Arg(0))
+	path := getDestPath(args.FlagSet.Arg(0))
 
 	fmt.Printf("Creating skeleton pcms site in %s...\n", path)
 
@@ -33,11 +31,11 @@ func runInitCmd(args CmdArgs) {
 	}
 
 	for _, dEntry := range files {
-		copyContentToDest("", dEntry, path)
+		copyContentToDest("", dEntry, path, templateContent)
 	}
 }
 
-func copyContentToDest(baseDir string, dirEntry fs.DirEntry, destRoot string) {
+func copyContentToDest(baseDir string, dirEntry fs.DirEntry, destRoot string, templateContent *embed.FS) {
 	if dirEntry.Type().IsRegular() {
 		embedPath := path.Join(siteTemplateDir, baseDir, dirEntry.Name())
 		destPath := path.Join(destRoot, baseDir, dirEntry.Name())
@@ -55,7 +53,7 @@ func copyContentToDest(baseDir string, dirEntry fs.DirEntry, destRoot string) {
 		}
 
 		for _, dEntry := range files {
-			copyContentToDest(path.Join(baseDir, dirEntry.Name()), dEntry, destRoot)
+			copyContentToDest(path.Join(baseDir, dirEntry.Name()), dEntry, destRoot, templateContent)
 		}
 	}
 }

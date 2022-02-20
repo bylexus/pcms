@@ -167,7 +167,9 @@ func (h *RequestHandler) renderMarkdownPageContent(page *model.Page, w http.Resp
 		if err != nil {
 			h.errorHandler(w, err, http.StatusInternalServerError)
 		}
-		result = blackfriday.Run(result)
+		result = blackfriday.Run(result, blackfriday.WithExtensions(
+			blackfriday.AutoHeadingIDs|blackfriday.Autolink|blackfriday.CommonExtensions|blackfriday.Footnotes,
+		))
 		// template content is the html template, filled with the result from the content rendering above:
 		templateContent, err := h.renderTemplateFromFile(page, template, pongo2.Context{"content": string(result)})
 		if err != nil {

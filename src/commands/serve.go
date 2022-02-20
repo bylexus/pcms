@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"flag"
@@ -38,8 +38,8 @@ func getConfFilePath(flagSet *flag.FlagSet) string {
 
 // Run the 'serve' sub-command:
 // build the page tree and start the web engine.
-func runServeCmd(args CmdArgs) {
-	confFilePath := getConfFilePath(args.flagSet)
+func RunServeCmd(args model.CmdArgs) {
+	confFilePath := getConfFilePath(args.FlagSet)
 
 	// change the app's CWD to the conf file location's dir:
 	cwd := path.Dir(confFilePath)
