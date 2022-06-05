@@ -3,3 +3,4 @@
 /bin
 /__debug_bin
 /releases/
+.DS_Store

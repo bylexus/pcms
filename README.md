@@ -17,10 +17,30 @@ love to code, also while producing content.
 
 ## Project Status
 
-This is a rewrite of the existing pcms source, which is in JavaScript: This project is now re-written in GO,
-and is meant as a learning project for myself.
+A first viable product is already available - All features to drive a full, real website are implemented. The first production site is already using
+pcms: <https://alexi.ch/> is driven by the actual pcms version.
 
-At the moment this is a work in progress. Soon<sup>TM</sup> it will be available as "First Viable Product".
+Still, this is an early stage, and many changes will come.
+
+## Getting started
+
+A getting started guide can be found in the documentation - see `doc/site/quickstart/index.md`, or check it out online: <https://pcms.alexi.ch/quickstart>
+
+For the even more impatient:
+
+```sh
+# build PMCS (golang / go tools needed)
+$ make build
+
+# create a new site:
+$ bin/pcms init path/to/site/
+
+# serve it at localhost:3000
+$ bin/pcms serve path/to/site/pcms-config.yaml
+
+# read the doc at localhost:3000
+$ make serve-doc
+```
 
 ### TODOs, Requirements to the Go App
 
@@ -44,8 +64,9 @@ At the moment this is a work in progress. Soon<sup>TM</sup> it will be available
   * [-] Range header to seek / stream files
 * [-] support all today's server config and page.json config, see https://pcms.alexi.ch/reference
 * [-] cmd line sub-commands:
+  * `init` to initialize a new pcms project  (_done_)
   * `serve` to start the web server (_done_)
-  * `hash` to hash a password for entering in the config file
+  * `password` to create a new basic-auth credential password for a user config entry (_done_)
   * `reload` to signal a reload to a running process
   * `build` to build a static build of the web page
   * help for all commands

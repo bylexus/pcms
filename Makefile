@@ -5,20 +5,36 @@ GOFILES=$(wildcard *.go)
 VERSION=$(shell git describe --tags)
 RELEASE_DIR=./releases
 
-.PHONY: build exec serve-doc build-docker-image build-release
 
+.PHONY: build
 build:
 	@GOBIN=$(GOBIN) go build -o $(GOBIN)/$(PROJECTNAME) $(GOFILES)
 
+.PHONY: exec
 exec:
 	@GOBIN=$(GOBIN) $(run)
 
+.PHONY: serve-doc
 serve-doc: build
 	$(shell cd $(GOBASE)/doc && $(GOBIN)/$(PROJECTNAME) serve)
 
-build-docker-image:
-	docker build --pull -t $(PROJECTNAME) $(GOBASE)
+.PHONY: build-docker-image-amd64
+build-docker-image-amd64:
+	docker build --pull --platform=linux/amd64 -t $(PROJECTNAME):amd64 $(GOBASE)
 
+.PHONY: build-docker-image-arm64
+build-docker-image-arm64:
+	docker build --pull --platform=linux/arm64 -t $(PROJECTNAME):arm64 $(GOBASE)
+
+.PHONY: docker-push-to-registry
+docker-push-to-registry: build-docker-image-amd64 build-docker-image-arm64
+	docker image tag $(PROJECTNAME):amd64 registry.alexi.ch/pcms:amd64
+	docker image tag $(PROJECTNAME):arm64 registry.alexi.ch/pcms:arm64
+	docker push registry.alexi.ch/pcms:amd64
+	docker push registry.alexi.ch/pcms:arm64
+
+
+.PHONY: build-release
 build-release:
 	# cleanup:
 	rm -rf ./$(RELEASE_DIR)/
