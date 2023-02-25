@@ -10,4 +10,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require golang.org/x/net v0.0.0-20220531201128-c960675eff93 // indirect
+require golang.org/x/net v0.7.0 // indirect
