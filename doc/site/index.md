@@ -1,3 +1,14 @@
+---
+shortTitle: "pcms doc"
+template: page-template.html
+mainClass: home
+iconCls: "fas fa-home"
+metaTags:
+  - name: "keywords"
+    content: "pcms,cms"
+  - name: "description"
+    content": "Documentation for the pcms system, the programmer's cms"
+---
 # Welcome to pcms <small>the Programmer's Content management System</small>
 
 CMS systems are great. They allow the user to produce content without caring about the underlying technology or frameworks.
@@ -41,9 +52,6 @@ pcms is also written in GO (while it was written in NodeJS/JavaScript before ALR
 ## Table of contents
 
 * <a href="{{base}}/">[home]</a>
-{% for child in rootPage.Children %}
-{% if child.Metadata.shortTitle %}
-* <a href="{{child.Route}}">{{child.Metadata.shortTitle}}</a>
-{% endif %}
+{% for child in variables.toc %}* <a href="{{destRelDir}}/{{child.relUrl}}">{{child.title}}
 {% endfor %}
 

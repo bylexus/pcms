@@ -4,3 +4,4 @@
 /__debug_bin
 /releases/
 .DS_Store
+/doc/build/

@@ -7,7 +7,30 @@ server:
     error:
       file: log/server.log
       level: DEBUG
-site:
+source: "site"
+dest: "build"
+variables:
   webroot:
-  theme: pcms-doc
-  title: pcms-go - Documentation
+  siteTitle: pcms-go - Documentation
+  siteMetaTags:
+  toc:
+    - title: Features
+      destRelDir: features
+    - title: "Requirements"
+      destRelDir: requirements
+    - title: "Quickstart"
+      destRelDir: quickstart
+    - title: "Install / setup"
+      destRelDir: install_setup
+    - title: Architecture
+      destRelDir: architecture
+    - title: "Reference"
+      destRelDir: reference
+template_dir: templates
+exclude_patterns:
+  - "^\\..*"
+  - "^page\\.json$"
+processors:
+  scss:
+    sass_bin: "/Users/alex/.nvm/versions/node/v18.13.0/bin/sass"
+

@@ -1,37 +1,35 @@
 <!doctype html>
-<html>
+<html lang="en">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <title>{%if page.Metadata.Title %}{{page.Metadata.Title}} - {% endif%}{{ site.Title }}</title>
+        <title>{%if variables.title %}{{variables.title}} - {% endif%}{{ variables.siteTitle }}</title>
         <link rel="icon" href="{{base}}/favicon.png" type="image/png">
-        {% for meta in site.metaTags %}
+        {% for meta in variables.siteMetaTags %}
         <meta name="{{meta.name}}" content="{{meta.content}}" />
         {% endfor %}
-        {% for meta in page.Metadata.metaTags %}
+        {% for meta in variables.metaTags %}
         <meta name="{{meta.name}}" content="{{meta.content}}" />
         {% endfor %}
 
         <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:300,400|Source+Sans+Pro:300,400" rel="stylesheet">
         <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/monokai.min.css">
-        <link rel="stylesheet" href="{{base}}/theme/static/css/main.css" />
+        <link rel="stylesheet" href="{{base}}/styles/main.css" />
     </head>
     <body>
         <header>
             <div class="title"><a href="{{base}}/"><i class="fas fa-pencil-ruler"></i> pcms documentation</a></div>
             <div class="github"><a href="https://github.com/bylexus/pcms"><i class="fab fa-github"></i> checkout the source</a></div>
         </header>
-        <div id="content" class={{page.Metadata.mainClass}}>
+        <div id="content" class={{variables.mainClass}}>
             <div class="row">
                 <div class="col-3 toc">
                     <h2>Table of contents</h2>
                     <ul>
-                    <li><a href="{{base}}/">[home]</a></li>
-                    {% for child in rootPage.Children %}
-                    {% if child.Metadata.shortTitle %}
-                    <li class="{% if child.Route == page.Route %}active{% endif %}"><a href="{{child.Route}}">{{child.Metadata.shortTitle}}</a></li>
-                    {% endif %}
+                    <li class="{% if destRelDir == "." %}active{% endif %}"><a href="{{base}}/">[home]</a></li>
+                    {% for child in variables.toc %}
+                    <li class="{% if child.destRelDir == destRelDir %}active{% endif %}"><a href="{{base}}/{{child.destRelDir}}/">{{child.title}}</a></li>
                     {% endfor %}
                     </ul>
                 </div>

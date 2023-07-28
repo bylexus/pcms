@@ -1,3 +1,13 @@
+---
+title: "features"
+shortTitle: "Features"
+template: page-template.html
+metaTags:
+  - name: "keywords"
+    content: "features,feature list,pcms,cms"
+  - name: "description"
+    content: "Feature list of pcms"
+---
 # Features
 
 **Note**: pcms serves my own needs (only?), so I just implement what is necessary for my projects. If something is missing, that means I just had no use for that feature.

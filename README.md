@@ -4,8 +4,40 @@ I don't need a fancy, UI-driven CMS. I don't WANT a  UI, and I don't want a CMS 
 A CMS is too restrictive. I don't fear writing HTML and program code. I am a developer, at last, so I feel more
 comfortable writing code in an editor than clicking in a UI.
 
-This is the idea behind **pcms**, the Programmer's CMS: A clutter-free, code-centric, simple CMS to deliver web sites. For people that
-love to code, also while producing content.
+This is the idea behind **pcms**, the Programmer's CMS: A clutter-free, code-centric, simple static site builder and server to deliver web sites. For people that love to code, and just want things done.
+
+## Restart
+
+This is a restart of the pcms project. I want to achieve a much simpler architecture:
+
+* instead of parsing / serving content directly, I want to process it first:
+* first, the content is processed and build to its final version (static content)
+* then, optionally, it is delivered by a web server,
+* optionally watching / rebuilding content on the fly.
+
+### static building
+The static build process should work as follows:
+
+1. Walk the source directory tree
+2. process each file by its type / extension:<br>
+   - each type gets its processor, a code snippet that get the input file and generates an output file.
+   - for example, HTML files are processed as a pogo template, so it is processed through the template engine
+3. output the files to a destination folder
+
+### Modes
+The tool itself should support the following modes:
+
+- build: build the site as described above
+- serve: build and then watch for changes, while starting a web server to deliver
+- serve-doc: serves the whole documentation as own static web site
+- init: should generate a very basic demo page
+
+### supported builders
+
+- html: html templates, built using pogo2 and supporting a yaml-style header
+- md: markdown templates, processed as pogo2 template and then converted to html
+- scss: convert scss to css
+- all the rest: copied 1:1 to the dest folder
 
 ## Features
 

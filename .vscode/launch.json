@@ -9,8 +9,13 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}",
-      "cwd": "${workspaceFolder}/testpage"
+      "program": "${workspaceFolder}/main.go",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "-c",
+        "doc/pcms-config.yaml",
+        "build"
+      ]
     },
     {
       "name": "Launch Doc",
