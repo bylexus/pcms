@@ -12,6 +12,17 @@ import (
 	"alexi.ch/pcms/model"
 )
 
+/*
+The ScssProcessor converts .scss files to css.
+
+It uses the external dart sass binary, as Golang has no stable scss compiler yet.
+The dart sass binary needs to be defined in `pcms-config.yaml`:
+
+	# pcms-config.yaml:
+	processors:
+		scss:
+			sass_bin: "/bin/sass"
+*/
 type ScssProcessor struct {
 }
 

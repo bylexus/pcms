@@ -7,3 +7,4 @@
 - [ ] serve:
   - [ ] indexing using sqlite
   - [ ] embedded doc
+- [ ] Update docs

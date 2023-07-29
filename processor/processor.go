@@ -14,6 +14,16 @@ type Processor interface {
 	ProcessFile(sourceFile string, config model.Config) (destFile string, err error)
 }
 
+type processingFileInfo struct {
+	relSourcePath string
+	relSourceDir  string
+	outFile       string
+	outDir        string
+	relDestPath   string
+	relDestDir    string
+	relDestRoot   string
+}
+
 func GetProcessor(sourceFile string, config model.Config) Processor {
 	fileExt := filepath.Ext(sourceFile)
 	switch strings.ToLower(fileExt) {
@@ -42,4 +52,16 @@ func IsFileExcluded(filePath string, excludePatterns []string) (bool, string) {
 	}
 
 	return false, ""
+}
+
+// Takes multiple string maps, and merges them.
+// later map entries override previous ones.
+func mergeStringMaps(maps ...map[string]interface{}) map[string]interface{} {
+	resultMap := make(map[string]interface{})
+	for _, m := range maps {
+		for k, v := range m {
+			resultMap[k] = v
+		}
+	}
+	return resultMap
 }

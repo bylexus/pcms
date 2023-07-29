@@ -13,6 +13,28 @@ import (
 	"github.com/russross/blackfriday/v2"
 )
 
+/*
+The MdProcessor processes Markdown (.md) files to HTML.
+
+ 1. The input md is processed as pongo2 template,
+    including yaml frontmatter support (see example below)
+ 2. the resulting processed Markdown is converted to HTML
+ 3. then it is injected to a template as the `content` variable. The template
+    needs to be defined in the YAML frontmatter, as `template` key.
+
+Example:
+
+	---
+	# yaml frontmatter: can contain arbitary data, available in the `variables` pongo template variable:
+	title: My Site
+	mainClass: my-site
+	# define template to inject markdown as `content` variable:
+	template: base-markdown.html
+	---
+	# some Markdown
+
+	hello, Markdown!
+*/
 type MdProcessor struct {
 }
 
@@ -21,38 +43,7 @@ func (p MdProcessor) Name() string {
 }
 
 func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFile string, err error) {
-
-	relSourcePath, err := filepath.Rel(config.SourcePath, sourceFile)
-	if err != nil {
-		return "", err
-	}
-
-	relSourceDir, err := filepath.Rel(config.SourcePath, filepath.Dir(sourceFile))
-	if err != nil {
-		return "", err
-	}
-
-	// calc outfile path and create dest directory
-	outFile := path.Join(config.DestPath, relSourcePath)
-	outBase := strings.Replace(filepath.Base(outFile), ".md", ".html", 1)
-	outDir := filepath.Dir(outFile)
-	outFile = path.Join(outDir, outBase)
-	err = os.MkdirAll(outDir, fs.ModeDir|0777)
-	if err != nil {
-		return "", err
-	}
-
-	relDestPath, err := filepath.Rel(config.DestPath, outFile)
-	if err != nil {
-		return "", err
-	}
-
-	relDestDir, err := filepath.Rel(config.DestPath, outDir)
-	if err != nil {
-		return "", err
-	}
-
-	relDestRoot, err := filepath.Rel(outDir, config.DestPath)
+	filePaths, err := p.prepareFilePaths(sourceFile, config)
 	if err != nil {
 		return "", err
 	}
@@ -71,13 +62,7 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 	}
 
 	// Merge frontmatter variables with global config vars:
-	variables := make(map[string]interface{})
-	for k, v := range config.Variables {
-		variables[k] = v
-	}
-	for k, v := range yamlFrontMatter {
-		variables[k] = v
-	}
+	variables := mergeStringMaps(config.Variables, yamlFrontMatter)
 
 	// process template to output file
 	context := pongo2.Context{
@@ -86,22 +71,22 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 		// file path to the root source dir:
 		"sourceRootDir": config.SourcePath,
 		// relative dir of the actual source file to the sourceRootDir
-		"sourceRelDir": relSourceDir,
+		"sourceRelDir": filePaths.relSourceDir,
 		// relative file path of the actual file to the sourceRootDir
-		"sourceRelPath": relSourcePath,
+		"sourceRelPath": filePaths.relSourcePath,
 		// full path to the source file
 		"sourceFullPath": sourceFile,
 
 		// file path to the root destination dir:
 		"destRootDir": config.DestPath,
 		// relative dir of the actual destination file to the destRootDir
-		"destRelDir": relDestDir,
+		"destRelDir": filePaths.relDestDir,
 		// relative file path of the actual file to the destRootDir
-		"destRelPath": relDestPath,
+		"destRelPath": filePaths.relDestPath,
 		// full path to the destination file
-		"destFullPath": outFile,
+		"destFullPath": filePaths.outFile,
 
-		"base": relDestRoot,
+		"base": filePaths.relDestRoot,
 	}
 
 	// now, we need to process the Markdown source as template:
@@ -141,7 +126,7 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 		}
 	}
 
-	outWriter, err := os.Create(outFile)
+	outWriter, err := os.Create(filePaths.outFile)
 	if err != nil {
 		return "", err
 	}
@@ -152,5 +137,60 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 		return "", err
 	}
 
-	return outFile, nil
+	return filePaths.outFile, nil
+}
+
+func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (processingFileInfo, error) {
+	var err error = nil
+	result := processingFileInfo{
+		relSourcePath: "",
+		relSourceDir:  "",
+		outFile:       "",
+		outDir:        "",
+		relDestPath:   "",
+		relDestDir:    "",
+		relDestRoot:   "",
+	}
+	// path to the input source file, relative to the base source dir:
+	result.relSourcePath, err = filepath.Rel(config.SourcePath, sourceFile)
+	if err != nil {
+		return result, err
+	}
+
+	// path to the input source file's directory, relative to the base source dir:
+	result.relSourceDir, err = filepath.Rel(config.SourcePath, filepath.Dir(sourceFile))
+	if err != nil {
+		return result, err
+	}
+
+	// calc outfile path and create dest directory
+	outFile := path.Join(config.DestPath, result.relSourcePath)
+	outBase := strings.Replace(filepath.Base(outFile), ".md", ".html", 1)
+	// full output file path's dir:
+	result.outDir = filepath.Dir(outFile)
+	// full output file path:
+	result.outFile = path.Join(result.outDir, outBase)
+	err = os.MkdirAll(result.outDir, fs.ModeDir|0777)
+	if err != nil {
+		return result, err
+	}
+
+	// path to the output destionation file, relative to the base destination dir:
+	result.relDestPath, err = filepath.Rel(config.DestPath, result.outFile)
+	if err != nil {
+		return result, err
+	}
+
+	// path to the output destionation file's directory, relative to the base destination dir:
+	result.relDestDir, err = filepath.Rel(config.DestPath, result.outDir)
+	if err != nil {
+		return result, err
+	}
+
+	// relative path to the destination root folder:
+	result.relDestRoot, err = filepath.Rel(result.outDir, config.DestPath)
+	if err != nil {
+		return result, err
+	}
+	return result, nil
 }

@@ -11,6 +11,20 @@ import (
 	"github.com/flosch/pongo2/v4"
 )
 
+/*
+The HtmlProcessor processes .html files
+
+The input HTML is processed as pongo2 template.
+It also supports a YAML front matter:
+
+	---
+	# yaml frontmatter: can contain arbitary data, available in the `variables` pongo template variable:
+	title: My Site
+	mainClass: my-site
+	---
+	{% extends base.tpl.html %}
+	<p>some html</p>
+*/
 type HtmlProcessor struct {
 }
 
@@ -19,37 +33,7 @@ func (p HtmlProcessor) Name() string {
 }
 
 func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (destFile string, err error) {
-	// processorConfig := config.Processors.Html
-
-	relSourcePath, err := filepath.Rel(config.SourcePath, sourceFile)
-	if err != nil {
-		return "", err
-	}
-
-	relSourceDir, err := filepath.Rel(config.SourcePath, filepath.Dir(sourceFile))
-	if err != nil {
-		return "", err
-	}
-
-	// calc outfile path and create dest directory
-	outFile := path.Join(config.DestPath, relSourcePath)
-	outDir := filepath.Dir(outFile)
-	err = os.MkdirAll(outDir, fs.ModeDir|0777)
-	if err != nil {
-		return "", err
-	}
-
-	relDestPath, err := filepath.Rel(config.DestPath, outFile)
-	if err != nil {
-		return "", err
-	}
-
-	relDestDir, err := filepath.Rel(config.DestPath, outDir)
-	if err != nil {
-		return "", err
-	}
-
-	relDestRoot, err := filepath.Rel(outDir, config.DestPath)
+	filePaths, err := p.prepareFilePaths(sourceFile, config)
 	if err != nil {
 		return "", err
 	}
@@ -68,13 +52,7 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 	}
 
 	// Merge frontmatter variables with global config vars:
-	variables := make(map[string]interface{})
-	for k, v := range config.Variables {
-		variables[k] = v
-	}
-	for k, v := range yamlFrontMatter {
-		variables[k] = v
-	}
+	variables := mergeStringMaps(config.Variables, yamlFrontMatter)
 
 	// create template from input file
 	tpl, err := pongo2.FromString(sourceString)
@@ -89,25 +67,25 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 		// file path to the root source dir:
 		"sourceRootDir": config.SourcePath,
 		// relative dir of the actual source file to the sourceRootDir
-		"sourceRelDir": relSourceDir,
+		"sourceRelDir": filePaths.relSourceDir,
 		// relative file path of the actual file to the sourceRootDir
-		"sourceRelPath": relSourcePath,
+		"sourceRelPath": filePaths.relSourcePath,
 		// full path to the source file
 		"sourceFullPath": sourceFile,
 
 		// file path to the root destination dir:
 		"destRootDir": config.DestPath,
 		// relative dir of the actual destination file to the destRootDir
-		"destRelDir": relDestDir,
+		"destRelDir": filePaths.relDestDir,
 		// relative file path of the actual file to the destRootDir
-		"destRelPath": relDestPath,
+		"destRelPath": filePaths.relDestPath,
 		// full path to the destination file
-		"destFullPath": outFile,
+		"destFullPath": filePaths.outFile,
 
-		"base": relDestRoot,
+		"base": filePaths.relDestRoot,
 	}
 
-	outWriter, err := os.Create(outFile)
+	outWriter, err := os.Create(filePaths.outFile)
 	if err != nil {
 		return "", err
 	}
@@ -118,5 +96,51 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 		return "", err
 	}
 
-	return outFile, nil
+	return filePaths.outFile, nil
+}
+
+func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) (processingFileInfo, error) {
+	var err error = nil
+	result := processingFileInfo{
+		relSourcePath: "",
+		relSourceDir:  "",
+		outFile:       "",
+		outDir:        "",
+		relDestPath:   "",
+		relDestDir:    "",
+		relDestRoot:   "",
+	}
+	result.relSourcePath, err = filepath.Rel(config.SourcePath, sourceFile)
+	if err != nil {
+		return result, err
+	}
+
+	result.relSourceDir, err = filepath.Rel(config.SourcePath, filepath.Dir(sourceFile))
+	if err != nil {
+		return result, err
+	}
+
+	// calc outfile path and create dest directory
+	result.outFile = path.Join(config.DestPath, result.relSourcePath)
+	result.outDir = filepath.Dir(result.outFile)
+	err = os.MkdirAll(result.outDir, fs.ModeDir|0777)
+	if err != nil {
+		return result, err
+	}
+
+	result.relDestPath, err = filepath.Rel(config.DestPath, result.outFile)
+	if err != nil {
+		return result, err
+	}
+
+	result.relDestDir, err = filepath.Rel(config.DestPath, result.outDir)
+	if err != nil {
+		return result, err
+	}
+
+	result.relDestRoot, err = filepath.Rel(result.outDir, config.DestPath)
+	if err != nil {
+		return result, err
+	}
+	return result, nil
 }
