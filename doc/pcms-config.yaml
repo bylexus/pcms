@@ -20,10 +20,10 @@ variables:
       destRelDir: requirements
     - title: "Quickstart"
       destRelDir: quickstart
-    - title: "Install / setup"
-      destRelDir: install_setup
     - title: Architecture
       destRelDir: architecture
+    - title: "Install / setup"
+      destRelDir: install_setup
     - title: "Reference"
       destRelDir: reference
 template_dir: templates

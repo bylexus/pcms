@@ -1,3 +1,13 @@
+---
+title: "architecture"
+shortTitle: "Architecture"
+template: "page-template.html"
+metaTags: 
+  - name: "keywords"
+    content: "architecture,pcms,cms"
+  - name: "description"
+    content: "System and Software architecture of pcms"
+---
 # Architecture
 
 pcms is a mini-framework written in [GO](https://go.dev/) to deliver web pages from HTML / Markdown from templates.
@@ -97,4 +107,4 @@ I plan to scan for changes in the file system and automatically re-build the pag
 for the moment, Yagni, see above. It's on my to-do-list, though. For now, just restart pcms if you do
 changes at the page structure.
 
-The page tree is also available in the page templates, to build menus, for example. See the [Reference section]({{base}}/reference) for more information.
+The page tree is also available in the page templates, to build menus, for example. See the [Reference section]({{base}}/reference/) for more information.

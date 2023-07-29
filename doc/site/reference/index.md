@@ -1,3 +1,13 @@
+---
+title: "reference"
+shortTitle: "Reference"
+template: "page-template.html"
+metaTags: 
+  - name: "keywords"
+    content: "reference,pcms,cms"
+  - name: "description"
+    content: "pcms reference"
+---
 # Reference documentation
 
 ## Generating a site
@@ -169,14 +179,16 @@ that can be used in the template.
 For example, you can access the actual Page's route and arbitary `page.json` data in your template:
 
 ```html
+{% verbatim %}
 <html>
   <head>
-    <title>{% raw %}{{page.pageConfig.title}}{% endraw %}</title>
+    <title>{{page.pageConfig.title}}</title>
   </head>
   <body>
-    <p>The actual page's route: {% raw %}{{route}}{% endraw %}</p>
+    <p>The actual page's route: {{route}}</p>
   </body>
 </html>
+{% endverbatim %}
 ```
 
 #### `site`: The site-config content
@@ -186,7 +198,9 @@ The `site` variable contains the contents of `site-config.json`.
 Example:
 
 ```html
-<div>This server runs on port: {% raw %}{{site.port}}{% endraw %}</div>
+{% verbatim %}
+<div>This server runs on port: {{site.port}}</div>
+{% endverbatim %}
 ```
 
 #### `base`: The webroot property
@@ -197,14 +211,16 @@ need absolute-addressed links, for example.
 Example:
 
 ```html
+{% verbatim %}
 <div>
-  See my fancy image: <img src="{% raw %}{{base}}/my-image.jpg{% endraw %}" />
+  See my fancy image: <img src="{{base}}/my-image.jpg" />
 </div>
+{% endverbatim %}
 ```
 
 #### `route` and `fullRoute`: The actual page's / resource's route
 
-`route` contains the page's route, e.g. this page's `{% raw %}{{route}}{% endraw %}` variable resolves to `{{route}}`.
+`route` contains the page's route, e.g. this page's `route` variable resolves to `{{route}}`.
 
 The `fullRoute` variable contains the route to the requested sub-content, e.g. an image. This is only useful in e.g. preprocessor scripts
 or js-based pages.
@@ -213,7 +229,7 @@ or js-based pages.
 
 This variable contains all page-related information:
 
-- `page.urlTail`: Access to the page-relative url tail, if requesting a sub-resource (Useful only in a pre-processor or raw JS script)
+- `page.urlTail`: Access to the page-relative url tail, if requesting a sub-resource (Useful only in a pre-processor or verbatim JS script)
 - `page.depth`: Distance to the root page (root page distance = 0, `/page` = 1, `/page/subpage` = 2)
 - `page.fullPath`: Full file path to this page's folder
 - `page.routePart`: The page's last part of the route: e.g. for the route `/page/subpage`, `page.routePart` contains `subpage`
@@ -241,14 +257,16 @@ An example:
 ```
 
 ```html
-<!-- index.html -->{% raw %}
+{% verbatim %}
+<!-- index.html -->
 {% extends "base.html" %}
 
 {% block content %}
 <h1>{{page.pageConfig.title}}</h1>
 <p><a href="{{base}}/">Back to home</a></p>
 <p>Your actual Route: {{base}}{{route}}</page>
-{% endblock %}{% endraw %}
+{% endblock %}
+{% endverbatim %}
 ```
 
 ### Page type: markdown
@@ -272,23 +290,27 @@ An example:
 ```
 
 ```md
-{% raw %}
+{% verbatim %}
 Hello, {{page.pageConfig.title}}!
 
 ---
 
-This is a **Markdown** page. Your route is: {{route}}{% endraw %}
+This is a **Markdown** page. Your route is: {{route}}
+{% endverbatim %}
 ```
 
 ```html
-<!-- page-template.html -->{% raw %} {% extends "base.html" %} {% block content
-%}
+{% verbatim %}
+<!-- page-template.html -->
+{% extends "base.html" %} 
+{% block content %}
 <div id="page_content">
   <!-- here, the markdown content will be rendered, `safe` for not encoding HTML tags: -->
   {{ content | safe }}
 </div>
 
-{% endblock %}{% endraw %}
+{% endblock %}
+{% endverbatim %}
 ```
 
 ### Page type: json
@@ -332,8 +354,10 @@ An example:
 ```
 
 ```html
-<!-- page-template.html -->{% raw %} {% extends "base.html" %} {% block content
-%}
+{% verbatim %}
+<!-- page-template.html -->
+{% extends "base.html" %}
+{% block content %}
 
 <h1>{{page.pageConfig.title}}</h1>
 
@@ -356,7 +380,8 @@ An example:
     {% endfor %}
   </tbody>
 </table>
-{% endblock %}{% endraw %}
+{% endblock %}
+{% endverbatim %}
 ```
 
 ### Page type: js
@@ -421,13 +446,16 @@ module.exports = function(pageNode, rootNode) {
 ```
 
 ```html
-<!-- HTML page template -->{% raw %} {% extends "base.html" %} {% block content
-%}
+{% verbatim %}
+<!-- HTML page template -->
+{% extends "base.html" %}
+{% block content %}
 <h1>{{page.pageConfig.title}}</h1>
 
 <p>Actual time injected from preprocessor script: {{actTime}}</p>
 <p>Your favorite joke: {{joke}}</p>
-{% endblock %}{% endraw %}
+{% endblock %}
+{% endverbatim %}
 ```
 
 ## Page templating, Themes
@@ -449,7 +477,7 @@ You need at least one `templates` folder: This is the folder where Nunjucks is l
 if you extend a page template from it.
 
 The `static` folder is where you can put theme-wide static contents like images, fonts, CSS files etc.
-The static folder is available in your templates as `{%raw%}{{base}}/theme/static{%endraw%}`: This route is mapped to
+The static folder is available in your templates as `{% verbatim %}{{base}}/theme/static{% endverbatim %}`: This route is mapped to
 the configured theme.
 
 You can add any additional theme-wide resources in your theme folder. As an example, the theme of
@@ -486,14 +514,17 @@ This is just the folder name of your theme.
 Now you can define page templates as shown in the chapters above, by inheriting from a base theme:
 
 ```html
-<!-- page.html -->{% raw %}
+{% verbatim %}
+<!-- page.html -->
 <!-- inherit from a base theme in your theme: -->
-{% extends "base.html" %} {% block content %}
+{% extends "base.html" %}
+{% block content %}
 
 <!-- Route to the Theme's folder, for accessing theme resources: -->
 <img src="{{base}}/theme/static/theme-image.jpg" />
 
-{% endblock %}{% endraw %}
+{% endblock %}
+{% endverbatim %}
 ```
 
 ## Restricted pages with HTTP Basic Auth

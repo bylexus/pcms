@@ -1,3 +1,13 @@
+---
+title: "install / setup"
+shortTitle: "Install / Setup"
+template: "page-template.html"
+metaTags: 
+  - name: "keywords"
+    content: "install, setup,pcms,cms"
+  - name: "description"
+    content: "Installation and setup of sites using pcms"
+---
 # Installation / Setup of pcms-driven sites
 
 `pcms` comes with a site template which helps you getting startet. It will create a skeleton site / structure for you so you don't have to start from scratch.
@@ -177,9 +187,9 @@ All these variables can be used within the template. An example:
 {% verbatim %}<!-- index.html -->
 {% extends "base.html" %}
 
-<h1>{{page.Metadata.title}}</h1>
+<h1>{{variables.title}}</h1>
 <p>Hello. It is now {% now "03:04 on 02.01.2006" %}.</p>
-<a href="{{rootPage.Route}}">Back to home</a>
+<a href="{{base}}/">Back to home</a>
 
 A relative link: <a href="{{page.Route}}/sub/folder/picture.png">Image</a>
 {% endverbatim %}

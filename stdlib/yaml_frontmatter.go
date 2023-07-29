@@ -18,7 +18,7 @@ import (
 //
 // returns:
 // (yaml object, "here comes the rest of the doc...")
-func ExtractYamlFrontMatter(doc string) (map[string]interface{}, string) {
+func ExtractYamlFrontMatter(doc string) (map[string]interface{}, string, error) {
 	yamlObj := make(map[string]interface{})
 	// Matches the whole preamble block and the rest of the doc as
 	// separate groups:
@@ -29,10 +29,10 @@ func ExtractYamlFrontMatter(doc string) (map[string]interface{}, string) {
 		restDoc := matches[3]
 		err := yaml.Unmarshal([]byte(yamlDoc), &yamlObj)
 		if err != nil {
-			return yamlObj, doc
+			return yamlObj, doc, err
 		}
-		return yamlObj, restDoc
+		return yamlObj, restDoc, nil
 	} else {
-		return yamlObj, doc
+		return yamlObj, doc, nil
 	}
 }

@@ -62,7 +62,10 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 	sourceString := string(sourceBytes[:])
 
 	// Extract yaml frontmatter:
-	yamlFrontMatter, sourceString := stdlib.ExtractYamlFrontMatter(sourceString)
+	yamlFrontMatter, sourceString, err := stdlib.ExtractYamlFrontMatter(sourceString)
+	if err != nil {
+		return "", err
+	}
 
 	// Merge frontmatter variables with global config vars:
 	variables := make(map[string]interface{})

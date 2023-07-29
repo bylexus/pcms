@@ -1,3 +1,13 @@
+---
+title: "quick start"
+shortTitle: "Quick Start"
+template: "page-template.html"
+metaTags: 
+  - name: "keywords"
+    content: "quick start,pcms,cms"
+  - name: "description"
+    content: "Quick start of running pcms"
+---
 # Quick start - for the impatient
 
 This chapter guides you very quickly from installation to a fully-running site. For more information, please refer to the rest of the documentation.
