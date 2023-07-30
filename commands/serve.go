@@ -58,6 +58,7 @@ func RunServeCmd(config model.Config) error {
 		),
 	)
 
+	// Now, fire up the barbequeue:
 	server := &http.Server{
 		Addr:    config.Server.Listen,
 		Handler: h,

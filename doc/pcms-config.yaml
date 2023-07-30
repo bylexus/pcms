@@ -1,12 +1,12 @@
 server:
   listen: ":3000"
-  prefix: "/web"
+  prefix: ""
   logging:
     access:
       file: STDOUT
       format: ""
     error:
-      file: log/server.log
+      file: STDERR
       level: DEBUG
 source: "site"
 dest: "build"

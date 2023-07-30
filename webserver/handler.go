@@ -33,6 +33,12 @@ func NewRequestHandler(
 	return &r
 }
 
+/*
+The RequestHandler's Serve function. This should be the inner-most
+handler, so middlewares should already be applied (e.g. the StripPrefix handler).
+We take the URL's path and prefix the local destination path to find a matching
+local file, then deliver it.
+*/
 func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// create a file path from the requested URL path:
 	relUrl := req.URL

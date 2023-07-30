@@ -6,6 +6,7 @@
   - [ ] cmd flag for output folder (overrides config)
 - [ ] serve:
   - [ ] indexing using sqlite
+  - [ ] optionally build before serve (cli flag)
   - [ ] embedded doc
   - [ ] config access log format
   - [ ] configurable error pages (specific templates for http errors)

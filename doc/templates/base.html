@@ -12,9 +12,8 @@
         <meta name="{{meta.name}}" content="{{meta.content}}" />
         {% endfor %}
 
-        <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:300,400|Source+Sans+Pro:300,400" rel="stylesheet">
-        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/styles/monokai.min.css">
+        <link rel="stylesheet" href="{{base}}/assets/fontawesome-free-5.15.4-web/css/all.min.css" >
+        <link rel="stylesheet" href="{{base}}/assets/highlightjs/monokai.min.css">
         <link rel="stylesheet" href="{{base}}/styles/main.css" />
     </head>
     <body>
@@ -44,7 +43,7 @@
             powered by <i class="fas fa-heart" style="color:red"></i> <a href="https://github.com/bylexus/pcms">pcms, the master himself</a> :-)
         </footer>
 
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.6/highlight.min.js"></script>
+        <script src="{{base}}/assets/highlightjs/highlight.min.js"></script>
         <script>hljs.initHighlightingOnLoad();</script>
         {% block bodyScripts %}
         {% endblock %}
