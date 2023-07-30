@@ -1,10 +1,10 @@
 package commands
 
 import (
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
-	"path"
 
 	"alexi.ch/pcms/logging"
 	"alexi.ch/pcms/model"
@@ -35,16 +35,31 @@ func RunServeCmd(config model.Config) error {
 		return err
 	}
 
-	confFilePath := config.ConfigFile
+	// serve mode: either by the configured file folder,
+	// or serve the embedded doc:
+	var siteFS fs.FS
+	switch config.ServeMode {
+	case model.SERVE_MODE_EMBEDDED_DOC:
+		siteFS, err = fs.Sub(config.EmbeddedDocFS, "doc/build")
+		if err != nil {
+			return err
+		}
+	default:
+		// static site folder as FS:
+		siteFS = os.DirFS(config.DestPath)
 
-	// change the app's CWD to the conf file location's dir:
-	cwd := path.Dir(confFilePath)
-	err = os.Chdir(cwd)
-	if err != nil {
-		return err
 	}
 
-	errorLogger.Info("App's Current Working Dir: %s\n", cwd)
+	// confFilePath := config.ConfigFile
+
+	// change the app's CWD to the conf file location's dir:
+	// cwd := path.Dir(confFilePath)
+	// err = os.Chdir(cwd)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// errorLogger.Info("App's Current Working Dir: %s\n", cwd)
 	defer accessLogger.Close()
 	defer errorLogger.Close()
 
@@ -54,7 +69,7 @@ func RunServeCmd(config model.Config) error {
 		accessLogger,
 		http.StripPrefix(
 			config.Server.Prefix,
-			webserver.NewRequestHandler(config, accessLogger, errorLogger),
+			webserver.NewRequestHandler(config, accessLogger, errorLogger, siteFS),
 		),
 	)
 

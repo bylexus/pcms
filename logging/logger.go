@@ -78,6 +78,12 @@ func NewLogger(filename string, level Level, format string) *Logger {
 		fpath = "STDERR"
 	} else {
 		fpath, _ = filepath.Abs(filename)
+		fdir := filepath.Dir(fpath)
+		err = os.MkdirAll(fdir, os.ModeDir)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Using logfile: %s: %s\n", filename, fpath)
 		f, err = os.OpenFile(filename, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
 			panic(err)

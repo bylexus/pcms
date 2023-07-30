@@ -14,8 +14,12 @@ build:
 exec:
 	@GOBIN=$(GOBIN) $(run)
 
+.PHONY: build-doc
+build-doc: build
+	$(GOBIN)/$(PROJECTNAME) -c $(GOBASE)/doc/pcms-config.yaml build
+
 .PHONY: serve-doc
-serve-doc: build
+serve-doc: build-doc
 	$(GOBIN)/$(PROJECTNAME) -c $(GOBASE)/doc/pcms-config.yaml serve
 
 .PHONY: build-docker-image-amd64

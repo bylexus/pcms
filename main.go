@@ -16,6 +16,11 @@ import (
 //go:embed site-template
 var templateContent embed.FS
 
+// embed the built doc folder:
+//
+//go:embed doc/build
+var embeddedDocFS embed.FS
+
 func printUsage(flagMap map[string]*flag.FlagSet) {
 	fmt.Fprint(os.Stderr, "Usage:\n\npcms [options] <sub-command> [sub-command options]\n\n")
 	fmt.Fprint(os.Stderr, "options:\n\n")
@@ -41,6 +46,7 @@ The following commands are supported:
 
 * build: Builds the site as static content
 * serve: Builds the site (same as build) and starts a webserver to serve the content
+* serve-doc: Serves the embedded (binary-built-in) documentation
 */
 func parseCmdArgs() model.CmdArgs {
 	args := model.CmdArgs{}
@@ -71,6 +77,7 @@ func parseCmdArgs() model.CmdArgs {
 
 	// serve command:
 	serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
+	serveCmd.String("listen", ":3000", "TCP/IP Listen address, e.g. '-listen :3000' or '-listen 127.0.0.1:8888'")
 	prevServeUsage := serveCmd.Usage
 	serveCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, "serve:      Starts the web server and serves the page\n")
@@ -79,6 +86,18 @@ func parseCmdArgs() model.CmdArgs {
 
 	}
 	subCommands[serveCmd.Name()] = serveCmd
+
+	// serve command:
+	serveDocCmd := flag.NewFlagSet("serve-doc", flag.ExitOnError)
+	serveDocCmd.String("listen", ":3000", "TCP/IP Listen address, e.g. '-listen :3000' or '-listen 127.0.0.1:8888'")
+	prevServeDocUsage := serveDocCmd.Usage
+	serveDocCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "serve-doc:      Starts a webserver and seves the embedded documentation\n")
+		prevServeDocUsage()
+		fmt.Fprintln(os.Stderr, "")
+
+	}
+	subCommands[serveDocCmd.Name()] = serveDocCmd
 
 	// initCmd := flag.NewFlagSet("init", flag.ExitOnError)
 	// prevInitUsage := initCmd.Usage
@@ -129,11 +148,23 @@ func main() {
 	}
 	config := model.NewConfig(confFilePath)
 	config.ConfigFile = confFilePath
+	config.EmbeddedDocFS = embeddedDocFS
+
+	// read command specific flags
+	if listen := args.FlagSet.Lookup("listen"); listen != nil {
+		config.Server.Listen = listen.Value.String()
+	}
 
 	switch args.FlagSet.Name() {
 	case "build":
 		err = commands.RunBuildCmd(config)
 	case "serve":
+		config.ServeMode = model.SERVE_MODE_FILES
+		err = commands.RunServeCmd(config)
+	case "serve-doc":
+		config.ServeMode = model.SERVE_MODE_EMBEDDED_DOC
+		config.Server.Logging.Access.File = "STDOUT"
+		config.Server.Logging.Error.File = "STDERR"
 		err = commands.RunServeCmd(config)
 	case "init":
 		// commands.RunInitCmd(args, &templateContent)

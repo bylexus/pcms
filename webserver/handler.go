@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
-	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/flosch/pongo2/v4"
@@ -19,19 +20,25 @@ import (
 type RequestHandler struct {
 	ServerConfig model.Config
 	ErrorLogger  *logging.Logger
+	// the site FS is the root of the served file system
+	siteFS fs.FS
 }
 
 func NewRequestHandler(
 	config model.Config,
 	accessLogger *logging.Logger,
 	errorLogger *logging.Logger,
+	siteFS fs.FS,
 ) *RequestHandler {
 	r := RequestHandler{
 		ServerConfig: config,
 		ErrorLogger:  errorLogger,
+		siteFS:       siteFS,
 	}
 	return &r
 }
+
+var slashRemoveRe = regexp.MustCompile(`^\/*(.*?)\/*$`)
 
 /*
 The RequestHandler's Serve function. This should be the inner-most
@@ -42,10 +49,16 @@ local file, then deliver it.
 func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// create a file path from the requested URL path:
 	relUrl := req.URL
-	filePath := filepath.Join(h.ServerConfig.DestPath, relUrl.Path)
+	fsPath := relUrl.Path
+	// remove trailing/leading slashes: FS system's paths must not begin/end with slashes:
+	fsPath = slashRemoveRe.FindStringSubmatch(fsPath)[1]
+	if len(fsPath) == 0 {
+		fsPath = "."
+	}
 
 	// check if file exists, output an error if not:
-	info, err := os.Stat(filePath)
+	info, err := fs.Stat(h.siteFS, fsPath)
+	// info, err := os.Stat(filePath)
 	if errors.Is(err, fs.ErrNotExist) {
 		h.errorHandler(w, fmt.Errorf("not found: %s", relUrl), http.StatusNotFound)
 		return
@@ -57,8 +70,8 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	// if the requested file is a dir, add index.html to the path and try again:
 	if info.IsDir() {
-		filePath = filepath.Join(filePath, "index.html")
-		_, err = os.Stat(filePath)
+		fsPath = path.Join(fsPath, "index.html")
+		_, err = fs.Stat(h.siteFS, fsPath)
 		if errors.Is(err, fs.ErrNotExist) {
 			h.errorHandler(w, fmt.Errorf("not found: %s", relUrl), http.StatusNotFound)
 			return
@@ -70,7 +83,7 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// all well, deliver it!
-	staticHandler := http.FileServer(http.Dir(h.ServerConfig.DestPath))
+	staticHandler := http.FileServer(http.FS(h.siteFS))
 	staticHandler.ServeHTTP(w, req)
 }
 

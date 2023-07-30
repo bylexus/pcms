@@ -1,6 +1,7 @@
 package model
 
 import (
+	"embed"
 	"log"
 	"os"
 	"path"
@@ -21,6 +22,11 @@ type LoggingConfigEntry struct {
 	Level  string `yaml:"level"`
 }
 
+const (
+	SERVE_MODE_FILES        = "FILES"
+	SERVE_MODE_EMBEDDED_DOC = "EMBEDDED_DOC"
+)
+
 type Config struct {
 	Server struct {
 		Listen  string        `yaml:"listen"`
@@ -39,6 +45,8 @@ type Config struct {
 			SassBin string `yaml:"sass_bin"`
 		} `yaml:"scss"`
 	} `yaml:"processors"`
+	EmbeddedDocFS embed.FS
+	ServeMode     string
 }
 
 func NewConfig(conffilePath string) Config {
@@ -57,6 +65,11 @@ func NewConfig(conffilePath string) Config {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	// Serve mode
+	if len(config.ServeMode) == 0 {
+		config.ServeMode = SERVE_MODE_FILES
 	}
 
 	// set config defaults, if not set:
@@ -87,18 +100,6 @@ func NewConfig(conffilePath string) Config {
 		log.Fatal(err)
 	}
 
-	// config.Site.Path, err = filepath.Abs(filepath.Join(config.BasePath, "site"))
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// if config.Site.ThemePath == "" {
-	// 	absThemePath, err3 := filepath.Abs(filepath.Join(config.BasePath, "themes", config.Site.Theme))
-	// 	if err3 != nil {
-	// 		log.Fatal(err3)
-	// 	}
-	// 	config.Site.ThemePath = absThemePath
-	// }
 	configPongoTemplatePathLoader(config)
 
 	return config

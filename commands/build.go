@@ -13,7 +13,7 @@ import (
 // Run the 'build' sub-command:
 // build the site to an output folder
 func RunBuildCmd(config model.Config) error {
-	cleanDir(config.DestPath)
+	// cleanDir(config.DestPath)
 	srcFS := os.DirFS(config.SourcePath)
 	return processInputFS(srcFS, config.SourcePath, config)
 }
