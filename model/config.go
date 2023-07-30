@@ -10,11 +10,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type ServerConfig struct {
-	Listen  string        `yaml:"listen"`
-	Logging LoggingConfig `yaml:"logging"`
-}
-
 type LoggingConfig struct {
 	Access LoggingConfigEntry `yaml:"access"`
 	Error  LoggingConfigEntry `yaml:"error"`
@@ -27,7 +22,11 @@ type LoggingConfigEntry struct {
 }
 
 type Config struct {
-	Server          ServerConfig           `yaml:"server"`
+	Server struct {
+		Listen  string        `yaml:"listen"`
+		Prefix  string        `yaml:"prefix"`
+		Logging LoggingConfig `yaml:"logging"`
+	} `yaml:"server"`
 	Variables       map[string]interface{} `yaml:"variables"`
 	ConfigFile      string
 	SourcePath      string   `yaml:"source"`
@@ -43,11 +42,7 @@ type Config struct {
 }
 
 func NewConfig(conffilePath string) Config {
-	config := Config{
-		Server: ServerConfig{
-			Listen: ":8080",
-		},
-	}
+	config := Config{}
 
 	log.Printf("Reading config file: %v", conffilePath)
 
@@ -62,6 +57,11 @@ func NewConfig(conffilePath string) Config {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	// set config defaults, if not set:
+	if config.Server.Listen == "" {
+		config.Server.Listen = ":8080"
 	}
 
 	// Set current working dir to the conf file dir for subsequent commands:

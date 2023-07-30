@@ -28,12 +28,27 @@ func printUsage(flagMap map[string]*flag.FlagSet) {
 	}
 }
 
+/*
+Parses all command line args and commands, and returns a CmdArgs struct
+containing all the parsed commands and flags.
+
+The following global argument are supported:
+
+-h: Prints help, and exit
+-c <path> Path to the config yaml file. Defaults to './pcms-config.yaml' if noet set
+
+The following commands are supported:
+
+* build: Builds the site as static content
+* serve: Builds the site (same as build) and starts a webserver to serve the content
+*/
 func parseCmdArgs() model.CmdArgs {
 	args := model.CmdArgs{}
-
 	subCommands := make(map[string]*flag.FlagSet)
 
+	// Help flat -h
 	helpFlag := flag.Bool("h", false, "Prints this help")
+	// config file path -c <path>
 	confFileFlag := flag.String("c", "pcms-config.yaml", "path to the pcms-config.yaml file. The base dir used is the path of the config file.")
 	flag.Parse()
 
@@ -43,6 +58,7 @@ func parseCmdArgs() model.CmdArgs {
 
 	subCommands["__main__"] = flag.CommandLine
 
+	// build command:
 	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
 	prevBuildUsage := buildCmd.Usage
 	buildCmd.Usage = func() {
@@ -53,16 +69,16 @@ func parseCmdArgs() model.CmdArgs {
 	}
 	subCommands[buildCmd.Name()] = buildCmd
 
-	// serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
-	// serveCmd.String("c", "", "path to the pcms-config.yaml file. The base dir used is the path of the config file.")
-	// prevServeUsage := serveCmd.Usage
-	// serveCmd.Usage = func() {
-	// 	fmt.Fprintf(os.Stderr, "serve:      Starts the web server and serves the page\n")
-	// 	prevServeUsage()
-	// 	fmt.Fprintln(os.Stderr, "")
+	// serve command:
+	serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
+	prevServeUsage := serveCmd.Usage
+	serveCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "serve:      Starts the web server and serves the page\n")
+		prevServeUsage()
+		fmt.Fprintln(os.Stderr, "")
 
-	// }
-	// subCommands[serveCmd.Name()] = serveCmd
+	}
+	subCommands[serveCmd.Name()] = serveCmd
 
 	// initCmd := flag.NewFlagSet("init", flag.ExitOnError)
 	// prevInitUsage := initCmd.Usage
@@ -116,12 +132,16 @@ func main() {
 
 	switch args.FlagSet.Name() {
 	case "build":
-		commands.RunBuildCmd(config)
+		err = commands.RunBuildCmd(config)
 	case "serve":
-		// commands.RunServeCmd(args)
+		err = commands.RunServeCmd(config)
 	case "init":
 		// commands.RunInitCmd(args, &templateContent)
 	case "password":
 		// commands.RunPasswordCmd(args)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
 	}
 }
