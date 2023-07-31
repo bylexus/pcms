@@ -14,6 +14,7 @@ import (
 // Run the 'serve' sub-command:
 // build the page tree and start the web engine.
 func RunServeCmd(config model.Config) error {
+	var err error = nil
 	// setup logging:
 	accessLogger := logging.NewLogger(
 		config.Server.Logging.Access.File,
@@ -29,10 +30,12 @@ func RunServeCmd(config model.Config) error {
 	log.Printf("Server is starting. System log goes to %s\n", errorLogger.Filepath)
 
 	// first, we run the Build command on start:
-	errorLogger.Info("Building static site ...")
-	err := RunBuildCmd(config)
-	if err != nil {
-		return err
+	if config.ServeMode == model.SERVE_MODE_FILES {
+		errorLogger.Info("Building static site ...")
+		err := RunBuildCmd(config)
+		if err != nil {
+			return err
+		}
 	}
 
 	// serve mode: either by the configured file folder,
@@ -40,26 +43,18 @@ func RunServeCmd(config model.Config) error {
 	var siteFS fs.FS
 	switch config.ServeMode {
 	case model.SERVE_MODE_EMBEDDED_DOC:
+		errorLogger.Info("Serving embedded doc site")
 		siteFS, err = fs.Sub(config.EmbeddedDocFS, "doc/build")
 		if err != nil {
 			return err
 		}
 	default:
 		// static site folder as FS:
+		errorLogger.Info("Serving content from %s", config.DestPath)
 		siteFS = os.DirFS(config.DestPath)
 
 	}
 
-	// confFilePath := config.ConfigFile
-
-	// change the app's CWD to the conf file location's dir:
-	// cwd := path.Dir(confFilePath)
-	// err = os.Chdir(cwd)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// errorLogger.Info("App's Current Working Dir: %s\n", cwd)
 	defer accessLogger.Close()
 	defer errorLogger.Close()
 
@@ -82,7 +77,7 @@ func RunServeCmd(config model.Config) error {
 	errorLogger.Info("Server starting, listening to %s", config.Server.Listen)
 	errorLogger.Info("Serving site from %s", config.DestPath)
 	log.Printf("Server starting, listening to %s\n", config.Server.Listen)
-	log.Printf("Serving site from %s\n", config.DestPath)
+	log.Println("Serving site")
 	err = server.ListenAndServe()
 	if err != nil {
 		errorLogger.Fatal(err.Error())

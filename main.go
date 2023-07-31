@@ -146,23 +146,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	config := model.NewConfig(confFilePath)
-	config.ConfigFile = confFilePath
+	config := model.NewConfig(confFilePath, args)
 	config.EmbeddedDocFS = embeddedDocFS
-
-	// read command specific flags
-	if listen := args.FlagSet.Lookup("listen"); listen != nil {
-		config.Server.Listen = listen.Value.String()
-	}
 
 	switch args.FlagSet.Name() {
 	case "build":
 		err = commands.RunBuildCmd(config)
 	case "serve":
-		config.ServeMode = model.SERVE_MODE_FILES
 		err = commands.RunServeCmd(config)
 	case "serve-doc":
-		config.ServeMode = model.SERVE_MODE_EMBEDDED_DOC
 		config.Server.Logging.Access.File = "STDOUT"
 		config.Server.Logging.Error.File = "STDERR"
 		err = commands.RunServeCmd(config)

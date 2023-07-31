@@ -13,7 +13,9 @@ import (
 // Run the 'build' sub-command:
 // build the site to an output folder
 func RunBuildCmd(config model.Config) error {
-	// cleanDir(config.DestPath)
+	if config.ServeMode != model.SERVE_MODE_EMBEDDED_DOC {
+		cleanDir(config.DestPath)
+	}
 	srcFS := os.DirFS(config.SourcePath)
 	return processInputFS(srcFS, config.SourcePath, config)
 }

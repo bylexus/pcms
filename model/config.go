@@ -2,6 +2,7 @@ package model
 
 import (
 	"embed"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -49,8 +50,14 @@ type Config struct {
 	ServeMode     string
 }
 
-func NewConfig(conffilePath string) Config {
+func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 	config := Config{}
+	config.ConfigFile = conffilePath
+
+	// read command specific flags
+	if listen := cliArgs.FlagSet.Lookup("listen"); listen != nil {
+		config.Server.Listen = listen.Value.String()
+	}
 
 	log.Printf("Reading config file: %v", conffilePath)
 
@@ -65,6 +72,14 @@ func NewConfig(conffilePath string) Config {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	// determine serve mode:
+	switch cliArgs.FlagSet.Name() {
+	case "serve":
+		config.ServeMode = SERVE_MODE_FILES
+	case "serve-doc":
+		config.ServeMode = SERVE_MODE_EMBEDDED_DOC
 	}
 
 	// Serve mode
@@ -83,21 +98,44 @@ func NewConfig(conffilePath string) Config {
 		log.Fatal(err)
 	}
 
-	// source dir is relative to the working dir, or an absolute path:
-	config.SourcePath, err = filepath.Abs(config.SourcePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// dest dir is relative to the working dir, or an absolute path:
-	config.DestPath, err = filepath.Abs(config.DestPath)
-	if err != nil {
-		log.Fatal(err)
-	}
+	if config.ServeMode != SERVE_MODE_EMBEDDED_DOC {
+		// source dir is relative to the working dir, or an absolute path:
+		if len(config.SourcePath) == 0 {
+			log.Fatal(fmt.Errorf("SourcePath cannot be empty"))
+		}
+		config.SourcePath, err = filepath.Abs(config.SourcePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// dest dir is relative to the working dir, or an absolute path:
+		if len(config.DestPath) == 0 {
+			log.Fatal(fmt.Errorf("SourcePath cannot be empty"))
+		}
+		config.DestPath, err = filepath.Abs(config.DestPath)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// template dir is relative to the working dir, or an absolute path:
-	config.TemplateDir, err = filepath.Abs(config.TemplateDir)
-	if err != nil {
-		log.Fatal(err)
+		// source and dest path must not be the same
+		if config.SourcePath == config.DestPath {
+			log.Fatal("Source and Destination path must not be the same")
+		}
+
+		// source and dest path must not be the same as the actual cwd:
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if config.SourcePath == cwd || config.DestPath == cwd {
+			log.Fatal("Source and Destination path must not be in the actual working dir")
+		}
+
+		// template dir is relative to the working dir, or an absolute path:
+		config.TemplateDir, err = filepath.Abs(config.TemplateDir)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	configPongoTemplatePathLoader(config)
