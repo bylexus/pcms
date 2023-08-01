@@ -22,6 +22,8 @@ type processingFileInfo struct {
 	relDestPath   string
 	relDestDir    string
 	relDestRoot   string
+	absDestPath   string
+	absDestDir    string
 }
 
 func GetProcessor(sourceFile string, config model.Config) Processor {

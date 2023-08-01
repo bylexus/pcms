@@ -85,6 +85,9 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 		"destRelPath": filePaths.relDestPath,
 		// full path to the destination file
 		"destFullPath": filePaths.outFile,
+		"destAbsPath":  filePaths.absDestPath,
+		// full web path to the destination file's dir:
+		"destAbsDir": filePaths.absDestDir,
 
 		"base": filePaths.relDestRoot,
 	}
@@ -180,17 +183,25 @@ func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (p
 	if err != nil {
 		return result, err
 	}
+	result.absDestPath = path.Join("/", config.Server.Prefix, result.relDestPath)
 
 	// path to the output destionation file's directory, relative to the base destination dir:
 	result.relDestDir, err = filepath.Rel(config.DestPath, result.outDir)
 	if err != nil {
 		return result, err
 	}
+	if result.relDestDir == "" {
+		result.relDestDir = "."
+	}
+	result.absDestDir = path.Join("/", config.Server.Prefix, result.relDestDir)
 
 	// relative path to the destination root folder:
 	result.relDestRoot, err = filepath.Rel(result.outDir, config.DestPath)
 	if err != nil {
 		return result, err
+	}
+	if result.relDestRoot == "" {
+		result.relDestRoot = "."
 	}
 	return result, nil
 }

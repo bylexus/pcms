@@ -81,7 +81,12 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 		"destRelPath": filePaths.relDestPath,
 		// full path to the destination file
 		"destFullPath": filePaths.outFile,
+		// full web path to the destination file:
+		"destAbsPath": filePaths.absDestPath,
+		// full web path to the destination file's dir:
+		"destAbsDir": filePaths.absDestDir,
 
+		// relative path to the web base dir, from the actual processed file:
 		"base": filePaths.relDestRoot,
 	}
 
@@ -109,6 +114,8 @@ func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) 
 		relDestPath:   "",
 		relDestDir:    "",
 		relDestRoot:   "",
+		absDestPath:   "",
+		absDestDir:    "",
 	}
 	result.relSourcePath, err = filepath.Rel(config.SourcePath, sourceFile)
 	if err != nil {
@@ -118,6 +125,9 @@ func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) 
 	result.relSourceDir, err = filepath.Rel(config.SourcePath, filepath.Dir(sourceFile))
 	if err != nil {
 		return result, err
+	}
+	if result.relSourceDir == "" {
+		result.relSourceDir = "."
 	}
 
 	// calc outfile path and create dest directory
@@ -132,15 +142,23 @@ func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) 
 	if err != nil {
 		return result, err
 	}
+	result.absDestPath = path.Join("/", config.Server.Prefix, result.relDestPath)
 
 	result.relDestDir, err = filepath.Rel(config.DestPath, result.outDir)
 	if err != nil {
 		return result, err
 	}
+	if result.relDestDir == "" {
+		result.relDestDir = "."
+	}
+	result.absDestDir = path.Join("/", config.Server.Prefix, result.relDestDir)
 
 	result.relDestRoot, err = filepath.Rel(result.outDir, config.DestPath)
 	if err != nil {
 		return result, err
+	}
+	if result.relDestRoot == "" {
+		result.relDestRoot = "."
 	}
 	return result, nil
 }

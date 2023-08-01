@@ -2,6 +2,8 @@
 server:
   # listen address. This couls also be e.g. "localhost:3000"
   listen: ":3000"
+  # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "".
+  prefix: ""
   # Logging configuration: there are 2 diffenrent logs written:
   logging:
     # The access log: Logs all web access, like a webserver would.
@@ -13,23 +15,29 @@ server:
     error:
       file: STDERR
       level: DEBUG
-
-# The site config defines all things about your site.
-site:
-  # webroot: If you don't serve your page from '/', define the webroot here.
-  webroot: 
-  # Choose the theme - this maps to a folder in themes/
-  theme: default
-  # Page title - can be used in your templates
-  title: My Site Title
-  # metaTags are available in your templates as {{site.MetaTags}}
-  metaTags:
+# The source folder of the site, containing the unbuilt site templates. Relative to
+# the config file dir:
+source: "site"
+# The destination folder of the site, containing the built static site. 
+# Note that this dir will be COMPLETELY EMPTIED on build.
+# Relative to the config file dir:
+dest: "build"
+# Global variables for the pongo2 templates, available as "variables" pongo2 template var:
+variables:
+  siteTitle: My Site Title
+  siteMetaTags:
     - name: foo
       content: bar
     - name: moo
       content: baz
-  # any part of your website that needs protection? Define users and
-  # bcrypt passwords here:
-  # bcrypt passwords can be generated with 'pcms password [your password]'
-  users:
-    user1: your-bcrypt-password
+# Where to look for pongo2 templates when inheriting / defining a template file:
+# relative to the config file dir:
+template_dir: templates
+# Regular expression to exclude files/folders from the build process completely:
+exclude_patterns:
+  # Ignore .* files:
+  - "^\\..*"
+processors:
+  scss:
+    sass_bin: "/usr/bin/sass"
+

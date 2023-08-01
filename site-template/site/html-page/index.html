@@ -5,21 +5,19 @@
 
 <p><a href="{{base}}/"><i class="fas fa-home"></i> Back to home</a></p>
 
-<p>Your actual Route: {{base}}{{page.Route}}</page>
+<p>Your actual Route: {{destRelPath}}</page>
 
 <p>Access to pongo2 syntax, e.g. actual time: {% now "02.01.2006 15:04:05" %}</p>
 
 <pre>
-Page config (page.json):
-{{page.Metadata | stringformat:"%#v"}}
+Page variables:
+{{variables | stringformat:"%#v"}}
 </pre>
 
 Some static content:
 
 <p>Relative addressed image: <img src="sunset.webp" class="img-fluid" /></p>
-
-<p>Absolute addressed image: <img src="{{page.Route}}/sunset2.webp" class="img-fluid" /></p>
-
-<p>Image from theme: <img src="/theme/static/sunset.webp" /></p>
+<p>Relative addressed from webroot: <img src="/{{destRelDir}}/sunset.webp" class="img-fluid" /></p>
+<p>Absolute addressed image: <img src="{{destAbsDir}}/sunset2.webp" class="img-fluid" /></p>
 
 {% endblock %}

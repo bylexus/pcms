@@ -18,6 +18,19 @@
       ]
     },
     {
+      "name": "Launch build command for site-template/",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/main.go",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "-c",
+        "site-template/pcms-config.yaml",
+        "build"
+      ]
+    },
+    {
       "name": "Launch serve command for doc/",
       "type": "go",
       "request": "launch",
