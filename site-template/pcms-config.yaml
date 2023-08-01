@@ -3,7 +3,7 @@ server:
   # listen address. This couls also be e.g. "localhost:3000"
   listen: ":3000"
   # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "".
-  prefix: "/web"
+  prefix: ""
   # Logging configuration: there are 2 diffenrent logs written:
   logging:
     # The access log: Logs all web access, like a webserver would.

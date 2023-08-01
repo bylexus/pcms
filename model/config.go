@@ -54,6 +54,17 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 	config := Config{}
 	config.ConfigFile = conffilePath
 
+	// determine mode:
+	switch cliArgs.FlagSet.Name() {
+	case "serve":
+		config.ServeMode = SERVE_MODE_FILES
+	case "serve-doc":
+		config.ServeMode = SERVE_MODE_EMBEDDED_DOC
+	case "init":
+		// we don't need to parse the config in init mode:
+		return config
+	}
+
 	// read command specific flags
 	if listen := cliArgs.FlagSet.Lookup("listen"); listen != nil {
 		config.Server.Listen = listen.Value.String()
@@ -72,19 +83,6 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 		if err != nil {
 			log.Fatal(err)
 		}
-	}
-
-	// determine serve mode:
-	switch cliArgs.FlagSet.Name() {
-	case "serve":
-		config.ServeMode = SERVE_MODE_FILES
-	case "serve-doc":
-		config.ServeMode = SERVE_MODE_EMBEDDED_DOC
-	}
-
-	// Serve mode
-	if len(config.ServeMode) == 0 {
-		config.ServeMode = SERVE_MODE_FILES
 	}
 
 	// set config defaults, if not set:

@@ -39,9 +39,10 @@ docker-push-to-registry: build-docker-image-amd64 build-docker-image-arm64
 
 
 .PHONY: build-release
-build-release:
+build-release: build-doc
 	# cleanup:
 	rm -rf ./$(RELEASE_DIR)/
+	rm -rf ./$(GOBASE)/site-template/build/
 	mkdir ./$(RELEASE_DIR)
 	mkdir -p $(RELEASE_DIR)/linux-{amd64,arm64}-$(VERSION) $(RELEASE_DIR)/windows-amd64-$(VERSION) $(RELEASE_DIR)/darwin-{amd64,arm64}-$(VERSION)
 

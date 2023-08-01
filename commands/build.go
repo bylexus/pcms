@@ -55,7 +55,6 @@ func processInputFS(srcFS fs.FS, basePath string, config model.Config) error {
 				return err
 			}
 		} else {
-			fmt.Printf("Working on: %s\n", sourcePath)
 			processSourceFile(sourcePath, config)
 		}
 	}
@@ -71,7 +70,7 @@ func processSourceFile(sourcePath string, config model.Config) error {
 	relPath = filepath.Join("/", relPath)
 	isExcluded, pattern := processor.IsFileExcluded(relPath, config.ExcludePatterns)
 	if isExcluded {
-		fmt.Printf("  Skip file due to exclude pattern match: %s\n", pattern)
+		fmt.Printf("Skip file due to exclude pattern match: %s\n", pattern)
 		return nil
 	}
 
@@ -81,6 +80,8 @@ func processSourceFile(sourcePath string, config model.Config) error {
 		fmt.Fprintf(os.Stderr, "ERROR: %s: %s\n", sourcePath, err)
 		return err
 	}
-	fmt.Printf("  %s: %s\n", processor.Name(), outFile)
+	if len(outFile) > 0 {
+		fmt.Printf("%s: %s\n", processor.Name(), outFile)
+	}
 	return nil
 }

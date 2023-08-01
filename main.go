@@ -47,6 +47,7 @@ The following commands are supported:
 * build: Builds the site as static content
 * serve: Builds the site (same as build) and starts a webserver to serve the content
 * serve-doc: Serves the embedded (binary-built-in) documentation
+* init: initializes a directory with a skeleton page
 */
 func parseCmdArgs() model.CmdArgs {
 	args := model.CmdArgs{}
@@ -99,32 +100,23 @@ func parseCmdArgs() model.CmdArgs {
 	}
 	subCommands[serveDocCmd.Name()] = serveDocCmd
 
-	// initCmd := flag.NewFlagSet("init", flag.ExitOnError)
-	// prevInitUsage := initCmd.Usage
-	// initCmd.Usage = func() {
-	// 	fmt.Fprintf(os.Stderr, "init:      initializes a new pcms project dir using a skeleton\n")
-	// 	prevInitUsage()
-	// 	fmt.Fprintln(os.Stderr, "init [path]: initializes a new pcms skeleton in the given path, creating it if does not exist")
-	// 	fmt.Fprintln(os.Stderr, "")
-	// }
-	// subCommands[initCmd.Name()] = initCmd
-
-	// passwordCmd := flag.NewFlagSet("password", flag.ExitOnError)
-	// prevPwUsage := passwordCmd.Usage
-	// passwordCmd.Usage = func() {
-	// 	fmt.Fprintf(os.Stderr, "password:      Creates a new encrypted password to be used in the site.users config")
-	// 	prevPwUsage()
-	// 	fmt.Fprintln(os.Stderr, "password [your-password]")
-	// 	fmt.Fprintln(os.Stderr, "")
-	// }
-	// subCommands[passwordCmd.Name()] = passwordCmd
+	// init command:
+	initCmd := flag.NewFlagSet("init", flag.ExitOnError)
+	prevInitUsage := initCmd.Usage
+	initCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "init:      initializes a new pcms project dir using a skeleton\n")
+		prevInitUsage()
+		fmt.Fprintln(os.Stderr, "init [path]: initializes a new pcms skeleton in the given path, creating it if does not exist")
+		fmt.Fprintln(os.Stderr, "")
+	}
+	subCommands[initCmd.Name()] = initCmd
 
 	if *helpFlag || flag.CommandLine.NArg() < 1 {
 		printUsage(subCommands)
 		os.Exit(1)
 	}
 
-	if flagSet, defined := subCommands[flag.Args()[0]]; defined == true {
+	if flagSet, defined := subCommands[flag.Args()[0]]; defined {
 		args.FlagSet = flagSet
 		flagSet.Parse(flag.Args()[1:])
 	} else {
@@ -159,9 +151,7 @@ func main() {
 		config.Server.Logging.Error.File = "STDERR"
 		err = commands.RunServeCmd(config)
 	case "init":
-		// commands.RunInitCmd(args, &templateContent)
-	case "password":
-		// commands.RunPasswordCmd(args)
+		commands.RunInitCmd(args, &templateContent)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
