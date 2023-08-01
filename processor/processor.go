@@ -1,7 +1,6 @@
 package processor
 
 import (
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -41,14 +40,13 @@ func GetProcessor(sourceFile string, config model.Config) Processor {
 }
 
 // Checks if the given file matches a set of exclude regex patterns.
-// Only the base name of the given file path is considered.
+// The relative path within the source dir is used as input.
 //
 // Returns true and the matching pattern if the file name matches a exclude pattern.
 func IsFileExcluded(filePath string, excludePatterns []string) (bool, string) {
 	for _, pattern := range excludePatterns {
 		r := regexp.MustCompile(pattern)
-		filebase := path.Base(filePath)
-		if r.MatchString(filebase) {
+		if r.MatchString(filePath) {
 			return true, pattern
 		}
 	}

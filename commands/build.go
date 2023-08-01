@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 
 	"alexi.ch/pcms/model"
 	"alexi.ch/pcms/processor"
@@ -51,7 +52,13 @@ func processInputFS(srcFS fs.FS, basePath string, config model.Config) error {
 }
 
 func processSourceFile(sourcePath string, config model.Config) error {
-	isExcluded, pattern := processor.IsFileExcluded(sourcePath, config.ExcludePatterns)
+	relPath, err := filepath.Rel(config.SourcePath, sourcePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %s: %s\n", sourcePath, err)
+		return err
+	}
+	relPath = path.Join("/", relPath)
+	isExcluded, pattern := processor.IsFileExcluded(relPath, config.ExcludePatterns)
 	if isExcluded {
 		fmt.Printf("  Skip file due to exclude pattern match: %s\n", pattern)
 		return nil

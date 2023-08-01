@@ -36,7 +36,9 @@ template_dir: templates
 # Regular expression to exclude files/folders from the build process completely:
 exclude_patterns:
   # Ignore .* files:
-  - "^\\..*"
+  - "/\\..*"
+  # Ignore all files in the /restricted folder:
+  - "^/restricted/?.*"
 processors:
   scss:
     sass_bin: "/usr/bin/sass"
