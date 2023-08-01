@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 
 	"alexi.ch/pcms/logging"
 	"alexi.ch/pcms/model"
 	"alexi.ch/pcms/webserver"
+	"github.com/fsnotify/fsnotify"
 )
 
 // Run the 'serve' sub-command:
@@ -53,7 +55,13 @@ func RunServeCmd(config model.Config) error {
 		// static site folder as FS:
 		errorLogger.Info("Serving content from %s", config.DestPath)
 		siteFS = os.DirFS(config.DestPath)
-
+		// start file watcher, if enabled in config:
+		if config.Server.Watch {
+			watcher, _ := startFileWatcher(config.SourcePath, config, errorLogger)
+			if watcher != nil {
+				defer watcher.Close()
+			}
+		}
 	}
 
 	defer accessLogger.Close()
@@ -84,4 +92,67 @@ func RunServeCmd(config model.Config) error {
 		errorLogger.Fatal(err.Error())
 	}
 	return err
+}
+
+func startFileWatcher(watchPath string, config model.Config, logger *logging.Logger) (*fsnotify.Watcher, error) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		logger.Error("Cannot start file watcher: %s", err.Error())
+		return nil, err
+	}
+
+	// starting the watcher process in a separate thread, as this watches
+	// indefinitely:
+	go processWatcherEvents(watcher, config, logger)
+
+	// Add whole directory tree
+	err = filepath.WalkDir(watchPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			logger.Error("File Watcher Error: %s", err.Error())
+			return err
+		}
+		if d.IsDir() {
+			return watcher.Add(path)
+		}
+
+		return nil
+	})
+	if err != nil {
+		logger.Error("File Watcher Error: %s", err.Error())
+		return nil, err
+	}
+	logger.Info("File Watcher started for root dir %s", watchPath)
+	return watcher, nil
+}
+
+/*
+This method watches for fsnotify.Watcher events indefinitely and should be started
+as a goroutine in parallel to the main process.
+*/
+func processWatcherEvents(watcher *fsnotify.Watcher, config model.Config, logger *logging.Logger) {
+	var err error = nil
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
+				logger.Info("File Watcher: Initiating single rebuild: File %s: %s", event.Op, event.Name)
+				err = triggerSingleRebuild(event.Name, config)
+				if err != nil {
+					logger.Error("File Rebuild Error: %s", err.Error())
+				}
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			logger.Error("File Watcher Error: %s", err.Error())
+		}
+	}
+}
+
+func triggerSingleRebuild(file string, config model.Config) error {
+	return ProcessSourceFile(file, config)
 }

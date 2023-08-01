@@ -55,13 +55,13 @@ func processInputFS(srcFS fs.FS, basePath string, config model.Config) error {
 				return err
 			}
 		} else {
-			processSourceFile(sourcePath, config)
+			ProcessSourceFile(sourcePath, config)
 		}
 	}
 	return nil
 }
 
-func processSourceFile(sourcePath string, config model.Config) error {
+func ProcessSourceFile(sourcePath string, config model.Config) error {
 	relPath, err := filepath.Rel(config.SourcePath, sourcePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s: %s\n", sourcePath, err)

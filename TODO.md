@@ -9,7 +9,7 @@
   - [x] MUST NOT build when in serve-doc mode
   - [x] don't delete output folder, just empty it
 - [ ] serve:
-  - [ ] watch for file changes, and rebuild
+  - [x] watch for file changes, and rebuild
   - [ ] optionally build before serve (cli flag)
   - [x] embedded doc
   - [ ] config access log format

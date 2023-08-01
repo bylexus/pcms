@@ -1,6 +1,7 @@
 server:
   listen: ":3000"
   prefix: ""
+  watch: true
   logging:
     access:
       file: STDOUT

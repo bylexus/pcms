@@ -31,6 +31,7 @@ const (
 type Config struct {
 	Server struct {
 		Listen  string        `yaml:"listen"`
+		Watch   bool          `yaml:"watch"`
 		Prefix  string        `yaml:"prefix"`
 		Logging LoggingConfig `yaml:"logging"`
 	} `yaml:"server"`
