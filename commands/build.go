@@ -24,7 +24,19 @@ func cleanDir(dir string) error {
 	if len(dir) == 0 {
 		return fmt.Errorf("path empty")
 	}
-	return os.RemoveAll(dir)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Cleaning Dir: %s\n", dir)
+	for _, entry := range entries {
+		file := filepath.Join(dir, entry.Name())
+		err = os.RemoveAll(file)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func processInputFS(srcFS fs.FS, basePath string, config model.Config) error {
