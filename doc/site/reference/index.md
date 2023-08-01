@@ -203,17 +203,16 @@ Example:
 {% endverbatim %}
 ```
 
-#### `base`: The webroot property
+#### `webroot(relPath string)`: Create an absolute path from a relative one
 
-The `base` variable contains just the contents of the site-config's `webroot` property. This is important if you
-need absolute-addressed links, for example.
+The `webroot(relPath string)` function creates absolute paths from relative ones.
 
 Example:
 
 ```html
 {% verbatim %}
 <div>
-  See my fancy image: <img src="{{base}}/my-image.jpg" />
+  See my fancy image: <img src="{{webroot("my-image.jpg")}}" />
 </div>
 {% endverbatim %}
 ```
@@ -263,8 +262,8 @@ An example:
 
 {% block content %}
 <h1>{{page.pageConfig.title}}</h1>
-<p><a href="{{base}}/">Back to home</a></p>
-<p>Your actual Route: {{base}}{{route}}</page>
+<p><a href="{{webroot("/")}}">Back to home</a></p>
+<p>Your actual Route: {{paths.absWebPath}}</page>
 {% endblock %}
 {% endverbatim %}
 ```

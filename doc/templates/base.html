@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <title>{%if variables.title %}{{variables.title}} - {% endif%}{{ variables.siteTitle }}</title>
-        <link rel="icon" href="{{base}}/favicon.png" type="image/png">
+        <link rel="icon" href="{{webroot("favicon.png")}}" type="image/png">
         {% for meta in variables.siteMetaTags %}
         <meta name="{{meta.name}}" content="{{meta.content}}" />
         {% endfor %}
@@ -12,13 +12,13 @@
         <meta name="{{meta.name}}" content="{{meta.content}}" />
         {% endfor %}
 
-        <link rel="stylesheet" href="{{base}}/assets/fontawesome-free-5.15.4-web/css/all.min.css" >
-        <link rel="stylesheet" href="{{base}}/assets/highlightjs/monokai.min.css">
-        <link rel="stylesheet" href="{{base}}/styles/main.css" />
+        <link rel="stylesheet" href="{{webroot("assets/fontawesome-free-5.15.4-web/css/all.min.css")}}" >
+        <link rel="stylesheet" href="{{webroot("assets/highlightjs/monokai.min.css")}}">
+        <link rel="stylesheet" href="{{webroot("styles/main.css")}}" />
     </head>
     <body>
         <header>
-            <div class="title"><a href="{{base}}/"><i class="fas fa-pencil-ruler"></i> pcms documentation</a></div>
+            <div class="title"><a href="{{webroot("/")}}/"><i class="fas fa-pencil-ruler"></i> pcms documentation</a></div>
             <div class="github"><a href="https://github.com/bylexus/pcms"><i class="fab fa-github"></i> checkout the source</a></div>
         </header>
         <div id="content" class={{variables.mainClass}}>
@@ -26,9 +26,9 @@
                 <div class="col-3 toc">
                     <h2>Table of contents</h2>
                     <ul>
-                    <li class="{% if destRelDir == "." %}active{% endif %}"><a href="{{base}}/">[home]</a></li>
+                    <li class="{% if destRelDir == "." %}active{% endif %}"><a href="{{webroot("/")}}">[home]</a></li>
                     {% for child in variables.toc %}
-                    <li class="{% if child.destRelDir == destRelDir %}active{% endif %}"><a href="{{base}}/{{child.destRelDir}}/">{{child.title}}</a></li>
+                    <li class="{% if child.destRelDir == destRelDir %}active{% endif %}"><a href="{{webroot(child.destRelDir)}}/">{{child.title}}</a></li>
                     {% endfor %}
                     </ul>
                 </div>
@@ -43,7 +43,7 @@
             powered by <i class="fas fa-heart" style="color:red"></i> <a href="https://github.com/bylexus/pcms">pcms, the master himself</a> :-)
         </footer>
 
-        <script src="{{base}}/assets/highlightjs/highlight.min.js"></script>
+        <script src="{{webroot("assets/highlightjs/highlight.min.js")}}"></script>
         <script>hljs.highlightAll();</script>
         {% block bodyScripts %}
         {% endblock %}

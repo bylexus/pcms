@@ -3,9 +3,9 @@
 {% block content %}
 <h1>HTML Page Demo</h1>
 
-<p><a href="{{base}}/"><i class="fas fa-home"></i> Back to home</a></p>
+<p><a href="{{webroot("/")}}"><i class="fas fa-home"></i> Back to home</a></p>
 
-<p>Your actual Route: {{base}}{{page.Route}}</page>
+<p>Your actual Route: {{paths.absWebPath}}</page>
 
 <p>This is a restricted site and can only be viewed with the proper login credentials.</p>
 

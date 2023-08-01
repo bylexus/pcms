@@ -66,6 +66,9 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 		"variables": variables,
 		// several file path variants for the actual file:
 		"paths": filePaths,
+		"webroot": func(relPath string) string {
+			return AbsUrl(relPath, filePaths.webroot)
+		},
 	}
 
 	outWriter, err := os.Create(filePaths.absDestPath)
@@ -87,7 +90,7 @@ func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) 
 	result := ProcessingFileInfo{}
 	result.rootSourceDir = config.SourcePath
 	result.rootDestDir = config.DestPath
-	result.webroot = path.Join("/", config.Server.Prefix)
+	result.webroot = config.Server.Prefix
 	result.absSourcePath = sourceFile
 	result.absSourceDir = filepath.Dir(result.absSourcePath)
 

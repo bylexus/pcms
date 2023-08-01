@@ -29,7 +29,7 @@ This documentation shows you how to install `pcms` and generate a new site from 
 
 ## Install pcms
 
-This section was already covered in the [Quick Start]({{base}}/quickstart/) section. If you already followed there, you don't have to repeat this steps.
+This section was already covered in the [Quick Start]({{webroot("quickstart/")}}) section. If you already followed there, you don't have to repeat this steps.
 
 You only need a single `pcms` binary to run a website. Check out the next chapters for a brief description how you get one.
 
@@ -189,9 +189,9 @@ All these variables can be used within the template. An example:
 
 <h1>{{variables.title}}</h1>
 <p>Hello. It is now {% now "03:04 on 02.01.2006" %}.</p>
-<a href="{{base}}/">Back to home</a>
+<a href="{{webroot("/")}}">Back to home</a>
 
-A relative link: <a href="{{page.Route}}/sub/folder/picture.png">Image</a>
+A relative link: <a href="{{path.absWebDir}}/sub/folder/picture.png">Image</a>
 {% endverbatim %}
 ```
 

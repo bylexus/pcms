@@ -27,11 +27,11 @@ children:
 <p>This is your new, pcms driven site. Enjoy!</p>
 
 <ul>
-    <li><a href="{{base}}/"><i class="fas fa-home"></i> {{variables.siteTitle}}</a></li>
+    <li><a href="{{webroot("/")}}"><i class="fas fa-home"></i> {{variables.siteTitle}}</a></li>
     {% for item in variables.children %}
     {% if item.enabled == true %}
-    <li class="{% if destRelDir == item.route  %}active{% endif %}">
-        <a href="{{base}}/{{item.route}}/">
+    <li class="{% if destRelDir == item.route %}active{% endif %}">
+        <a href="{{webroot(item.route)}}/">
             <i class="{{item.iconCls}}"></i>
             {{item.title}}
         </a>

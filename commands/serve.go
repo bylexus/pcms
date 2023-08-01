@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 
 	"alexi.ch/pcms/logging"
 	"alexi.ch/pcms/model"
@@ -77,7 +78,7 @@ func RunServeCmd(config model.Config) error {
 	errorLogger.Info("Server starting, listening to %s", config.Server.Listen)
 	errorLogger.Info("Serving site from %s", config.DestPath)
 	log.Printf("Server starting, listening to %s\n", config.Server.Listen)
-	log.Println("Serving site")
+	log.Printf("Serving site from %s%s", config.Server.Listen, path.Join("/", config.Server.Prefix))
 	err = server.ListenAndServe()
 	if err != nil {
 		errorLogger.Fatal(err.Error())

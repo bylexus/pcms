@@ -70,6 +70,9 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 		"variables": variables,
 		// several file path variants for the actual file:
 		"paths": filePaths,
+		"webroot": func(relPath string) string {
+			return AbsUrl(relPath, filePaths.webroot)
+		},
 	}
 
 	// now, we need to process the Markdown source as template:
@@ -109,7 +112,7 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 		}
 	}
 
-	outWriter, err := os.Create(filePaths.absDestDir)
+	outWriter, err := os.Create(filePaths.absDestPath)
 	if err != nil {
 		return "", err
 	}
@@ -128,7 +131,7 @@ func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (P
 	result := ProcessingFileInfo{}
 	result.rootSourceDir = config.SourcePath
 	result.rootDestDir = config.DestPath
-	result.webroot = path.Join("/", config.Server.Prefix)
+	result.webroot = config.Server.Prefix
 	result.absSourcePath = sourceFile
 	result.absSourceDir = filepath.Dir(result.absSourcePath)
 

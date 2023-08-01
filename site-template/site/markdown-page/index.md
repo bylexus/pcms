@@ -12,19 +12,24 @@ metaTags:
 ---
 # Markdown Demo Page
 
-[<i class="fas fa-home"></i> Back to home]({{base}}/)
+[<i class="fas fa-home"></i> Back to home]({{webroot("/")}})
 
-Your actual Route: {{base}}{{destRelPath}}
+Your actual Route: {{paths.absWebPath}}
 
 Access to pongo2 syntax, e.g. actual time: {% now "02.01.2006 15:04:05" %}
 
 <pre>
 Page variables:
 {{variables | stringformat:"%#v"}}
+Page paths:
+{{paths | stringformat:"%#v"}}
 </pre>
 
 Some static content:
 
-* Relative addressed image: ![relative addressd image](sunset.webp)
-* Relative addressed from webroot: ![relative addressed from webroot](/{{destRelDir}}/sunset.webp)
-* Absolute addressed image: ![absolute addressed image]({{destAbsDir}}/sunset2.webp)
+* Relative addressed image: ./sunset.webp<br>
+  ![relative addressd image](./sunset.webp)
+* Relative addressed from webroot: {{paths.relWebPathToRoot}}/{{paths.relWebDir}}/sunset.webp<br>
+  ![relative addressed from webroot]({{paths.relWebPathToRoot}}/{{paths.relWebDir}}/sunset.webp)
+* Absolute addressed image: {{paths.absWebDir}}/sunset2.webp<br>
+  ![absolute addressed image]({{paths.absWebDir}}/sunset2.webp)

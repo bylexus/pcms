@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -95,4 +96,8 @@ func mergeStringMaps(maps ...map[string]interface{}) map[string]interface{} {
 		}
 	}
 	return resultMap
+}
+
+func AbsUrl(relPath string, webroot string) string {
+	return path.Clean(path.Join("/", webroot, relPath))
 }

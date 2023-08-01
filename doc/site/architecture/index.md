@@ -107,4 +107,4 @@ I plan to scan for changes in the file system and automatically re-build the pag
 for the moment, Yagni, see above. It's on my to-do-list, though. For now, just restart pcms if you do
 changes at the page structure.
 
-The page tree is also available in the page templates, to build menus, for example. See the [Reference section]({{base}}/reference/) for more information.
+The page tree is also available in the page templates, to build menus, for example. See the [Reference section]({{webroot("reference/")}}) for more information.
