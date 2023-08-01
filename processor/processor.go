@@ -13,16 +13,47 @@ type Processor interface {
 	ProcessFile(sourceFile string, config model.Config) (destFile string, err error)
 }
 
-type processingFileInfo struct {
+type ProcessingFileInfo struct {
+	// file paths:
+	// start / top path of the source folder
+	rootSourceDir string
+	// absolute path of the actual source file
+	absSourcePath string
+	// absolute path of the actual source file
+	absSourceDir string
+	// file path of the actual source file relative to the rootSourceDir
 	relSourcePath string
-	relSourceDir  string
-	outFile       string
-	outDir        string
-	relDestPath   string
-	relDestDir    string
-	relDestRoot   string
-	absDestPath   string
-	absDestDir    string
+	// dir path of the actual source file relative to the rootSourceDir
+	relSourceDir string
+	// relative path from the actual source file back to the rootSourceDir
+	relSourceRoot string
+
+	// start / top path of the destination folder
+	rootDestDir string
+	// absolute path of the actual destination file
+	absDestPath string
+	// absolute path of the actual destination file
+	absDestDir string
+	// file path of the actual destination file relative to the rootDestDir
+	relDestPath string
+	// dir path of the actual destination file relative to the rootSourceDir
+	relDestDir string
+	// relative path from the actual dest file back to the rootSourceDir
+	relDestRoot string
+
+	// web paths:
+	// the webroot prefix, "/" by default
+	webroot string
+	// relative (to webroot) web path to the actual output file
+	relWebPath string
+	// relative (to webroot) web path to the actual output file's folder
+	relWebDir string
+	// relative path from the actual file back to the webroot
+	relWebPathToRoot string
+	// absolute web path of the actual file, including the webroot, starting always with "/"
+	absWebPath string
+	// absolute web path of the actual file's dir, including the webroot, starting always with "/"
+	absWebDir string
 }
 
 func GetProcessor(sourceFile string, config model.Config) Processor {

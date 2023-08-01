@@ -64,33 +64,11 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 	context := pongo2.Context{
 		// combined config + yaml preamble variables:
 		"variables": variables,
-		// file path to the root source dir:
-		"sourceRootDir": config.SourcePath,
-		// relative dir of the actual source file to the sourceRootDir
-		"sourceRelDir": filePaths.relSourceDir,
-		// relative file path of the actual file to the sourceRootDir
-		"sourceRelPath": filePaths.relSourcePath,
-		// full path to the source file
-		"sourceFullPath": sourceFile,
-
-		// file path to the root destination dir:
-		"destRootDir": config.DestPath,
-		// relative dir of the actual destination file to the destRootDir
-		"destRelDir": filePaths.relDestDir,
-		// relative file path of the actual file to the destRootDir
-		"destRelPath": filePaths.relDestPath,
-		// full path to the destination file
-		"destFullPath": filePaths.outFile,
-		// full web path to the destination file:
-		"destAbsPath": filePaths.absDestPath,
-		// full web path to the destination file's dir:
-		"destAbsDir": filePaths.absDestDir,
-
-		// relative path to the web base dir, from the actual processed file:
-		"base": filePaths.relDestRoot,
+		// several file path variants for the actual file:
+		"paths": filePaths,
 	}
 
-	outWriter, err := os.Create(filePaths.outFile)
+	outWriter, err := os.Create(filePaths.absDestPath)
 	if err != nil {
 		return "", err
 	}
@@ -101,22 +79,18 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 		return "", err
 	}
 
-	return filePaths.outFile, nil
+	return filePaths.absDestPath, nil
 }
 
-func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) (processingFileInfo, error) {
+func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) (ProcessingFileInfo, error) {
 	var err error = nil
-	result := processingFileInfo{
-		relSourcePath: "",
-		relSourceDir:  "",
-		outFile:       "",
-		outDir:        "",
-		relDestPath:   "",
-		relDestDir:    "",
-		relDestRoot:   "",
-		absDestPath:   "",
-		absDestDir:    "",
-	}
+	result := ProcessingFileInfo{}
+	result.rootSourceDir = config.SourcePath
+	result.rootDestDir = config.DestPath
+	result.webroot = path.Join("/", config.Server.Prefix)
+	result.absSourcePath = sourceFile
+	result.absSourceDir = filepath.Dir(result.absSourcePath)
+
 	result.relSourcePath, err = filepath.Rel(config.SourcePath, sourceFile)
 	if err != nil {
 		return result, err
@@ -129,36 +103,41 @@ func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) 
 	if result.relSourceDir == "" {
 		result.relSourceDir = "."
 	}
+	result.relSourceRoot, err = filepath.Rel(result.absSourceDir, config.SourcePath)
 
-	// calc outfile path and create dest directory
-	result.outFile = path.Join(config.DestPath, result.relSourcePath)
-	result.outDir = filepath.Dir(result.outFile)
-	err = os.MkdirAll(result.outDir, fs.ModeDir|0777)
+	// calc destination paths and create dest directory
+	result.absDestPath = filepath.Join(config.DestPath, result.relSourcePath)
+	result.absDestDir = filepath.Dir(result.absDestPath)
+	err = os.MkdirAll(result.absDestDir, fs.ModeDir|0777)
 	if err != nil {
 		return result, err
 	}
 
-	result.relDestPath, err = filepath.Rel(config.DestPath, result.outFile)
+	result.relDestPath, err = filepath.Rel(config.DestPath, result.absDestPath)
 	if err != nil {
 		return result, err
 	}
-	result.absDestPath = path.Join("/", config.Server.Prefix, result.relDestPath)
+	result.relWebPath = filepath.ToSlash(result.relDestPath)
+	result.absWebPath = path.Join("/", config.Server.Prefix, result.relDestPath)
 
-	result.relDestDir, err = filepath.Rel(config.DestPath, result.outDir)
+	result.relDestDir, err = filepath.Rel(config.DestPath, result.absDestDir)
 	if err != nil {
 		return result, err
 	}
 	if result.relDestDir == "" {
 		result.relDestDir = "."
 	}
-	result.absDestDir = path.Join("/", config.Server.Prefix, result.relDestDir)
-
-	result.relDestRoot, err = filepath.Rel(result.outDir, config.DestPath)
+	result.relDestRoot, err = filepath.Rel(result.absDestDir, config.DestPath)
 	if err != nil {
 		return result, err
 	}
 	if result.relDestRoot == "" {
 		result.relDestRoot = "."
 	}
+
+	result.relWebDir = filepath.ToSlash(result.relDestDir)
+	result.absWebDir = path.Join("/", config.Server.Prefix, result.relWebDir)
+	result.relWebPathToRoot = filepath.ToSlash(result.relDestRoot)
+
 	return result, nil
 }

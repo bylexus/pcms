@@ -55,6 +55,16 @@
       ]
     },
     {
+      "name": "Launch test command",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/processor/md_processor_test.go",
+      "cwd": "${workspaceFolder}",
+      "args": [
+      ]
+    },
+    {
       "name": "Launch Doc",
       "type": "go",
       "request": "launch",

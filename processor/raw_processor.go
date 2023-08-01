@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 
 	"alexi.ch/pcms/model"
@@ -23,7 +22,7 @@ func (p RawProcessor) ProcessFile(sourceFile string, config model.Config) (destF
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s: %s\n", sourceFile, err)
 	}
-	outFile := path.Join(config.DestPath, relPath)
+	outFile := filepath.Join(config.DestPath, relPath)
 	outDir := filepath.Dir(outFile)
 	err = os.MkdirAll(outDir, fs.ModeDir|0777)
 	if err != nil {

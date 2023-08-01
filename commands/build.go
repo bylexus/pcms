@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
 
 	"alexi.ch/pcms/model"
@@ -35,9 +34,9 @@ func processInputFS(srcFS fs.FS, basePath string, config model.Config) error {
 		return err
 	}
 	for _, entry := range entries {
-		sourcePath := path.Join(basePath, entry.Name())
+		sourcePath := filepath.Join(basePath, entry.Name())
 		if entry.IsDir() {
-			childPath := path.Join(basePath, entry.Name())
+			childPath := filepath.Join(basePath, entry.Name())
 			childFS := os.DirFS(childPath)
 			err := processInputFS(childFS, childPath, config)
 			if err != nil {
@@ -57,7 +56,7 @@ func processSourceFile(sourcePath string, config model.Config) error {
 		fmt.Fprintf(os.Stderr, "ERROR: %s: %s\n", sourcePath, err)
 		return err
 	}
-	relPath = path.Join("/", relPath)
+	relPath = filepath.Join("/", relPath)
 	isExcluded, pattern := processor.IsFileExcluded(relPath, config.ExcludePatterns)
 	if isExcluded {
 		fmt.Printf("  Skip file due to exclude pattern match: %s\n", pattern)
