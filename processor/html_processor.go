@@ -61,17 +61,21 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 	}
 
 	// process template to output file
+	pathObj, err := filePaths.GetStdObject()
+	if err != nil {
+		return "", err
+	}
 	context := pongo2.Context{
 		// combined config + yaml preamble variables:
 		"variables": variables,
 		// several file path variants for the actual file:
-		"paths": filePaths,
+		"paths": pathObj,
 		"webroot": func(relPath string) string {
-			return AbsUrl(relPath, filePaths.webroot)
+			return AbsUrl(relPath, filePaths.Webroot)
 		},
 	}
 
-	outWriter, err := os.Create(filePaths.absDestPath)
+	outWriter, err := os.Create(filePaths.AbsDestPath)
 	if err != nil {
 		return "", err
 	}
@@ -82,65 +86,65 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 		return "", err
 	}
 
-	return filePaths.absDestPath, nil
+	return filePaths.AbsDestPath, nil
 }
 
 func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) (ProcessingFileInfo, error) {
 	var err error = nil
 	result := ProcessingFileInfo{}
-	result.rootSourceDir = config.SourcePath
-	result.rootDestDir = config.DestPath
-	result.webroot = config.Server.Prefix
-	result.absSourcePath = sourceFile
-	result.absSourceDir = filepath.Dir(result.absSourcePath)
+	result.RootSourceDir = config.SourcePath
+	result.RootDestDir = config.DestPath
+	result.Webroot = config.Server.Prefix
+	result.AbsSourcePath = sourceFile
+	result.AbsSourceDir = filepath.Dir(result.AbsSourcePath)
 
-	result.relSourcePath, err = filepath.Rel(config.SourcePath, sourceFile)
+	result.RelSourcePath, err = filepath.Rel(config.SourcePath, sourceFile)
 	if err != nil {
 		return result, err
 	}
 
-	result.relSourceDir, err = filepath.Rel(config.SourcePath, filepath.Dir(sourceFile))
+	result.RelSourceDir, err = filepath.Rel(config.SourcePath, filepath.Dir(sourceFile))
 	if err != nil {
 		return result, err
 	}
-	if result.relSourceDir == "" {
-		result.relSourceDir = "."
+	if result.RelSourceDir == "" {
+		result.RelSourceDir = "."
 	}
-	result.relSourceRoot, err = filepath.Rel(result.absSourceDir, config.SourcePath)
+	result.RelSourceRoot, err = filepath.Rel(result.AbsSourceDir, config.SourcePath)
 
 	// calc destination paths and create dest directory
-	result.absDestPath = filepath.Join(config.DestPath, result.relSourcePath)
-	result.absDestDir = filepath.Dir(result.absDestPath)
-	err = os.MkdirAll(result.absDestDir, fs.ModeDir|0777)
+	result.AbsDestPath = filepath.Join(config.DestPath, result.RelSourcePath)
+	result.AbsDestDir = filepath.Dir(result.AbsDestPath)
+	err = os.MkdirAll(result.AbsDestDir, fs.ModeDir|0777)
 	if err != nil {
 		return result, err
 	}
 
-	result.relDestPath, err = filepath.Rel(config.DestPath, result.absDestPath)
+	result.RelDestPath, err = filepath.Rel(config.DestPath, result.AbsDestPath)
 	if err != nil {
 		return result, err
 	}
-	result.relWebPath = filepath.ToSlash(result.relDestPath)
-	result.absWebPath = path.Join("/", config.Server.Prefix, result.relDestPath)
+	result.RelWebPath = filepath.ToSlash(result.RelDestPath)
+	result.AbsWebPath = path.Join("/", config.Server.Prefix, result.RelDestPath)
 
-	result.relDestDir, err = filepath.Rel(config.DestPath, result.absDestDir)
+	result.RelDestDir, err = filepath.Rel(config.DestPath, result.AbsDestDir)
 	if err != nil {
 		return result, err
 	}
-	if result.relDestDir == "" {
-		result.relDestDir = "."
+	if result.RelDestDir == "" {
+		result.RelDestDir = "."
 	}
-	result.relDestRoot, err = filepath.Rel(result.absDestDir, config.DestPath)
+	result.RelDestRoot, err = filepath.Rel(result.AbsDestDir, config.DestPath)
 	if err != nil {
 		return result, err
 	}
-	if result.relDestRoot == "" {
-		result.relDestRoot = "."
+	if result.RelDestRoot == "" {
+		result.RelDestRoot = "."
 	}
 
-	result.relWebDir = filepath.ToSlash(result.relDestDir)
-	result.absWebDir = path.Join("/", config.Server.Prefix, result.relWebDir)
-	result.relWebPathToRoot = filepath.ToSlash(result.relDestRoot)
+	result.RelWebDir = filepath.ToSlash(result.RelDestDir)
+	result.AbsWebDir = path.Join("/", config.Server.Prefix, result.RelWebDir)
+	result.RelWebPathToRoot = filepath.ToSlash(result.RelDestRoot)
 
 	return result, nil
 }

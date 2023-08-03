@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"alexi.ch/pcms/model"
+	"gopkg.in/yaml.v3"
 )
 
 type Processor interface {
@@ -17,44 +18,57 @@ type Processor interface {
 type ProcessingFileInfo struct {
 	// file paths:
 	// start / top path of the source folder
-	rootSourceDir string
+	RootSourceDir string `yaml:"rootSourceDir"`
 	// absolute path of the actual source file
-	absSourcePath string
+	AbsSourcePath string `yaml:"absSourcePath"`
 	// absolute path of the actual source file
-	absSourceDir string
-	// file path of the actual source file relative to the rootSourceDir
-	relSourcePath string
-	// dir path of the actual source file relative to the rootSourceDir
-	relSourceDir string
-	// relative path from the actual source file back to the rootSourceDir
-	relSourceRoot string
+	AbsSourceDir string `yaml:"absSourceDir"`
+	// file path of the actual source file relative to the RootSourceDir
+	RelSourcePath string `yaml:"relSourcePath"`
+	// dir path of the actual source file relative to the RootSourceDir
+	RelSourceDir string `yaml:"relSourceDir"`
+	// relative path from the actual source file back to the RootSourceDir
+	RelSourceRoot string `yaml:"relSourceRoot"`
 
 	// start / top path of the destination folder
-	rootDestDir string
+	RootDestDir string `yaml:"rootDestDir"`
 	// absolute path of the actual destination file
-	absDestPath string
+	AbsDestPath string `yaml:"absDestPath"`
 	// absolute path of the actual destination file
-	absDestDir string
-	// file path of the actual destination file relative to the rootDestDir
-	relDestPath string
-	// dir path of the actual destination file relative to the rootSourceDir
-	relDestDir string
-	// relative path from the actual dest file back to the rootSourceDir
-	relDestRoot string
+	AbsDestDir string `yaml:"absDestDir"`
+	// file path of the actual destination file relative to the RootDestDir
+	RelDestPath string `yaml:"relDestPath"`
+	// dir path of the actual destination file relative to the RootSourceDir
+	RelDestDir string `yaml:"relDestDir"`
+	// relative path from the actual dest file back to the RootSourceDir
+	RelDestRoot string `yaml:"relDestRoot"`
 
 	// web paths:
-	// the webroot prefix, "/" by default
-	webroot string
-	// relative (to webroot) web path to the actual output file
-	relWebPath string
-	// relative (to webroot) web path to the actual output file's folder
-	relWebDir string
-	// relative path from the actual file back to the webroot
-	relWebPathToRoot string
-	// absolute web path of the actual file, including the webroot, starting always with "/"
-	absWebPath string
-	// absolute web path of the actual file's dir, including the webroot, starting always with "/"
-	absWebDir string
+	// the Webroot prefix, "/" by default
+	Webroot string `yaml:"webroot"`
+	// relative (to Webroot) web path to the actual output file
+	RelWebPath string `yaml:"relWebPath"`
+	// relative (to Webroot) web path to the actual output file's folder
+	RelWebDir string `yaml:"relWebDir"`
+	// relative path from the actual file back to the Webroot
+	RelWebPathToRoot string `yaml:"relWebPathToRoot"`
+	// absolute web path of the actual file, including the Webroot, starting always with "/"
+	AbsWebPath string `yaml:"absWebPath"`
+	// absolute web path of the actual file's dir, including the Webroot, starting always with "/"
+	AbsWebDir string `yaml:"absWebDir"`
+}
+
+func (p ProcessingFileInfo) GetStdObject() (map[string]interface{}, error) {
+	yamlStr, err := yaml.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	obj := make(map[string]interface{})
+	err = yaml.Unmarshal(yamlStr, &obj)
+	if err != nil {
+		return nil, err
+	}
+	return obj, err
 }
 
 func GetProcessor(sourceFile string, config model.Config) Processor {
@@ -98,6 +112,6 @@ func mergeStringMaps(maps ...map[string]interface{}) map[string]interface{} {
 	return resultMap
 }
 
-func AbsUrl(relPath string, webroot string) string {
-	return path.Clean(path.Join("/", webroot, relPath))
+func AbsUrl(relPath string, Webroot string) string {
+	return path.Clean(path.Join("/", Webroot, relPath))
 }

@@ -16,25 +16,26 @@ func TestHtmlProcessorPrepareFilePathsOnWebroot(t *testing.T) {
 	var processor = HtmlProcessor{}
 	var sourceRoot = filepath.Join(os.TempDir(), filepath.FromSlash("/path/to/source"))
 	var sourceFile = filepath.Join(sourceRoot, "sub", "folder", "file.html")
-	var relSourcePath = filepath.Join("sub", "folder", "file.html")
-	var relSourceRoot = filepath.Join("..", "..")
+	var RelSourcePath = filepath.Join("sub", "folder", "file.html")
+	var RelSourceRoot = filepath.Join("..", "..")
 
 	var destRoot = filepath.Join(os.TempDir(), filepath.FromSlash("/path/to/dest"))
 	var destFile = filepath.Join(destRoot, "sub", "folder", "file.html")
-	var relDestPath = filepath.Join("sub", "folder", "file.html")
-	var relDestRoot = filepath.Join("..", "..")
+	var RelDestPath = filepath.Join("sub", "folder", "file.html")
+	var RelDestRoot = filepath.Join("..", "..")
 
-	var webroot = "/web/root"
+	var Webroot = "/web/root"
 
 	var config = model.Config{
 		SourcePath: sourceRoot,
 		DestPath:   destRoot,
 		Server: struct {
 			Listen  string              "yaml:\"listen\""
+			Watch   bool                "yaml:\"watch\""
 			Prefix  string              "yaml:\"prefix\""
 			Logging model.LoggingConfig "yaml:\"logging\""
 		}{
-			Prefix: webroot,
+			Prefix: Webroot,
 		},
 	}
 	res, err := processor.prepareFilePaths(sourceFile, config)
@@ -42,112 +43,112 @@ func TestHtmlProcessorPrepareFilePathsOnWebroot(t *testing.T) {
 		t.Fatal(err)
 	}
 	// start / top path of the source folder
-	// rootSourceDir
-	if res.rootSourceDir != sourceRoot {
-		t.Errorf("rootSourceDir = %s; want %s", res.rootSourceDir, sourceRoot)
+	// RootSourceDir
+	if res.RootSourceDir != sourceRoot {
+		t.Errorf("RootSourceDir = %s; want %s", res.RootSourceDir, sourceRoot)
 	}
 
 	// absolute path of the actual source file
-	// absSourcePath
-	if res.absSourcePath != sourceFile {
-		t.Errorf("absSourcePath = %s; want %s", res.absSourcePath, sourceFile)
+	// AbsSourcePath
+	if res.AbsSourcePath != sourceFile {
+		t.Errorf("AbsSourcePath = %s; want %s", res.AbsSourcePath, sourceFile)
 	}
 
 	// absolute path of the actual source file
-	// absSourceDir string
-	if res.absSourceDir != filepath.Dir(sourceFile) {
-		t.Errorf("absSourceDir = %s; want %s", res.absSourceDir, filepath.Dir(sourceFile))
+	// AbsSourceDir string
+	if res.AbsSourceDir != filepath.Dir(sourceFile) {
+		t.Errorf("AbsSourceDir = %s; want %s", res.AbsSourceDir, filepath.Dir(sourceFile))
 	}
 
-	// file path of the actual source file relative to the rootSourceDir
-	// relSourcePath
-	if res.relSourcePath != relSourcePath {
-		t.Errorf("relSourcePath = %s; want %s", res.relSourcePath, relSourcePath)
+	// file path of the actual source file relative to the RootSourceDir
+	// RelSourcePath
+	if res.RelSourcePath != RelSourcePath {
+		t.Errorf("RelSourcePath = %s; want %s", res.RelSourcePath, RelSourcePath)
 	}
 
-	// dir path of the actual source file relative to the rootSourceDir
-	// relSourceDir
-	if res.relSourceDir != filepath.Dir(relSourcePath) {
-		t.Errorf("relSourceDir = %s; want %s", res.relSourceDir, filepath.Dir(relSourcePath))
+	// dir path of the actual source file relative to the RootSourceDir
+	// RelSourceDir
+	if res.RelSourceDir != filepath.Dir(RelSourcePath) {
+		t.Errorf("RelSourceDir = %s; want %s", res.RelSourceDir, filepath.Dir(RelSourcePath))
 	}
 
-	// // relative path from the actual source file back to the rootSourceDir
-	// relSourceRoot string
-	if res.relSourceRoot != relSourceRoot {
-		t.Errorf("relSourceRoot = %s; want %s", res.relSourceRoot, relSourceRoot)
+	// // relative path from the actual source file back to the RootSourceDir
+	// RelSourceRoot string
+	if res.RelSourceRoot != RelSourceRoot {
+		t.Errorf("RelSourceRoot = %s; want %s", res.RelSourceRoot, RelSourceRoot)
 	}
 
 	// start / top path of the destination folder
-	// rootDestDir string
-	if res.rootDestDir != destRoot {
-		t.Errorf("rootDestDir = %s; want %s", res.rootDestDir, relSourceRoot)
+	// RootDestDir string
+	if res.RootDestDir != destRoot {
+		t.Errorf("RootDestDir = %s; want %s", res.RootDestDir, RelSourceRoot)
 	}
 
 	// absolute path of the actual destination file
-	// absDestPath
-	if res.absDestPath != destFile {
-		t.Errorf("absDestPath = %s; want %s", res.absDestPath, destFile)
+	// AbsDestPath
+	if res.AbsDestPath != destFile {
+		t.Errorf("AbsDestPath = %s; want %s", res.AbsDestPath, destFile)
 	}
 
 	// absolute path of the actual destination file
-	// absDestDir
-	if res.absDestDir != filepath.Dir(destFile) {
-		t.Errorf("absDestDir = %s; want %s", res.absDestDir, filepath.Dir(destFile))
+	// AbsDestDir
+	if res.AbsDestDir != filepath.Dir(destFile) {
+		t.Errorf("AbsDestDir = %s; want %s", res.AbsDestDir, filepath.Dir(destFile))
 	}
 
-	// file path of the actual destination file relative to the rootDestDir
-	// relDestPath
-	if res.relDestPath != relDestPath {
-		t.Errorf("relDestPath = %s; want %s", res.relDestPath, relDestPath)
+	// file path of the actual destination file relative to the RootDestDir
+	// RelDestPath
+	if res.RelDestPath != RelDestPath {
+		t.Errorf("RelDestPath = %s; want %s", res.RelDestPath, RelDestPath)
 	}
 
-	// dir path of the actual destination file relative to the rootSourceDir
-	// relDestDir string
-	if res.relDestDir != filepath.Dir(relDestPath) {
-		t.Errorf("relDestDir = %s; want %s", res.relDestDir, filepath.Dir(relDestPath))
+	// dir path of the actual destination file relative to the RootSourceDir
+	// RelDestDir string
+	if res.RelDestDir != filepath.Dir(RelDestPath) {
+		t.Errorf("RelDestDir = %s; want %s", res.RelDestDir, filepath.Dir(RelDestPath))
 	}
 
-	// relative path from the actual dest file back to the rootSourceDir
-	// relDestRoot string
-	if res.relDestRoot != relDestRoot {
-		t.Errorf("relDestRoot = %s; want %s", res.relDestRoot, relDestRoot)
+	// relative path from the actual dest file back to the RootSourceDir
+	// RelDestRoot string
+	if res.RelDestRoot != RelDestRoot {
+		t.Errorf("RelDestRoot = %s; want %s", res.RelDestRoot, RelDestRoot)
 	}
 
 	// web paths:
-	// the webroot prefix, "/" by default
-	// webroot string
-	if res.webroot != webroot {
-		t.Errorf("webroot = %s; want %s", res.webroot, webroot)
+	// the Webroot prefix, "/" by default
+	// Webroot string
+	if res.Webroot != Webroot {
+		t.Errorf("Webroot = %s; want %s", res.Webroot, Webroot)
 	}
 
-	// relative (to webroot) web path to the actual output file
+	// relative (to Webroot) web path to the actual output file
 	// relWebPath string
-	if res.relWebPath != filepath.ToSlash(relDestPath) {
-		t.Errorf("relWebPath = %s; want %s", res.relWebPath, filepath.ToSlash(relDestPath))
+	if res.RelWebPath != filepath.ToSlash(RelDestPath) {
+		t.Errorf("relWebPath = %s; want %s", res.RelWebPath, filepath.ToSlash(RelDestPath))
 	}
 
-	// relative (to webroot) web path to the actual output file's folder
-	// relWebDir string
-	if res.relWebDir != filepath.ToSlash(filepath.Dir(relDestPath)) {
-		t.Errorf("relWebDir = %s; want %s", res.relWebDir, filepath.ToSlash(filepath.Dir(relDestPath)))
+	// relative (to Webroot) web path to the actual output file's folder
+	// RelWebDir string
+	if res.RelWebDir != filepath.ToSlash(filepath.Dir(RelDestPath)) {
+		t.Errorf("RelWebDir = %s; want %s", res.RelWebDir, filepath.ToSlash(filepath.Dir(RelDestPath)))
 	}
 
-	// relative path from the actual file back to the webroot
-	// relWebPathToRoot string
-	if res.relWebPathToRoot != filepath.ToSlash(relDestRoot) {
-		t.Errorf("relWebPathToRoot = %s; want %s", res.relWebPathToRoot, filepath.ToSlash(relDestRoot))
+	// relative path from the actual file back to the Webroot
+	// RelWebPathToRoot string
+	if res.RelWebPathToRoot != filepath.ToSlash(RelDestRoot) {
+		t.Errorf("RelWebPathToRoot = %s; want %s", res.RelWebPathToRoot, filepath.ToSlash(RelDestRoot))
 	}
 
-	// // absolute web path of the actual file, including the webroot, starting always with "/"
-	// absWebPath string
-	if res.absWebPath != path.Clean(path.Join("/", webroot, filepath.ToSlash(relDestPath))) {
-		t.Errorf("absWebPath = %s; want %s", res.absWebPath, path.Join(webroot, filepath.ToSlash(relDestPath)))
+	// // absolute web path of the actual file, including the Webroot, starting always with "/"
+	// AbsWebPath string
+	if res.AbsWebPath != path.Clean(path.Join("/", Webroot, filepath.ToSlash(RelDestPath))) {
+		t.Errorf("AbsWebPath = %s; want %s", res.AbsWebPath, path.Join(Webroot, filepath.ToSlash(RelDestPath)))
 	}
 
-	// absolute web path of the actual file's dir, including the webroot, starting always with "/"
-	// absWebDir string
-	if res.absWebDir != path.Clean(path.Join("/", webroot, filepath.ToSlash(filepath.Dir(relDestPath)))) {
-		t.Errorf("absWebDir = %s; want %s", res.absWebDir, path.Join(webroot, filepath.ToSlash(filepath.Dir(relDestPath))))
+	// absolute web path of the actual file's dir, including the Webroot, starting always with "/"
+	// AbsWebDir string
+	if res.AbsWebDir != path.Clean(path.Join("/", Webroot, filepath.ToSlash(filepath.Dir(RelDestPath)))) {
+		t.Errorf("AbsWebDir = %s; want %s", res.AbsWebDir, path.Join(Webroot, filepath.ToSlash(filepath.Dir(RelDestPath))))
 	}
 }
 
@@ -155,25 +156,26 @@ func TestHtmlProcessorPrepareFilePathsWithoutWebroot(t *testing.T) {
 	var processor = HtmlProcessor{}
 	var sourceRoot = filepath.Join(os.TempDir(), filepath.FromSlash("/path/to/source"))
 	var sourceFile = filepath.Join(sourceRoot, "sub", "folder", "file.html")
-	var relSourcePath = filepath.Join("sub", "folder", "file.html")
-	var relSourceRoot = filepath.Join("..", "..")
+	var RelSourcePath = filepath.Join("sub", "folder", "file.html")
+	var RelSourceRoot = filepath.Join("..", "..")
 
 	var destRoot = filepath.Join(os.TempDir(), filepath.FromSlash("/path/to/dest"))
 	var destFile = filepath.Join(destRoot, "sub", "folder", "file.html")
-	var relDestPath = filepath.Join("sub", "folder", "file.html")
-	var relDestRoot = filepath.Join("..", "..")
+	var RelDestPath = filepath.Join("sub", "folder", "file.html")
+	var RelDestRoot = filepath.Join("..", "..")
 
-	var webroot = ""
+	var Webroot = ""
 
 	var config = model.Config{
 		SourcePath: sourceRoot,
 		DestPath:   destRoot,
 		Server: struct {
 			Listen  string              "yaml:\"listen\""
+			Watch   bool                "yaml:\"watch\""
 			Prefix  string              "yaml:\"prefix\""
 			Logging model.LoggingConfig "yaml:\"logging\""
 		}{
-			Prefix: webroot,
+			Prefix: Webroot,
 		},
 	}
 	res, err := processor.prepareFilePaths(sourceFile, config)
@@ -181,111 +183,111 @@ func TestHtmlProcessorPrepareFilePathsWithoutWebroot(t *testing.T) {
 		t.Fatal(err)
 	}
 	// start / top path of the source folder
-	// rootSourceDir
-	if res.rootSourceDir != sourceRoot {
-		t.Errorf("rootSourceDir = %s; want %s", res.rootSourceDir, sourceRoot)
+	// RootSourceDir
+	if res.RootSourceDir != sourceRoot {
+		t.Errorf("RootSourceDir = %s; want %s", res.RootSourceDir, sourceRoot)
 	}
 
 	// absolute path of the actual source file
-	// absSourcePath
-	if res.absSourcePath != sourceFile {
-		t.Errorf("absSourcePath = %s; want %s", res.absSourcePath, sourceFile)
+	// AbsSourcePath
+	if res.AbsSourcePath != sourceFile {
+		t.Errorf("AbsSourcePath = %s; want %s", res.AbsSourcePath, sourceFile)
 	}
 
 	// absolute path of the actual source file
-	// absSourceDir string
-	if res.absSourceDir != filepath.Dir(sourceFile) {
-		t.Errorf("absSourceDir = %s; want %s", res.absSourceDir, filepath.Dir(sourceFile))
+	// AbsSourceDir string
+	if res.AbsSourceDir != filepath.Dir(sourceFile) {
+		t.Errorf("AbsSourceDir = %s; want %s", res.AbsSourceDir, filepath.Dir(sourceFile))
 	}
 
-	// file path of the actual source file relative to the rootSourceDir
-	// relSourcePath
-	if res.relSourcePath != relSourcePath {
-		t.Errorf("relSourcePath = %s; want %s", res.relSourcePath, relSourcePath)
+	// file path of the actual source file relative to the RootSourceDir
+	// RelSourcePath
+	if res.RelSourcePath != RelSourcePath {
+		t.Errorf("RelSourcePath = %s; want %s", res.RelSourcePath, RelSourcePath)
 	}
 
-	// dir path of the actual source file relative to the rootSourceDir
-	// relSourceDir
-	if res.relSourceDir != filepath.Dir(relSourcePath) {
-		t.Errorf("relSourceDir = %s; want %s", res.relSourceDir, filepath.Dir(relSourcePath))
+	// dir path of the actual source file relative to the RootSourceDir
+	// RelSourceDir
+	if res.RelSourceDir != filepath.Dir(RelSourcePath) {
+		t.Errorf("RelSourceDir = %s; want %s", res.RelSourceDir, filepath.Dir(RelSourcePath))
 	}
 
-	// // relative path from the actual source file back to the rootSourceDir
-	// relSourceRoot string
-	if res.relSourceRoot != relSourceRoot {
-		t.Errorf("relSourceRoot = %s; want %s", res.relSourceRoot, relSourceRoot)
+	// // relative path from the actual source file back to the RootSourceDir
+	// RelSourceRoot string
+	if res.RelSourceRoot != RelSourceRoot {
+		t.Errorf("RelSourceRoot = %s; want %s", res.RelSourceRoot, RelSourceRoot)
 	}
 
 	// start / top path of the destination folder
-	// rootDestDir string
-	if res.rootDestDir != destRoot {
-		t.Errorf("rootDestDir = %s; want %s", res.rootDestDir, relSourceRoot)
+	// RootDestDir string
+	if res.RootDestDir != destRoot {
+		t.Errorf("RootDestDir = %s; want %s", res.RootDestDir, RelSourceRoot)
 	}
 
 	// absolute path of the actual destination file
-	// absDestPath
-	if res.absDestPath != destFile {
-		t.Errorf("absDestPath = %s; want %s", res.absDestPath, destFile)
+	// AbsDestPath
+	if res.AbsDestPath != destFile {
+		t.Errorf("AbsDestPath = %s; want %s", res.AbsDestPath, destFile)
 	}
 
 	// absolute path of the actual destination file
-	// absDestDir
-	if res.absDestDir != filepath.Dir(destFile) {
-		t.Errorf("absDestDir = %s; want %s", res.absDestDir, filepath.Dir(destFile))
+	// AbsDestDir
+	if res.AbsDestDir != filepath.Dir(destFile) {
+		t.Errorf("AbsDestDir = %s; want %s", res.AbsDestDir, filepath.Dir(destFile))
 	}
 
-	// file path of the actual destination file relative to the rootDestDir
-	// relDestPath
-	if res.relDestPath != relDestPath {
-		t.Errorf("relDestPath = %s; want %s", res.relDestPath, relDestPath)
+	// file path of the actual destination file relative to the RootDestDir
+	// RelDestPath
+	if res.RelDestPath != RelDestPath {
+		t.Errorf("RelDestPath = %s; want %s", res.RelDestPath, RelDestPath)
 	}
 
-	// dir path of the actual destination file relative to the rootSourceDir
-	// relDestDir string
-	if res.relDestDir != filepath.Dir(relDestPath) {
-		t.Errorf("relDestDir = %s; want %s", res.relDestDir, filepath.Dir(relDestPath))
+	// dir path of the actual destination file relative to the RootSourceDir
+	// RelDestDir string
+	if res.RelDestDir != filepath.Dir(RelDestPath) {
+		t.Errorf("RelDestDir = %s; want %s", res.RelDestDir, filepath.Dir(RelDestPath))
 	}
 
-	// relative path from the actual dest file back to the rootSourceDir
-	// relDestRoot string
-	if res.relDestRoot != relDestRoot {
-		t.Errorf("relDestRoot = %s; want %s", res.relDestRoot, relDestRoot)
+	// relative path from the actual dest file back to the RootSourceDir
+	// RelDestRoot string
+	if res.RelDestRoot != RelDestRoot {
+		t.Errorf("RelDestRoot = %s; want %s", res.RelDestRoot, RelDestRoot)
 	}
 
 	// web paths:
-	// the webroot prefix, "/" by default
-	// webroot string
-	if res.webroot != webroot {
-		t.Errorf("webroot = %s; want %s", res.webroot, webroot)
+	// the Webroot prefix, "/" by default
+	// Webroot string
+	if res.Webroot != Webroot {
+		t.Errorf("Webroot = %s; want %s", res.Webroot, Webroot)
 	}
 
-	// relative (to webroot) web path to the actual output file
+	// relative (to Webroot) web path to the actual output file
 	// relWebPath string
-	if res.relWebPath != filepath.ToSlash(relDestPath) {
-		t.Errorf("relWebPath = %s; want %s", res.relWebPath, filepath.ToSlash(relDestPath))
+	if res.RelWebPath != filepath.ToSlash(RelDestPath) {
+		t.Errorf("relWebPath = %s; want %s", res.RelWebPath, filepath.ToSlash(RelDestPath))
 	}
 
-	// relative (to webroot) web path to the actual output file's folder
-	// relWebDir string
-	if res.relWebDir != filepath.ToSlash(filepath.Dir(relDestPath)) {
-		t.Errorf("relWebDir = %s; want %s", res.relWebDir, filepath.ToSlash(filepath.Dir(relDestPath)))
+	// relative (to Webroot) web path to the actual output file's folder
+	// RelWebDir string
+	if res.RelWebDir != filepath.ToSlash(filepath.Dir(RelDestPath)) {
+		t.Errorf("RelWebDir = %s; want %s", res.RelWebDir, filepath.ToSlash(filepath.Dir(RelDestPath)))
 	}
 
-	// relative path from the actual file back to the webroot
-	// relWebPathToRoot string
-	if res.relWebPathToRoot != filepath.ToSlash(relDestRoot) {
-		t.Errorf("relWebPathToRoot = %s; want %s", res.relWebPathToRoot, filepath.ToSlash(relDestRoot))
+	// relative path from the actual file back to the Webroot
+	// RelWebPathToRoot string
+	if res.RelWebPathToRoot != filepath.ToSlash(RelDestRoot) {
+		t.Errorf("RelWebPathToRoot = %s; want %s", res.RelWebPathToRoot, filepath.ToSlash(RelDestRoot))
 	}
 
-	// // absolute web path of the actual file, including the webroot, starting always with "/"
-	// absWebPath string
-	if res.absWebPath != path.Clean(path.Join("/", webroot, filepath.ToSlash(relDestPath))) {
-		t.Errorf("absWebPath = %s; want %s", res.absWebPath, path.Join(webroot, filepath.ToSlash(relDestPath)))
+	// // absolute web path of the actual file, including the Webroot, starting always with "/"
+	// AbsWebPath string
+	if res.AbsWebPath != path.Clean(path.Join("/", Webroot, filepath.ToSlash(RelDestPath))) {
+		t.Errorf("AbsWebPath = %s; want %s", res.AbsWebPath, path.Join(Webroot, filepath.ToSlash(RelDestPath)))
 	}
 
-	// absolute web path of the actual file's dir, including the webroot, starting always with "/"
-	// absWebDir string
-	if res.absWebDir != path.Clean(path.Join("/", webroot, filepath.ToSlash(filepath.Dir(relDestPath)))) {
-		t.Errorf("absWebDir = %s; want %s", res.absWebDir, path.Join(webroot, filepath.ToSlash(filepath.Dir(relDestPath))))
+	// absolute web path of the actual file's dir, including the Webroot, starting always with "/"
+	// AbsWebDir string
+	if res.AbsWebDir != path.Clean(path.Join("/", Webroot, filepath.ToSlash(filepath.Dir(RelDestPath)))) {
+		t.Errorf("AbsWebDir = %s; want %s", res.AbsWebDir, path.Join(Webroot, filepath.ToSlash(filepath.Dir(RelDestPath))))
 	}
 }
