@@ -1,0 +1,20 @@
+# Markdown-Template
+
+webroot: {{paths.webroot}}
+rootSourceDir: {{paths.rootSourceDir}}
+absSourcePath: {{paths.absSourcePath}}
+absSourceDir: {{paths.absSourceDir}}
+relSourcePath: {{paths.relSourcePath}}
+relSourceDir: {{paths.relSourceDir}}
+relSourceRoot: {{paths.relSourceRoot}}
+rootDestDir: {{paths.rootDestDir}}
+absDestPath: {{paths.absDestPath}}
+absDestDir: {{paths.absDestDir}}
+relDestPath: {{paths.relDestPath}}
+relDestDir: {{paths.relDestDir}}
+relDestRoot: {{paths.relDestRoot}}
+relWebPath: {{paths.relWebPath}}
+relWebDir: {{paths.relWebDir}}
+relWebPathToRoot: {{paths.relWebPathToRoot}}
+absWebPath: {{paths.absWebPath}}
+absWebDir: {{paths.absWebDir}}

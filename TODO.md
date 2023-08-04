@@ -12,6 +12,7 @@
   - [ ] more url functions:
     - [ ] beginsWith() checks if a string begins with a (shorter) one: needed for sub-page check
     - [ ] endsWith() checks if a string ends with a (shorter) one: needed for super-page check
+    - [ ] concat() to concat multiple strings
 
 - [ ] serve:
   - [x] watch for file changes, and rebuild

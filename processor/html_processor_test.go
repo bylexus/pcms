@@ -4,9 +4,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"alexi.ch/pcms/model"
+	"alexi.ch/pcms/stdlib"
 )
 
 /*
@@ -289,5 +291,57 @@ func TestHtmlProcessorPrepareFilePathsWithoutWebroot(t *testing.T) {
 	// AbsWebDir string
 	if res.AbsWebDir != path.Clean(path.Join("/", Webroot, filepath.ToSlash(filepath.Dir(RelDestPath)))) {
 		t.Errorf("AbsWebDir = %s; want %s", res.AbsWebDir, path.Join(Webroot, filepath.ToSlash(filepath.Dir(RelDestPath))))
+	}
+}
+
+func TestHtmlProcessorTemplate(t *testing.T) {
+	var processor = HtmlProcessor{}
+	var htmlFixtureInput = "testdata/html-template.html"
+	var htmlFixtureOutput = "testdata/html-template-expected.html"
+	var osTempDir = filepath.Clean(os.TempDir())
+
+	var sourceRoot = filepath.Join(osTempDir, "input")
+	var sourceFile = filepath.Join(sourceRoot, "input.html")
+
+	var destRoot = filepath.Join(osTempDir, "output")
+
+	var config = model.Config{
+		SourcePath: sourceRoot,
+		DestPath:   destRoot,
+		Server: struct {
+			Listen  string              "yaml:\"listen\""
+			Watch   bool                "yaml:\"watch\""
+			Prefix  string              "yaml:\"prefix\""
+			Logging model.LoggingConfig "yaml:\"logging\""
+		}{
+			Prefix: "/webroot",
+		},
+	}
+
+	// prepare fixture files:
+	os.MkdirAll(sourceRoot, os.ModeDir|0777)
+	os.MkdirAll(destRoot, os.ModeDir|0777)
+	stdlib.CopyFile(htmlFixtureInput, sourceFile)
+	expectedOutput, err := os.ReadFile(htmlFixtureOutput)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	destFile, err := processor.ProcessFile(sourceFile, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actualOutput, err := os.ReadFile(destFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var expectedOutputStr = string(expectedOutput)
+	var actualOutputStr = string(actualOutput)
+	// in the expected template fixture, we have "{BaseDir}" as a placeholder for the dynamic
+	// os.TempDir() part. We replace them here.
+	expectedOutputStr = strings.ReplaceAll(expectedOutputStr, "{BaseDir}", osTempDir)
+	if expectedOutputStr != actualOutputStr {
+		t.Errorf("output html != expected input. expected:\n%s\n\nactual:\n%s\n", expectedOutputStr, actualOutputStr)
 	}
 }
