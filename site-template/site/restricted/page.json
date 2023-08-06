@@ -1,7 +1,0 @@
-{
-    "title": "Restricted page",
-    "shortTitle": "Restricted",
-    "index": "index.html",
-    "order": 3,
-    "requiredUsers": ["valid-user"]
-}

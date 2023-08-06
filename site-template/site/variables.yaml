@@ -1,0 +1,16 @@
+var1: "Value from root folder"
+var2: "Another Value from root folder"
+rootValue: "Root folder value"
+children:
+  - title: HTML Test Page
+    enabled: true
+    route: html-page
+    iconCls: fab fa-html5
+  - title: Markdown Test Page
+    enabled: true
+    route: markdown-page
+    iconCls: fab fa-markdown
+  - title: Variables Test Page
+    enabled: true
+    route: variables-page
+    iconCls: fab fa-markdown

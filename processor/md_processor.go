@@ -61,22 +61,9 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 		return "", err
 	}
 
-	// Merge frontmatter variables with global config vars:
-	variables := mergeStringMaps(config.Variables, yamlFrontMatter)
-
-	// process template to output file
-	pathObj, err := filePaths.GetStdObject()
+	context, err := prepareTemplateContext(sourceFile, config, filePaths, yamlFrontMatter)
 	if err != nil {
 		return "", err
-	}
-	context := pongo2.Context{
-		// combined config + yaml preamble variables:
-		"variables": variables,
-		// several file path variants for the actual file:
-		"paths": pathObj,
-		"webroot": func(relPath string) string {
-			return AbsUrl(relPath, filePaths.Webroot)
-		},
 	}
 
 	// now, we need to process the Markdown source as template:
@@ -151,6 +138,9 @@ func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (P
 		return result, err
 	}
 	result.RelSourceRoot, err = filepath.Rel(result.AbsSourceDir, config.SourcePath)
+	if err != nil {
+		return result, err
+	}
 
 	// calc outfile path and create dest directory
 	outFile := filepath.Join(config.DestPath, result.RelSourcePath)

@@ -51,28 +51,15 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 		return "", err
 	}
 
-	// Merge frontmatter variables with global config vars:
-	variables := mergeStringMaps(config.Variables, yamlFrontMatter)
-
 	// create template from input file
 	tpl, err := pongo2.FromString(sourceString)
 	if err != nil {
 		return "", err
 	}
 
-	// process template to output file
-	pathObj, err := filePaths.GetStdObject()
+	context, err := prepareTemplateContext(sourceFile, config, filePaths, yamlFrontMatter)
 	if err != nil {
 		return "", err
-	}
-	context := pongo2.Context{
-		// combined config + yaml preamble variables:
-		"variables": variables,
-		// several file path variants for the actual file:
-		"paths": pathObj,
-		"webroot": func(relPath string) string {
-			return AbsUrl(relPath, filePaths.Webroot)
-		},
 	}
 
 	outWriter, err := os.Create(filePaths.AbsDestPath)
@@ -111,6 +98,9 @@ func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) 
 		result.RelSourceDir = "."
 	}
 	result.RelSourceRoot, err = filepath.Rel(result.AbsSourceDir, config.SourcePath)
+	if err != nil {
+		return result, err
+	}
 
 	// calc destination paths and create dest directory
 	result.AbsDestPath = filepath.Join(config.DestPath, result.RelSourcePath)

@@ -6,6 +6,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type YamlFrontMatter map[string]interface{}
+
 // Tries to extract a YAML frontmatter from a string.
 // A YAML frontmatter is a section at the beginning of the string,
 // containing YAML. It is separated by using '---'.
@@ -18,8 +20,8 @@ import (
 //
 // returns:
 // (yaml object, "here comes the rest of the doc...")
-func ExtractYamlFrontMatter(doc string) (map[string]interface{}, string, error) {
-	yamlObj := make(map[string]interface{})
+func ExtractYamlFrontMatter(doc string) (YamlFrontMatter, string, error) {
+	yamlObj := make(YamlFrontMatter)
 	// Matches the whole preamble block and the rest of the doc as
 	// separate groups:
 	preamblePattern := regexp.MustCompile(`(?s)^\s*(-{3,}\n(.*?)\n-{3,}\n)*(.*)$`)
