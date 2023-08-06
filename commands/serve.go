@@ -57,9 +57,9 @@ func RunServeCmd(config model.Config) error {
 		siteFS = os.DirFS(config.DestPath)
 		// start file watcher, if enabled in config:
 		if config.Server.Watch {
-			watcher, _ := startFileWatcher(config.SourcePath, config, errorLogger)
-			if watcher != nil {
-				defer watcher.Close()
+			watchers, _ := startFileWatcher(config.SourcePath, config, errorLogger)
+			for _, w := range watchers {
+				defer w.Close()
 			}
 		}
 	}
@@ -94,25 +94,36 @@ func RunServeCmd(config model.Config) error {
 	return err
 }
 
-func startFileWatcher(watchPath string, config model.Config, logger *logging.Logger) (*fsnotify.Watcher, error) {
-	watcher, err := fsnotify.NewWatcher()
+func startFileWatcher(watchPath string, config model.Config, logger *logging.Logger) ([]*fsnotify.Watcher, error) {
+	watchers := make([]*fsnotify.Watcher, 0)
+	singleFileBuildWatcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		logger.Error("Cannot start file watcher: %s", err.Error())
+		logger.Error("Cannot start single build file watcher: %s", err.Error())
 		return nil, err
 	}
+	watchers = append(watchers, singleFileBuildWatcher)
+	fullFileBuildWatcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		logger.Error("Cannot start full build file watcher: %s", err.Error())
+		return nil, err
+	}
+	watchers = append(watchers, fullFileBuildWatcher)
 
-	// starting the watcher process in a separate thread, as this watches
+	// starting the watcher processes in a separate thread, as this watches
 	// indefinitely:
-	go processWatcherEvents(watcher, config, logger)
+	go processSingleBuildWatcherEvents(singleFileBuildWatcher, config, logger)
+	go processFullBuildWatcherEvents(fullFileBuildWatcher, config, logger)
 
-	// Add whole directory tree
+	// Add whole source directory tree to single or full file build watcher
 	err = filepath.WalkDir(watchPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			logger.Error("File Watcher Error: %s", err.Error())
 			return err
 		}
-		if d.IsDir() {
-			return watcher.Add(path)
+		if !d.IsDir() && filepath.Base(path) == "variables.yaml" {
+			fullFileBuildWatcher.Add(path)
+		} else if d.IsDir() {
+			return singleFileBuildWatcher.Add(path)
 		}
 
 		return nil
@@ -121,15 +132,35 @@ func startFileWatcher(watchPath string, config model.Config, logger *logging.Log
 		logger.Error("File Watcher Error: %s", err.Error())
 		return nil, err
 	}
+
+	// adding pcms config file to full build watcher:
+	fullFileBuildWatcher.Add(config.ConfigFile)
+
+	// adding template dir to full build watcher:
+	err = filepath.WalkDir(config.TemplateDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			logger.Error("File Watcher Error: %s", err.Error())
+			return err
+		}
+		if d.IsDir() {
+			return fullFileBuildWatcher.Add(path)
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Error("File Watcher Error: %s", err.Error())
+		return nil, err
+	}
+
 	logger.Info("File Watcher started for root dir %s", watchPath)
-	return watcher, nil
+	return watchers, nil
 }
 
 /*
 This method watches for fsnotify.Watcher events indefinitely and should be started
 as a goroutine in parallel to the main process.
 */
-func processWatcherEvents(watcher *fsnotify.Watcher, config model.Config, logger *logging.Logger) {
+func processSingleBuildWatcherEvents(watcher *fsnotify.Watcher, config model.Config, logger *logging.Logger) {
 	var err error = nil
 	for {
 		select {
@@ -153,6 +184,38 @@ func processWatcherEvents(watcher *fsnotify.Watcher, config model.Config, logger
 	}
 }
 
+/*
+This method watches for fsnotify.Watcher events indefinitely and should be started
+as a goroutine in parallel to the main process.
+*/
+func processFullBuildWatcherEvents(watcher *fsnotify.Watcher, config model.Config, logger *logging.Logger) {
+	var err error = nil
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
+				logger.Info("File Watcher: Initiating Full rebuild due to file change: %s", event.Name)
+				err = triggerFullRebuild(config)
+				if err != nil {
+					logger.Error("File Rebuild Error: %s", err.Error())
+				}
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			logger.Error("File Watcher Error: %s", err.Error())
+		}
+	}
+}
+
 func triggerSingleRebuild(file string, config model.Config) error {
 	return ProcessSourceFile(file, config)
+}
+
+func triggerFullRebuild(config model.Config) error {
+	return RunBuildCmd(config)
 }

@@ -16,9 +16,9 @@
 
 - [ ] serve:
   - [x] watch for file changes, and rebuild
-  - [ ] watch for template file changes, and rebuild
-  - [ ] watch for variables.yaml file changes, and rebuild
-  - [ ] watch for pcms-config.yaml file changes, and rebuild
+  - [x] watch for template file changes, and rebuild
+  - [x] watch for variables.yaml file changes, and rebuild
+  - [x] watch for pcms-config.yaml file changes, and rebuild
   - [ ] optionally build before serve (cli flag)
   - [x] embedded doc
   - [ ] config access log format
