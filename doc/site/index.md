@@ -52,6 +52,6 @@ pcms is also written in GO (while it was written in NodeJS/JavaScript before ALR
 ## Table of contents
 
 * <a href="{{webroot("/")}}">[home]</a>
-{% for child in variables.toc %}* <a href="{{webroot(child.destRelDir)}}/">{{child.title}}
+{% for child in variables.toc %}* <a href="{{webroot(child.relDestDir)}}/">{{child.title}}
 {% endfor %}
 

@@ -26,9 +26,10 @@
                 <div class="col-3 toc">
                     <h2>Table of contents</h2>
                     <ul>
-                    <li class="{% if destRelDir == "." %}active{% endif %}"><a href="{{webroot("/")}}">[home]</a></li>
+                    <li class="{% if paths.relDestDir== "." %}active{% endif %}"><a href="{{webroot("/")}}">[home]</a></li>
                     {% for child in variables.toc %}
-                    <li class="{% if child.destRelDir == destRelDir %}active{% endif %}"><a href="{{webroot(child.destRelDir)}}/">{{child.title}}</a></li>
+                    <li class="{% if child.relDestDir == paths.relDestDir %}active{% endif %}">
+                        <a href="{{webroot(child.relDestDir)}}/">{{child.title}}</a></li>
                     {% endfor %}
                     </ul>
                 </div>

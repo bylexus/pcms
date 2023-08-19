@@ -21,7 +21,7 @@ metaTags:
     <li><a href="{{webroot("/")}}"><i class="fas fa-home"></i> {{variables.siteTitle}}</a></li>
     {% for item in variables.children %}
     {% if item.enabled == true %}
-    <li class="{% if destRelDir == item.route %}active{% endif %}">
+    <li class="{% if path.relDestDir == item.route %}active{% endif %}">
         <a href="{{webroot(item.route)}}/">
             <i class="{{item.iconCls}}"></i>
             {{item.title}}

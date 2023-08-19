@@ -14,27 +14,30 @@ metaTags:
 
 ## Design Goals
 
-* Provide a simple, non-intrusive Page delivery system, based on HTML templates
-* No database needed, no setup, no strings. The filesystem is also the Site structure.
+* Provide a simple static site generator based on Markdown or raw HTML. No magic.
+* Generate final content using HTML templates
+* No database needed, no setup, no strings attached. The filesystem is also the Site structure.
 * Programmer friendly, or, code-first: There is no UI! Ever!
-* Can render markdown as well as plain HTML, but with some kind of template engine
+* No magic. Magic fuzzies your clear view. Magic is for wizards, not for normal human beings.
 
 ## Implemented features
 
-* Web server written in GO
-* serves HTML and Markdown files from a root folder
+* Static site generator: generates a final, statically rendered site using:
+  * HTML, optionally using templates
+  * Markdown within an HTML template
+  * scss transpiler transforms your scss into css
+  * all other files are just copied 1:1 to the destination folder
+* Serves the built site with its own web server
+* Watches files for changes and re-builds the output on-the-fly
 * Folder structure defines URL routes
 * Content is rendered using a Template engine (see pongo2 below)
 * No database needed, file-based only.
 * Uses [pongo2](https://github.com/flosch/pongo2), a [Django-like](https://docs.djangoproject.com/en/4.0/topics/templates/) template engine written in GO for html/markdown files to create pages based on templates
-* separates theme / layout from content
-* restricted pages with HTTP Basic Auth credentials supported
-* self-contained binary: you just need the one single binary to run a pcms site
+* generate starter skeleton
+* self-contained binary: you just need the one single binary to run a pcms site, AND to read the docs
+
 
 ## Once-to-be-implemented features
 
-* on-the-fly sass-to-css transformation
-* static output generation of whole site
-* Template / HTML caching
 * API for querying and maintaining the running app
-* ... and a lot more: Ideas are pending...
+* document indexing for implementing (server/client-side?) searching
