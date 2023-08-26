@@ -1,6 +1,6 @@
 # This is the pcms configuration file. It configures the whole system.
 server:
-  # listen address. This couls also be e.g. "localhost:3000"
+  # listen address. This could also be e.g. "localhost:3000"
   listen: ":3000"
   # watch: if true, the source folder is watched for file changes, and a rebuild
   # of changed / new files is triggered on the fly.

@@ -21,8 +21,6 @@ This documentation shows you how to install `pcms` and generate a new site from 
   - [Build a Docker image](#build-a-docker-image)
 - [Generate a skeleton site](#generate-a-skeleton-site)
 - [Site configuration: `pcms-config.yaml`](#site-configuration-pcms-configyaml)
-- [Page config with `page.json`](#page-config-with-pagejson)
-- [Page content](#page-content)
 - [Starting the site](#starting-the-site)
   - [Start `pcms` with the local binary](#start-pcms-with-the-local-binary)
   - [Start `pcms` in a docker container](#start-pcms-in-a-docker-container)
@@ -68,6 +66,13 @@ You can build and run `pcms` as a Linux container, using [Docker](https://www.do
 $ docker build -t pcms https://github.com/bylexus/pcms.git
 ```
 
+or, if you checked out the source code locally:
+
+```sh
+$ cd path/to/pcms
+$ docker build -t pcms ./
+```
+
 
 ## Generate a skeleton site
 
@@ -86,114 +91,61 @@ This will generate a fully-working demo site into the given folder (here: `path-
 
 ```sh
 path-to-site/
+├── build/
+├── log/
 ├── pcms-config.yaml
 ├── site
 │   ├── favicon.png
-│   ├── page.json
+│   ├── index.html
 │   └── ... more files ...
-└── themes
-    └── default
-        ├── static
-        └── templates
+└── templates/
+    ├── base.html
+    └── ... more files ...
 ```
 
 * `pcms-config.yaml` is the site-wide configuration. It contains pcms-specific settings like server port as well as user-defined content which can be used in your site templates.
-* `site/` is the folder where all your page content goes. Every pcms-visible page is a folder within `site` with a `page.json` file.
-* `themes/` contains (the / several) layouts and styles for your site: It is the folder where your site-wide HTML and CSS layouts / files are stored and fetched. Each theme corresponds to
-  the folder name within `themes/`. The actual theme can be set up in `pcms-config.yaml`.
-
+* `site/` is the folder where all your page content goes, and which is processed by the build process.
+* `build/` is where your generated static content goes by default.
+* `templates/` contains the `pongo2` templates used for your site.
 
 ## Site configuration: `pcms-config.yaml`
 
-The main config file is `pcms-config.yaml`. It servers the following purposes:
+The main config file is `pcms-config.yaml`.
 
-* It defines the folder where pcms looks for content: The folder where `pcms-config.yaml` is placed must contain the `themes` and `site` folder.
-* It defines pcms configuration like server settings (port).
-* It offers you a global configuration for additional data / configs that is available in all your templates.
-
-A minimal example `pcms-config.yaml`:
+An example `pcms-config.yaml`:
 
 ```yaml
-# Server config:
+# server config:
 server:
   listen: ":3000"
+  prefix: ""
+  watch: true
   logging:
     access:
       file: STDOUT
+      format: ""
     error:
       file: STDERR
       level: DEBUG
-
-# The site config defines all things about your site.
-site:
-  theme: default
-  title: My Site Title
+# source filder:
+source: "site"
+# output / build folder:
+dest: "build"
+# site-specific global variables:
+variables:
+  siteTitle: pcms-go - Documentation
+  siteMetaTags:
+    - name: "keywords"
+      content: "reference,pcms,cms, golang"
+template_dir: templates
+exclude_patterns:
+  - "^\\..*"
+processors:
+  scss:
+    sass_bin: "/usr/bin/sass"
 ```
 
-There are only two properties you must define in order to run pcms:
-
-* `port`: This is the TCP port the webserver listens to
-* `site.theme`: The theme to use (a folder with the same name in `themes/`)
-
-All the other config options can be chosen freely by the theme / site creator.
-
-## Page config with `page.json`
-
-Each (sub-)folder within `site/` that contains a `page.json` is considered a "page" by pcms, and is indexed in the site tree. So each page has its own `page.json`.
-Other folders or sub-folders that exists are not indexed in the site tree, but can serve as static content containers, belonging to an upper page.
-
-An example `page.json` file:
-
-```json
-{
-    "enabled": true,
-    "index": "index.md",
-    "template": "page-template.html",
-    "shortTitle": "pcms doc",
-    "iconCls": "fas fa-home",
-    "mainClass": "home",
-    "metaTags": [
-        {"name": "keywords", "content": "pcms,cms"},
-        {"name": "description", "content": "Documentation for the pcms system, the programmer's cms"}
-    ]
-}
-```
-
-The page config consists of pcms-needed configs, but can contain any other value you may need to
-generate your page (e.g. here, 'shortTitle' or 'iconCls' are used by the template, not by pcms). All  config is available in that page's template / context.
-
-Configs needed by pcms are:
-
-* `enabled`: If false, the page including its sub-pages and static content are not delivered. You can use this flag to disable a page temporarily.
-* `index`: The file that is read as content file. This can be html, Markdown, json or js, depending of the file ending pcms will act accordingly.
-* `template`: for non-HTML index files, this html template file is read and processed by the template engine. The content from `index` is available as `content` template variable.
-
-## Page content
-
-The `index` property of the `page.json` file defines the page content file. In the simplest form, this is a plain HTML file that is rendered via pongo2 (django-like) template engine.
-The template engine injects a page context: This is an object with available template variables that can be used within the template.
-
-The page context contains the following variables.
-
-* `site`: This object contains the `pcms-config.yaml` entries.
-* `base`: the configured webroot in `pcms-config.yaml`
-* `page`: The Page Node object, containing several information about the page, including the `page.json` entries (`page.Metadata`), actual route (`page.Route`), child pages (`page.Children`).
-* `rootPage`: The site's root node object. Same type as `page`, but for the site's root page.
-* `now`: The actual date, to be used as in django, but with the Go time format strings
-
-All these variables can be used within the template. An example:
-
-```html
-{% verbatim %}<!-- index.html -->
-{% extends "base.html" %}
-
-<h1>{{variables.title}}</h1>
-<p>Hello. It is now {% now "03:04 on 02.01.2006" %}.</p>
-<a href="{{webroot("/")}}">Back to home</a>
-
-A relative link: <a href="{{path.absWebDir}}/sub/folder/picture.png">Image</a>
-{% endverbatim %}
-```
+Adapt the config as needed by your page.
 
 ## Starting the site
 
@@ -213,7 +165,7 @@ $ pcms serve
 You can also give the location of the config file, so you don't have to change to the dir:
 
 ```sh
-$ pcms serve -c path-to-site/pcms-config.yaml
+$ pcms -c path-to-site/pcms-config.yaml serve
 ```
 
 ### Start `pcms` in a docker container

@@ -156,7 +156,21 @@ This **Markdown** file is processed using the 'base-template.html' template file
 
 ### SCSS Processor
 
+pcms can convert `*.scss` (scss) files to css.
+
+Unfortunately I could not find a suitable go-based SASS/SCSS processor until today. So pcms uses an external SASS/SCSS processor: [dart-scss](https://sass-lang.com/dart-sass/).
+You have to download / install the dart-sass binary by yourself, then point to the binary in the `pcms-config.yaml` file:
+
+```yaml
+# pcms-config.yaml:
+processors:
+  scss:
+    sass_bin: "/path/to/bin/sass"
+```
+
+All `*.scss` files are processed and converted to `*.css` files to the same relative output folder.
+
 ### Raw File Processor
 
 This is the simplest processor: It just copies the input file 1:1 to the output file, keeping the same relative path
-with no further processing.
+with no further processing. All files that are not processed by another processor are processed by the raw processor.
