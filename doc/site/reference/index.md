@@ -337,3 +337,35 @@ variables:
 
 ## pcms cli reference
 
+```text
+bin/pcms -h
+
+Usage:
+
+pcms [options] <sub-command> [sub-command options]
+
+options:
+
+  -c string
+    	path to the pcms-config.yaml file. The base dir used is the path of the config file. (default "pcms-config.yaml")
+  -h	Prints this help
+
+A sub-command is expected. Supported sub-commands:
+
+build:      Builds the site to the dest folder
+Usage of build:
+
+serve:      Starts the web server and serves the page
+Usage of serve:
+  -listen string
+    	TCP/IP Listen address, e.g. '-listen :3000' or '-listen 127.0.0.1:8888' (default ":3000")
+
+serve-doc:      Starts a webserver and serves the embedded documentation
+Usage of serve-doc:
+  -listen string
+    	TCP/IP Listen address, e.g. '-listen :3000' or '-listen 127.0.0.1:8888' (default ":3000")
+
+init:      initializes a new pcms project dir using a skeleton
+Usage of init:
+init [path]: initializes a new pcms skeleton in the given path, creating it if does not exist
+```

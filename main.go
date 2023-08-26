@@ -93,7 +93,7 @@ func parseCmdArgs() model.CmdArgs {
 	serveDocCmd.String("listen", ":3000", "TCP/IP Listen address, e.g. '-listen :3000' or '-listen 127.0.0.1:8888'")
 	prevServeDocUsage := serveDocCmd.Usage
 	serveDocCmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, "serve-doc:      Starts a webserver and seves the embedded documentation\n")
+		fmt.Fprintf(os.Stderr, "serve-doc:      Starts a webserver and serves the embedded documentation\n")
 		prevServeDocUsage()
 		fmt.Fprintln(os.Stderr, "")
 
