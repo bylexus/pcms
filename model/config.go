@@ -66,11 +66,6 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 		return config
 	}
 
-	// read command specific flags
-	if listen := cliArgs.FlagSet.Lookup("listen"); listen != nil {
-		config.Server.Listen = listen.Value.String()
-	}
-
 	log.Printf("Reading config file: %v", conffilePath)
 
 	// reading yaml config:
@@ -84,6 +79,11 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	// read command specific flags
+	if listen := cliArgs.FlagSet.Lookup("listen"); listen != nil {
+		config.Server.Listen = listen.Value.String()
 	}
 
 	// set config defaults, if not set:
