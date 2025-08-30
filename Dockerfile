@@ -30,7 +30,7 @@ ENV PCMS_PATH /pcms
 ENV PATH "${PATH}:/pcms/bin"
 COPY --from=builder ${PCMS_PATH}/bin/pcms ${PCMS_PATH}/bin/pcms
 RUN addgroup pcms
-RUN adduser -D -s /bin/sh -G pcms pcms
+RUN adduser --disabled-password --shell /bin/sh --ingroup pcms pcms
 
 USER pcms
 

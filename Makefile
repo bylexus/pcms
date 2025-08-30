@@ -24,11 +24,11 @@ serve-doc: build-doc
 
 .PHONY: build-docker-image-amd64
 build-docker-image-amd64:
-	docker build --pull --platform=linux/amd64 -t $(PROJECTNAME):amd64 $(GOBASE)
+	docker build --pull --no-cache --platform=linux/amd64 -t $(PROJECTNAME):amd64 $(GOBASE)
 
 .PHONY: build-docker-image-arm64
 build-docker-image-arm64:
-	docker build --pull --platform=linux/arm64 -t $(PROJECTNAME):arm64 $(GOBASE)
+	docker build --pull --no-cache --platform=linux/arm64 -t $(PROJECTNAME):arm64 $(GOBASE)
 
 .PHONY: docker-push-to-registry
 docker-push-to-registry: build-docker-image-amd64 build-docker-image-arm64
