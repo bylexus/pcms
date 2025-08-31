@@ -65,6 +65,10 @@ func parseCmdArgs() model.CmdArgs {
 
 	subCommands["__main__"] = flag.CommandLine
 
+	// dev command:
+	devCmd := flag.NewFlagSet("dev", flag.ExitOnError)
+	subCommands[devCmd.Name()] = devCmd
+
 	// build command:
 	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
 	prevBuildUsage := buildCmd.Usage
@@ -142,6 +146,9 @@ func main() {
 	config.EmbeddedDocFS = embeddedDocFS
 
 	switch args.FlagSet.Name() {
+	case "dev":
+		// TODO: Remove the dev branch after finishing it
+		err = commands.RunDevCmd(config)
 	case "build":
 		err = commands.RunBuildCmd(config)
 	case "serve":

@@ -71,6 +71,19 @@
       "mode": "auto",
       "program": "${workspaceFolder}",
       "cwd": "${workspaceFolder}/doc"
-    }
+    },
+    {
+      "name": "Launch dev command",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/main.go",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "-c",
+        "doc/pcms-config.yaml",
+        "dev"
+      ]
+    },
   ]
 }

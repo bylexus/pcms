@@ -1,12 +1,13 @@
 package stdlib
 
 import (
+	"io/fs"
 	"regexp"
 
 	"gopkg.in/yaml.v3"
 )
 
-type YamlFrontMatter map[string]interface{}
+type YamlFrontMatter map[string]any
 
 // Tries to extract a YAML frontmatter from a string.
 // A YAML frontmatter is a section at the beginning of the string,
@@ -31,10 +32,20 @@ func ExtractYamlFrontMatter(doc string) (YamlFrontMatter, string, error) {
 		restDoc := matches[3]
 		err := yaml.Unmarshal([]byte(yamlDoc), &yamlObj)
 		if err != nil {
-			return yamlObj, doc, err
+			return nil, "", err
 		}
 		return yamlObj, restDoc, nil
 	} else {
 		return yamlObj, doc, nil
 	}
+}
+
+func ExtractYamlFrontMatterFromFS(fsys fs.FS, name string) (YamlFrontMatter, string, error) {
+	buffer, err := fs.ReadFile(fsys, name)
+
+	if err != nil {
+		return nil, "", err
+	}
+	doc := string(buffer[:])
+	return ExtractYamlFrontMatter(doc)
 }
