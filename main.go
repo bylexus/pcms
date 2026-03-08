@@ -44,10 +44,10 @@ The following global argument are supported:
 
 The following commands are supported:
 
-* build: Builds the site as static content
-* serve: Builds the site (same as build) and starts a webserver to serve the content
+* serve: Starts a webserver to serve the content
 * serve-doc: Serves the embedded (binary-built-in) documentation
 * init: initializes a directory with a skeleton page
+* index: initializes/updates the local pcms db structure
 */
 func parseCmdArgs() model.CmdArgs {
 	args := model.CmdArgs{}
@@ -64,17 +64,6 @@ func parseCmdArgs() model.CmdArgs {
 	}
 
 	subCommands["__main__"] = flag.CommandLine
-
-	// build command:
-	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
-	prevBuildUsage := buildCmd.Usage
-	buildCmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, "build:      Builds the site to the dest folder\n")
-		prevBuildUsage()
-		fmt.Fprintln(os.Stderr, "")
-
-	}
-	subCommands[buildCmd.Name()] = buildCmd
 
 	// serve command:
 	serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
@@ -111,6 +100,17 @@ func parseCmdArgs() model.CmdArgs {
 	}
 	subCommands[initCmd.Name()] = initCmd
 
+	// index command:
+	indexCmd := flag.NewFlagSet("index", flag.ExitOnError)
+	prevIndexUsage := indexCmd.Usage
+	indexCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "index:      initializes or updates the local pcms db schema\n")
+		prevIndexUsage()
+		fmt.Fprintln(os.Stderr, "index: creates or migrates ./pcms.db to the current schema version")
+		fmt.Fprintln(os.Stderr, "")
+	}
+	subCommands[indexCmd.Name()] = indexCmd
+
 	if *helpFlag || flag.CommandLine.NArg() < 1 {
 		printUsage(subCommands)
 		os.Exit(1)
@@ -142,8 +142,6 @@ func main() {
 	config.EmbeddedDocFS = embeddedDocFS
 
 	switch args.FlagSet.Name() {
-	case "build":
-		err = commands.RunBuildCmd(config)
 	case "serve":
 		err = commands.RunServeCmd(config)
 	case "serve-doc":
@@ -152,6 +150,8 @@ func main() {
 		err = commands.RunServeCmd(config)
 	case "init":
 		commands.RunInitCmd(args, &templateContent)
+	case "index":
+		err = commands.RunIndexCmd(config)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())

@@ -12,7 +12,7 @@ metaTags:
 
 In order to use and run pcms, you need to fullfil the following requirements:
 
-* If you want to compile for yourself: [ GO Lang >= 1.20 ]( https://go.dev/dl/ )
+* If you want to compile for yourself: [ GO Lang >= 1.26 ]( https://go.dev/dl/ )
 * The `pcms` binary. Check the [Releases Page on Github](https://github.com/bylexus/pcms/releases) for pre-built binaries.
 * If you want to compile `scss` to `css`, you need the [dart sass](https://sass-lang.com/dart-sass/) compiler binary
 

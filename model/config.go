@@ -61,6 +61,8 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 		config.ServeMode = SERVE_MODE_FILES
 	case "serve-doc":
 		config.ServeMode = SERVE_MODE_EMBEDDED_DOC
+	case "index":
+		config.ServeMode = SERVE_MODE_FILES
 	case "init":
 		// we don't need to parse the config in init mode:
 		return config
@@ -106,38 +108,42 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 		if err != nil {
 			log.Fatal(err)
 		}
-		// dest dir is relative to the working dir, or an absolute path:
-		if len(config.DestPath) == 0 {
-			log.Fatal(fmt.Errorf("SourcePath cannot be empty"))
-		}
-		config.DestPath, err = filepath.Abs(config.DestPath)
-		if err != nil {
-			log.Fatal(err)
-		}
+		if cliArgs.FlagSet.Name() == "serve" {
+			// dest dir is relative to the working dir, or an absolute path:
+			if len(config.DestPath) == 0 {
+				log.Fatal(fmt.Errorf("SourcePath cannot be empty"))
+			}
+			config.DestPath, err = filepath.Abs(config.DestPath)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-		// source and dest path must not be the same
-		if config.SourcePath == config.DestPath {
-			log.Fatal("Source and Destination path must not be the same")
-		}
+			// source and dest path must not be the same
+			if config.SourcePath == config.DestPath {
+				log.Fatal("Source and Destination path must not be the same")
+			}
 
-		// source and dest path must not be the same as the actual cwd:
-		cwd, err := os.Getwd()
-		if err != nil {
-			log.Fatal(err)
-		}
+			// source and dest path must not be the same as the actual cwd:
+			cwd, err := os.Getwd()
+			if err != nil {
+				log.Fatal(err)
+			}
 
-		if config.SourcePath == cwd || config.DestPath == cwd {
-			log.Fatal("Source and Destination path must not be in the actual working dir")
-		}
+			if config.SourcePath == cwd || config.DestPath == cwd {
+				log.Fatal("Source and Destination path must not be in the actual working dir")
+			}
 
-		// template dir is relative to the working dir, or an absolute path:
-		config.TemplateDir, err = filepath.Abs(config.TemplateDir)
-		if err != nil {
-			log.Fatal(err)
+			// template dir is relative to the working dir, or an absolute path:
+			config.TemplateDir, err = filepath.Abs(config.TemplateDir)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 
-	configPongoTemplatePathLoader(config)
+	if cliArgs.FlagSet.Name() == "serve" {
+		configPongoTemplatePathLoader(config)
+	}
 
 	return config
 }
