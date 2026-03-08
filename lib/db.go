@@ -2,6 +2,7 @@ package lib
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -213,6 +214,63 @@ func (h *DBH) CountFiles() (int, error) {
 		return 0, fmt.Errorf("count files: %w", err)
 	}
 	return count, nil
+}
+
+func (h *DBH) GetPageByRoute(route string) (IndexedPageRecord, bool, error) {
+	stmt := `
+		SELECT route, parent_page_route, title, index_file, metadata_json
+		FROM pages
+		WHERE route = ?
+	`
+
+	var record IndexedPageRecord
+	var parentRoute sql.NullString
+	err := h.queryRowIndex(stmt, route).Scan(
+		&record.Route,
+		&parentRoute,
+		&record.Title,
+		&record.IndexFile,
+		&record.MetadataJSON,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return IndexedPageRecord{}, false, nil
+		}
+		return IndexedPageRecord{}, false, fmt.Errorf("query page by route %s: %w", route, err)
+	}
+
+	if parentRoute.Valid {
+		r := parentRoute.String
+		record.ParentPageRoute = &r
+	}
+
+	return record, true, nil
+}
+
+func (h *DBH) GetFileByRoute(route string) (IndexedFileRecord, bool, error) {
+	stmt := `
+		SELECT route, parent_page_route, file_name, mime_type, file_size, metadata_json
+		FROM files
+		WHERE route = ?
+	`
+
+	var record IndexedFileRecord
+	err := h.queryRowIndex(stmt, route).Scan(
+		&record.Route,
+		&record.ParentPageRoute,
+		&record.FileName,
+		&record.MimeType,
+		&record.FileSize,
+		&record.MetadataJSON,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return IndexedFileRecord{}, false, nil
+		}
+		return IndexedFileRecord{}, false, fmt.Errorf("query file by route %s: %w", route, err)
+	}
+
+	return record, true, nil
 }
 
 func (h *DBH) ensureSchema() error {

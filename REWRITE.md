@@ -90,102 +90,163 @@ implemented for the old static site builder structure. This needs to be refactor
 
 The goal is to have the full page tree in the sqlite db.
 
-### Implementation plan (for review)
+The `pcms index` command now creates the full page index based on the configured fs.FS. It creates entries in the `pages` and `files` tables in the sqlite db
+by walking the file tree.
 
-#### 1) Define command contract and source FS handling
+## Implementation step 3: serve command
 
-- Keep `index` as a first-class command in `main.go` and route to `commands.RunIndexCmd(config)` (pass config, unlike current no-arg variant).
-- `RunIndexCmd` should accept a source `fs.FS` abstraction and root context from config:
-  - default mode: `os.DirFS(config.SourcePath)`
-  - embedded-doc mode: `config.EmbeddedDocFS` (subdir-scoped if needed, same as existing serve-doc semantics)
-- Keep route root canonical as `/` regardless of backing FS type.
+The `pcms serve` command starts the web server and begins serving the pages. This involves the following steps:
 
-#### 2) Add DB write API in `lib/db.go` for indexing lifecycle
+1. Setup and start web server:
+   1. setup logging
+   2. creating middlewares (e.g. access logger middleware to log web server access)
+   3. register the handler to process routes
+   4. start the http.Server
+2. The handler then gets requests and processes them:
+   1. it extracts the URL route from the request
+   2. it checks if there is a page or file entry in the index matching the request
+		- if it's a page, process the page (see description below)
+		- if it's a file, deliver it directly
 
-- Extend `DBH` with explicit index operations (instead of ad-hoc SQL from command layer):
-  - `BeginIndexRun()` / `CommitIndexRun()` / `RollbackIndexRun()` transaction helpers
-  - `CleanIndex(...)` for cleaning out an existing, previous index
-  - `ReplacePage(...)` (upsert by `route`)
-  - `ReplaceFile(...)` (upsert by `route`)
-  - `SetLastIndexInfo(...)` in `app_settings.settings_json` (timestamp, source hash/path marker, optional counters)
-- Keep all writes for one index execution inside one transaction for consistency and speed.
-- Preserve schema v1 for this step if possible; only add columns/settings when strictly required. If schema changes are needed, implement it as if it was for version 1: we are in 
-  development of this feature right now, so we can make schema changes without being backward-compatible for the moment.
+### handle page requests
 
-#### 3) Implement reusable tree traversal for indexing
+Handling a page request involves the following steps:
 
-- Introduce a new traversal unit that walks `fs.FS` from root and emits typed index records (`page`, `file`) with canonical routes.
-- Route normalization rules (must be deterministic):
-  - directories/pages: `/`, `/blog`, `/blog/post`
-  - files: `/blog/image.png`
-  - use URL-style joining/cleaning (`path` package), not OS-specific separators.
-- For each directory:
-  - always emit a page record for that route (folder-based routing)
-  - detect `index.*` candidate for `pages.index_file` using explicit precedence rules
-  - derive `title`: The `title` comes from the YAML Frontmatter in the index file (`title` property). Read the frontmatter yaml for the index files. As a fallback, use the directory name.
-  - set `parent_page_route` (`NULL` for root)
-- For each non-index file:
-  - emit file record with `parent_page_route`, `file_name`, `route`, `mime_type`, `file_size`
-  - `metadata_json`:
-    - for pages, this is the parsed YAML frontmatter of the index file.
-	- for files: keep it as `{}` (empty json) for now
-- Apply existing exclude-pattern behavior in traversal (or a dedicated shared helper) so index/build remain compatible during transition.
+1. determine if the page exists in the page cache:
+   - if there is a cached version, and the cache is valid (e.g. newer than the index file), deliver it, and done.
+   - if there is no cached version, or if the cache needs updates, continue with step 2
+2. process the page index file: 
+    - determine the page type: Is it an HTML or Markdown page?
+	- determine the page processor to be used (see processor package), and process the file
+	- the output then is cached
+3. deliver the processed file (from cache, as there IS now a cached variant) to the client
 
-#### 4) Full reindex semantics (step 2 baseline)
 
-- First version uses full traversal + reconciliation (not incremental diff):
-  0. Delete the existing index
-  1. traverse FS and collect/stream current routes
-  2. insert all current pages/files
-- This gives deterministic state and simplifies correctness before introducing partial reindexing.
+The cache is just a directory (configurable in the pcms-config.yaml, `cacheDir` in the `server` section) that keeps the rendered / processed files.
 
-#### 5) Change `commands/build.go` tree logic into shared walker
+### handle file requests
+   
+File requests are just delivered back to the client using the correct mime type
 
-The `build` command is no longer needed for now. Remove it, and re-use the walker logic by moving it to the `lib/` package.
+## Implementation plan for step 3
 
-- The current recursive logic in `commands/build.go` (`processInputFS`) is tied to OS paths and static-build processing. Adapt as needed.
-- Replace it with a walker in the `lib` package
-  - for the `index` command (DB records)
-  - `build` command: legacy, no longer needed, can be removed.
-- Suggested split:
-  - `lib/treewalk.go` (FS walk + route derivation + exclude checks)
-  - `commands/build.go` can be removed
-  - `commands/index.go` uses same walker with DB-write callback
-- Result: single source of truth for page/file discovery and parent-child route derivation.
+### Goals and boundaries
 
-#### 6) Error handling, logging, and observability
+- Serve content based on DB index entries from step 2 (`pages` + `files`), not by direct path probing. Only content in the index is handled, other routes get a 404.
+- Keep current server bootstrap flow from `commands/serve.go` (logging, middleware, `http.Server`) and evolve the request handler logic.
+- Reuse existing processing behavior where feasible, especially index-file rendering logic already implemented in `processor`.
+	- If template variables change caused by the new structure, update the documentation in `doc/site/**/*.md` 
+	- goal for now is to keep the available variables - we will refactor them later for the new structure.
+- Add page cache support based on configured `server.cacheDir` (`cacheDir` in `pcms-config.yaml`).
 
-- Fail fast on DB write/traversal errors and roll back transaction.
-- Emit concise run stats at end: pages indexed, files indexed, deleted stale pages/files, duration.
-- Keep command output CLI-friendly and consistent with existing command style.
+### 1) Config and startup wiring
 
-#### 7) Tests and validation
+1. Extend `model.Config`:
+   - add `Server.CacheDir string \`yaml:"cacheDir"\``.
+   - resolve it to absolute path in `NewConfig` for `serve` mode.
+   - define a safe default when missing (e.g. `.pcms-cache` relative to config dir).
+2. In `commands.RunServeCmd`:
+   - keep existing logger + middleware setup.
+   - open DB via `lib.GetDBH()` and pass DB handle + resolved `siteFS` + cache dir to the request handler.
+   - keep existing embedded-doc/file serve mode selection.
 
-- Add focused tests for new traversal + index logic using fixture FS trees:
-  - root page creation
-  - nested routes and parent linkage
-  - index-file detection and precedence
-  - exclude pattern behavior
-  - stale row cleanup after source deletion
-- Add DB-level assertions for referential integrity (`files.parent_page_route` must exist).
-- Run gate: `go test ./...` and `go build ./...`.
+### 2) DB read API for runtime lookup
 
-#### 8) Proposed implementation sequence
+Add query methods to `lib.DBH` for request-time resolution:
 
-1. Change `RunIndexCmd` signature and wiring (`main.go` -> pass config + source FS).
-2. Add DBH index lifecycle/write methods in `lib/db.go`.
-3. Implement tree walker with canonical route derivation.
-4. Implement `index` command end-to-end using walker + DB transaction.
-5. Remove `commands/build.go`, no longer needed
-6. Add tests and run full verification.
+1. `GetPageByRoute(route string) (IndexedPageRecord, bool, error)`.
+2. `GetFileByRoute(route string) (IndexedFileRecord, bool, error)`.
+3. (Optional helper) `ResolvePageRoute(route string)` that normalizes trailing slash behavior for page routes.
 
-### Open questions to resolve before coding
+Notes:
+- Keep route matching canonical (`/foo` and `/foo/` normalization in handler before lookup).
+- Reuse existing record structs from `lib/treewalk.go` to avoid duplicate models.
 
-- What is the exact `index.*` precedence when multiple files exist (e.g. `index.md` and `index.html`)?
-  - There must only be one index file. The first (alphabetically) is taken. Supported are:
-	- index.md (for markdown templates)
-	- index.html (for html templates)
-- Should excluded files/folders be fully absent from DB (recommended), or recorded with a flag?
-	- they should completely be skipped
-- For embedded-doc indexing, should the traversed FS root be exactly `doc/build` subtree or binary FS root with path prefix stripping?
-  - The root should always be `/` so path prefixing is needed.
+### 3) Handler rewrite (DB-first dispatch)
+
+In `webserver/handler.go`, replace filesystem-first `fs.Stat` flow with DB lookup flow:
+
+1. Normalize incoming URL path to canonical route.
+2. Query DB for matching page route first.
+3. If page exists: run page handling pipeline (cache check -> render when needed -> serve cache file).
+4. Else query DB for file route.
+5. If file exists: serve file directly from `siteFS` with DB mime type.
+6. If neither exists: 404.
+
+This preserves existing middleware and logging behavior while changing only route resolution and response generation.
+
+### 4) Page cache design
+
+Cache storage uses a dedicated directory tree under `server.cacheDir`:
+
+1. Deterministic cache path by route:
+   - `/` -> `<cacheDir>/index.html`
+   - `/blog` -> `<cacheDir>/blog/index.html`
+2. Cache validity rule:
+   - valid if cache file exists and cache mtime >= source index file mtime.
+3. Source index file path reconstruction from DB page record:
+   - route + `index_file` from DB (`/blog` + `index.md` => `blog/index.md`, root => `index.md`).
+4. If invalid/missing cache: render page and overwrite cache atomically.
+
+### 5) Processor package changes (required)
+
+Current processors are build-oriented (`ProcessFile` writes directly to `dest`). Step 3 needs render-for-serve behavior. Planned refactor:
+
+1. Introduce render-centric API for page processors (`html`, `md`):
+   - input: source file (or source bytes + logical path), config, and path context.
+   - output: rendered HTML bytes/string (no forced write to `dest`).
+2. Keep existing `ProcessFile` for build compatibility, but implement it via the new render API + file write wrapper.
+3. Add helper(s) to resolve source from `fs.FS` for serve mode:
+   - read index file from `siteFS`.
+   - still support current template context variables (`variables`, `paths`, `webroot`, helpers).
+4. Add a shared selector for page processor choice by index file extension (`index.html` vs `index.md`), reusing existing selection logic from `processor.GetProcessor` where feasible.
+
+This keeps processor behavior consistent across `build` and `serve`, while avoiding duplicate render logic.
+
+The 'ScssProcessor' can be removed: we do no longer support SCSS building.
+
+### 6) Reuse from `commands/build.go`
+
+**Note:** The build command is ONLY used for reference! It would / should not run / build anymore. After the implementation of the serve command, it can be removed.
+
+The old build flow still contains reusable pieces:
+
+1. Reuse file exclusion and processor-selection patterns (`processor.IsFileExcluded`, extension-based processor selection).
+2. Reuse the separation of concerns:
+   - command layer orchestrates,
+   - processor layer renders/transforms,
+   - handler layer serves.
+3. Avoid reusing recursive filesystem traversal from build for request handling (serve must use DB lookup), but keep traversal logic in indexing (step 2) as already refactored into `lib/treewalk.go`.
+
+### 7) File serving details
+
+For DB-matched files:
+
+1. Open source from `siteFS` by route-derived fs path.
+2. Set `Content-Type` from DB `mime_type`.
+3. Serve via `http.ServeContent` / stream to response.
+4. Return 404 if DB entry exists but source file is missing (stale index case), with error log entry.
+
+### 8) Tests to add/update
+
+1. `lib/db` tests:
+   - query methods by route (found/not found behavior).
+2. `webserver` handler tests:
+   - page request hits cache when valid.
+   - page request re-renders when cache stale/missing.
+   - file request returns DB mime type.
+   - unknown route returns 404.
+3. `processor` tests:
+   - render API parity with existing output behavior for md/html.
+   - index-file extension dispatch.
+4. Integration test (serve path):
+   - run index + serve handler against fixture FS and assert page/file responses.
+
+### 9) Incremental execution order
+
+1. Add config + DB query APIs.
+2. Refactor processors to shared render API (keep build backward compatible).
+3. Rewrite request handler to DB-first routing and cache pipeline.
+4. Implement direct file serving from `siteFS` using DB metadata.
+5. remove unnecessary code like build.go
+6. Add/update tests, then run `go test ./...` and `go build ./...`.

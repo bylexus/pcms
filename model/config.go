@@ -30,10 +30,11 @@ const (
 
 type Config struct {
 	Server struct {
-		Listen  string        `yaml:"listen"`
-		Watch   bool          `yaml:"watch"`
-		Prefix  string        `yaml:"prefix"`
-		Logging LoggingConfig `yaml:"logging"`
+		Listen   string        `yaml:"listen"`
+		Watch    bool          `yaml:"watch"`
+		Prefix   string        `yaml:"prefix"`
+		CacheDir string        `yaml:"cacheDir"`
+		Logging  LoggingConfig `yaml:"logging"`
 	} `yaml:"server"`
 	Variables       map[string]interface{} `yaml:"variables"`
 	ConfigFile      string
@@ -63,6 +64,7 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 		config.ServeMode = SERVE_MODE_EMBEDDED_DOC
 	case "index":
 		config.ServeMode = SERVE_MODE_FILES
+		// config.ServeMode = SERVE_MODE_EMBEDDED_DOC
 	case "init":
 		// we don't need to parse the config in init mode:
 		return config
@@ -91,6 +93,9 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 	// set config defaults, if not set:
 	if config.Server.Listen == "" {
 		config.Server.Listen = ":8080"
+	}
+	if config.Server.CacheDir == "" {
+		config.Server.CacheDir = ".pcms-cache"
 	}
 
 	// Set current working dir to the conf file dir for subsequent commands:
@@ -142,6 +147,10 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 	}
 
 	if cliArgs.FlagSet.Name() == "serve" {
+		config.Server.CacheDir, err = filepath.Abs(config.Server.CacheDir)
+		if err != nil {
+			log.Fatal(err)
+		}
 		configPongoTemplatePathLoader(config)
 	}
 

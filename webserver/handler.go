@@ -3,23 +3,27 @@ package webserver
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
-	"github.com/flosch/pongo2/v4"
-	"github.com/gabriel-vasile/mimetype"
-
+	"alexi.ch/pcms/lib"
 	"alexi.ch/pcms/logging"
 	"alexi.ch/pcms/model"
+	"alexi.ch/pcms/processor"
+	"github.com/flosch/pongo2/v4"
 )
 
 type RequestHandler struct {
 	ServerConfig model.Config
 	ErrorLogger  *logging.Logger
+	DBH          *lib.DBH
 	// the site FS is the root of the served file system
 	siteFS fs.FS
 }
@@ -29,11 +33,13 @@ func NewRequestHandler(
 	accessLogger *logging.Logger,
 	errorLogger *logging.Logger,
 	siteFS fs.FS,
+	dbh *lib.DBH,
 ) *RequestHandler {
 	r := RequestHandler{
 		ServerConfig: config,
 		ErrorLogger:  errorLogger,
 		siteFS:       siteFS,
+		DBH:          dbh,
 	}
 	return &r
 }
@@ -47,6 +53,47 @@ We take the URL's path and prefix the local destination path to find a matching
 local file, then deliver it.
 */
 func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// TODO: remove this behaviour: this is not longer needed, as all requests
+	// use the db handler now:
+	if h.DBH == nil {
+		h.serveStatic(w, req)
+		return
+	}
+
+	rawRoutePath := req.URL.Path
+	route := normalizeRoute(rawRoutePath)
+
+	page, found, err := h.DBH.GetPageByRoute(route)
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
+		return
+	}
+	if found {
+		h.servePage(w, req, route, page)
+		return
+	}
+
+	fileRoute, allowFileLookup := normalizeFileLookupRoute(rawRoutePath)
+	if !allowFileLookup {
+		h.errorHandler(w, fmt.Errorf("not found: %s", route), http.StatusNotFound)
+		return
+	}
+
+	file, found, err := h.DBH.GetFileByRoute(fileRoute)
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
+		return
+	}
+	if found {
+		h.serveFile(w, req, file)
+		return
+	}
+
+	h.errorHandler(w, fmt.Errorf("not found: %s", route), http.StatusNotFound)
+}
+
+// TODO: remove: old / obsolete code
+func (h *RequestHandler) serveStatic(w http.ResponseWriter, req *http.Request) {
 	// create a file path from the requested URL path:
 	relUrl := req.URL
 	fsPath := relUrl.Path
@@ -87,27 +134,146 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	staticHandler.ServeHTTP(w, req)
 }
 
+func normalizeRoute(rawPath string) string {
+	cleaned := path.Clean("/" + rawPath)
+	if cleaned == "." || cleaned == "" {
+		return "/"
+	}
+	return cleaned
+}
+
+func normalizeFileLookupRoute(rawPath string) (string, bool) {
+	if rawPath != "/" && strings.HasSuffix(rawPath, "/") {
+		return "", false
+	}
+
+	return normalizeRoute(rawPath), true
+}
+
+func routeToFSPath(route string) string {
+	trimmed := strings.TrimPrefix(route, "/")
+	if trimmed == "" {
+		return "."
+	}
+	return trimmed
+}
+
+func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, route string, page lib.IndexedPageRecord) {
+	fileInfo, err := processor.BuildPageProcessingFileInfo(route, page.IndexFile, h.ServerConfig)
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	sourceFSPath := path.Clean(path.Join(strings.TrimPrefix(route, "/"), page.IndexFile))
+	if route == "/" {
+		sourceFSPath = page.IndexFile
+	}
+
+	sourceStat, err := fs.Stat(h.siteFS, sourceFSPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		h.errorHandler(w, fmt.Errorf("indexed page source missing: %s", sourceFSPath), http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	isValid, err := isPageCacheValid(fileInfo.AbsDestPath, sourceStat.ModTime())
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	if !isValid {
+		rendered, err := h.renderPage(page.IndexFile, sourceFSPath, fileInfo)
+		if err != nil {
+			h.errorHandler(w, err, http.StatusInternalServerError)
+			return
+		}
+		if err := writeCacheFile(fileInfo.AbsDestPath, rendered); err != nil {
+			h.errorHandler(w, err, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	http.ServeFile(w, req, fileInfo.AbsDestPath)
+}
+
+func (h *RequestHandler) renderPage(indexFile string, sourceFSPath string, fileInfo processor.ProcessingFileInfo) ([]byte, error) {
+	switch strings.ToLower(path.Ext(indexFile)) {
+	case ".html":
+		return (processor.HtmlProcessor{}).RenderFileForServe(h.siteFS, sourceFSPath, fileInfo.AbsSourcePath, h.ServerConfig, fileInfo)
+	case ".md":
+		return (processor.MdProcessor{}).RenderFileForServe(h.siteFS, sourceFSPath, fileInfo.AbsSourcePath, h.ServerConfig, fileInfo)
+	default:
+		return nil, fmt.Errorf("unsupported page index file type: %s", indexFile)
+	}
+}
+
+func (h *RequestHandler) serveFile(w http.ResponseWriter, req *http.Request, file lib.IndexedFileRecord) {
+	fsPath := routeToFSPath(file.Route)
+	f, err := h.siteFS.Open(fsPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		h.errorHandler(w, fmt.Errorf("indexed file missing: %s", file.Route), http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+
+	if file.MimeType != "" {
+		w.Header().Set("Content-Type", file.MimeType)
+	}
+
+	if readSeeker, ok := f.(io.ReadSeeker); ok {
+		var modTime time.Time
+		if info, err := fs.Stat(h.siteFS, fsPath); err == nil {
+			modTime = info.ModTime()
+		}
+		http.ServeContent(w, req, file.FileName, modTime, readSeeker)
+		return
+	}
+
+	_, err = io.Copy(w, f)
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
+	}
+}
+
+func isPageCacheValid(cacheFile string, sourceModTime time.Time) (bool, error) {
+	cacheInfo, err := os.Stat(cacheFile)
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return !cacheInfo.ModTime().Before(sourceModTime), nil
+}
+
+func writeCacheFile(cacheFile string, content []byte) error {
+	dir := filepath.Dir(cacheFile)
+	if err := os.MkdirAll(dir, 0o777); err != nil {
+		return err
+	}
+
+	return os.WriteFile(cacheFile, content, 0o666)
+}
+
 /*
  * Generic error handler, sets an HTTP error code and outputs the specified error
  */
 func (h *RequestHandler) errorHandler(w http.ResponseWriter, err error, status int) {
+	if h.ErrorLogger != nil {
+		h.ErrorLogger.Error("request failed (%d): %s", status, err.Error())
+	}
 	w.WriteHeader(status)
 	w.Write([]byte(fmt.Sprintf("error: %v\n", err)))
-}
-
-func (h *RequestHandler) findMimeType(file string) (string, error) {
-	ext := filepath.Ext(file)
-	switch ext {
-	case ".css":
-		return "text/css", nil
-	case ".js":
-		return "application/javascript", nil
-	}
-	mtype, err := mimetype.DetectFile(file)
-	if err != nil {
-		return "", err
-	}
-	return mtype.String(), nil
 }
 
 // Factory function to create a http.Handler middleware that logs all access.

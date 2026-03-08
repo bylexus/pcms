@@ -7,6 +7,8 @@ server:
   watch: true
   # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "".
   prefix: ""
+  # cache dir for rendered pages in serve mode.
+  cacheDir: ".pcms-cache"
   # Logging configuration: there are 2 diffenrent logs written:
   logging:
     # The access log: Logs all web access, like a webserver would.
@@ -45,4 +47,3 @@ exclude_patterns:
 processors:
   scss:
     sass_bin: "/usr/bin/sass"
-

@@ -82,11 +82,84 @@ func GetProcessor(sourceFile string, config model.Config) Processor {
 		return HtmlProcessor{}
 	case ".md":
 		return MdProcessor{}
-	case ".scss":
-		return ScssProcessor{}
 	default:
 		return RawProcessor{}
 	}
+}
+
+func IsSupportedIndexFile(fileName string) bool {
+	base := strings.ToLower(filepath.Base(fileName))
+	return base == "index.html" || base == "index.md"
+}
+
+func BuildPageProcessingFileInfo(route string, indexFile string, config model.Config) (ProcessingFileInfo, error) {
+	result := ProcessingFileInfo{}
+	result.RootSourceDir = config.SourcePath
+	result.RootDestDir = config.Server.CacheDir
+	result.Webroot = config.Server.Prefix
+
+	routeDir := strings.TrimPrefix(path.Clean(route), "/")
+	if routeDir == "." {
+		routeDir = ""
+	}
+
+	sourceRelPath := indexFile
+	if routeDir != "" {
+		sourceRelPath = filepath.Join(filepath.FromSlash(routeDir), indexFile)
+	}
+
+	result.AbsSourcePath = filepath.Join(result.RootSourceDir, sourceRelPath)
+	result.AbsSourceDir = filepath.Dir(result.AbsSourcePath)
+
+	var err error
+	result.RelSourcePath, err = filepath.Rel(config.SourcePath, result.AbsSourcePath)
+	if err != nil {
+		return result, err
+	}
+	result.RelSourceDir, err = filepath.Rel(config.SourcePath, result.AbsSourceDir)
+	if err != nil {
+		return result, err
+	}
+	if result.RelSourceDir == "" {
+		result.RelSourceDir = "."
+	}
+	result.RelSourceRoot, err = filepath.Rel(result.AbsSourceDir, config.SourcePath)
+	if err != nil {
+		return result, err
+	}
+
+	destRelPath := filepath.Join(filepath.FromSlash(routeDir), "index.html")
+	if routeDir == "" {
+		destRelPath = "index.html"
+	}
+	result.AbsDestPath = filepath.Join(result.RootDestDir, destRelPath)
+	result.AbsDestDir = filepath.Dir(result.AbsDestPath)
+	result.RelDestPath, err = filepath.Rel(result.RootDestDir, result.AbsDestPath)
+	if err != nil {
+		return result, err
+	}
+	result.RelDestDir, err = filepath.Rel(result.RootDestDir, result.AbsDestDir)
+	if err != nil {
+		return result, err
+	}
+	if result.RelDestDir == "" {
+		result.RelDestDir = "."
+	}
+	result.RelDestRoot, err = filepath.Rel(result.AbsDestDir, result.RootDestDir)
+	if err != nil {
+		return result, err
+	}
+	if result.RelDestRoot == "" {
+		result.RelDestRoot = "."
+	}
+
+	result.RelWebPath = filepath.ToSlash(result.RelDestPath)
+	result.RelWebDir = filepath.ToSlash(result.RelDestDir)
+	result.RelWebPathToRoot = filepath.ToSlash(result.RelDestRoot)
+	result.AbsWebPath = path.Clean(path.Join("/", result.Webroot, result.RelWebPath))
+	result.AbsWebDir = path.Clean(path.Join("/", result.Webroot, result.RelWebDir))
+
+	return result, nil
 }
 
 // Checks if the given file matches a set of exclude regex patterns.

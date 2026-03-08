@@ -106,3 +106,82 @@ func TestDBHIndexForeignKeyIntegrity(t *testing.T) {
 		t.Fatalf("ReplaceFile() expected foreign key error, got nil")
 	}
 }
+
+func TestDBHGetByRoute(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "pcms-test-query.db")
+	dbh, err := OpenDBH(dbPath)
+	if err != nil {
+		t.Fatalf("OpenDBH() error = %v", err)
+	}
+	defer dbh.Close()
+
+	if err := dbh.BeginIndexRun(); err != nil {
+		t.Fatalf("BeginIndexRun() error = %v", err)
+	}
+
+	if err := dbh.CleanIndex(); err != nil {
+		t.Fatalf("CleanIndex() error = %v", err)
+	}
+
+	if err := dbh.ReplacePage(IndexedPageRecord{
+		Route:        "/",
+		Title:        "root",
+		IndexFile:    "index.md",
+		MetadataJSON: `{"title":"root"}`,
+	}); err != nil {
+		t.Fatalf("ReplacePage(root) error = %v", err)
+	}
+
+	if err := dbh.ReplaceFile(IndexedFileRecord{
+		Route:           "/robots.txt",
+		ParentPageRoute: "/",
+		FileName:        "robots.txt",
+		MimeType:        "text/plain",
+		FileSize:        10,
+		MetadataJSON:    `{}`,
+	}); err != nil {
+		t.Fatalf("ReplaceFile(robots) error = %v", err)
+	}
+
+	if err := dbh.CommitIndexRun(); err != nil {
+		t.Fatalf("CommitIndexRun() error = %v", err)
+	}
+
+	page, found, err := dbh.GetPageByRoute("/")
+	if err != nil {
+		t.Fatalf("GetPageByRoute(/) error = %v", err)
+	}
+	if !found {
+		t.Fatalf("GetPageByRoute(/) found = false, want true")
+	}
+	if page.IndexFile != "index.md" {
+		t.Fatalf("GetPageByRoute(/).IndexFile = %q, want %q", page.IndexFile, "index.md")
+	}
+
+	_, found, err = dbh.GetPageByRoute("/missing")
+	if err != nil {
+		t.Fatalf("GetPageByRoute(/missing) error = %v", err)
+	}
+	if found {
+		t.Fatalf("GetPageByRoute(/missing) found = true, want false")
+	}
+
+	file, found, err := dbh.GetFileByRoute("/robots.txt")
+	if err != nil {
+		t.Fatalf("GetFileByRoute(/robots.txt) error = %v", err)
+	}
+	if !found {
+		t.Fatalf("GetFileByRoute(/robots.txt) found = false, want true")
+	}
+	if file.MimeType != "text/plain" {
+		t.Fatalf("GetFileByRoute(/robots.txt).MimeType = %q, want %q", file.MimeType, "text/plain")
+	}
+
+	_, found, err = dbh.GetFileByRoute("/missing.txt")
+	if err != nil {
+		t.Fatalf("GetFileByRoute(/missing.txt) error = %v", err)
+	}
+	if found {
+		t.Fatalf("GetFileByRoute(/missing.txt) found = true, want false")
+	}
+}

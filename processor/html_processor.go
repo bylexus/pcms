@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -43,21 +44,7 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 	if err != nil {
 		return "", err
 	}
-	sourceString := string(sourceBytes[:])
-
-	// Extract yaml frontmatter:
-	yamlFrontMatter, sourceString, err := stdlib.ExtractYamlFrontMatter(sourceString)
-	if err != nil {
-		return "", err
-	}
-
-	// create template from input file
-	tpl, err := pongo2.FromString(sourceString)
-	if err != nil {
-		return "", err
-	}
-
-	context, err := prepareTemplateContext(sourceFile, config, filePaths, yamlFrontMatter)
+	rendered, err := p.render(sourceFile, string(sourceBytes), config, filePaths)
 	if err != nil {
 		return "", err
 	}
@@ -68,12 +55,47 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 	}
 	defer outWriter.Close()
 
-	err = tpl.ExecuteWriter(context, outWriter)
+	_, err = outWriter.Write(rendered)
 	if err != nil {
 		return "", err
 	}
 
 	return filePaths.AbsDestPath, nil
+}
+
+func (p HtmlProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, filePaths ProcessingFileInfo) ([]byte, error) {
+	sourceBytes, err := fs.ReadFile(siteFS, sourceFSPath)
+	if err != nil {
+		return nil, fmt.Errorf("read html source %s: %w", sourceFSPath, err)
+	}
+
+	return p.render(sourceFile, string(sourceBytes), config, filePaths)
+}
+
+func (p HtmlProcessor) render(sourceFile string, sourceString string, config model.Config, filePaths ProcessingFileInfo) ([]byte, error) {
+	// Extract yaml frontmatter:
+	yamlFrontMatter, sourceString, err := stdlib.ExtractYamlFrontMatter(sourceString)
+	if err != nil {
+		return nil, err
+	}
+
+	// create template from input file
+	tpl, err := pongo2.FromString(sourceString)
+	if err != nil {
+		return nil, err
+	}
+
+	context, err := prepareTemplateContext(sourceFile, config, filePaths, yamlFrontMatter)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := tpl.Execute(context)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(out), nil
 }
 
 func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) (ProcessingFileInfo, error) {

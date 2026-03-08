@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -53,28 +54,55 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 	if err != nil {
 		return "", err
 	}
-	sourceString := string(sourceBytes[:])
-
-	// Extract yaml frontmatter:
-	yamlFrontMatter, sourceString, err := stdlib.ExtractYamlFrontMatter(sourceString)
+	rendered, err := p.render(sourceFile, string(sourceBytes), config, filePaths)
 	if err != nil {
 		return "", err
 	}
 
-	context, err := prepareTemplateContext(sourceFile, config, filePaths, yamlFrontMatter)
+	outWriter, err := os.Create(filePaths.AbsDestPath)
 	if err != nil {
 		return "", err
+	}
+	defer outWriter.Close()
+
+	_, err = outWriter.Write(rendered)
+	if err != nil {
+		return "", err
+	}
+
+	return filePaths.AbsDestPath, nil
+}
+
+func (p MdProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, filePaths ProcessingFileInfo) ([]byte, error) {
+	sourceBytes, err := fs.ReadFile(siteFS, sourceFSPath)
+	if err != nil {
+		return nil, fmt.Errorf("read markdown source %s: %w", sourceFSPath, err)
+	}
+
+	return p.render(sourceFile, string(sourceBytes), config, filePaths)
+}
+
+func (p MdProcessor) render(sourceFile string, sourceString string, config model.Config, filePaths ProcessingFileInfo) ([]byte, error) {
+	// Extract yaml frontmatter:
+	yamlFrontMatter, sourceString, err := stdlib.ExtractYamlFrontMatter(sourceString)
+	if err != nil {
+		return nil, err
+	}
+
+	context, err := prepareTemplateContext(sourceFile, config, filePaths, yamlFrontMatter)
+	if err != nil {
+		return nil, err
 	}
 
 	// now, we need to process the Markdown source as template:
 	mdTemplate, err := pongo2.FromString(sourceString)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	sourceString, err = mdTemplate.Execute(context)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	// now, convert filled markdown to html:
 	result := blackfriday.Run([]byte(sourceString), blackfriday.WithExtensions(
@@ -91,30 +119,23 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 	var tpl *pongo2.Template
 	template, ok := yamlFrontMatter["template"]
 	if ok {
-		// templatePath = join(config.TemplateDir, template.(string))
 		tpl, err = pongo2.FromFile(template.(string))
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	} else {
 		tpl, err = pongo2.FromString("{{ content | safe }}")
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
-	outWriter, err := os.Create(filePaths.AbsDestPath)
+	out, err := tpl.Execute(context)
 	if err != nil {
-		return "", err
-	}
-	defer outWriter.Close()
-
-	err = tpl.ExecuteWriter(context, outWriter)
-	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return filePaths.AbsDestPath, nil
+	return []byte(out), nil
 }
 
 func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (ProcessingFileInfo, error) {

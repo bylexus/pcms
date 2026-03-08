@@ -61,6 +61,9 @@ func TestBuildIndexSnapshot(t *testing.T) {
 	if _, ok := pagesByRoute["/skip"]; ok {
 		t.Fatalf("excluded page /skip should not be indexed")
 	}
+	if _, ok := pagesByRoute["/assets"]; ok {
+		t.Fatalf("container folder /assets should not be indexed as page")
+	}
 
 	filesByRoute := make(map[string]IndexedFileRecord)
 	for _, file := range snapshot.Files {
@@ -70,8 +73,8 @@ func TestBuildIndexSnapshot(t *testing.T) {
 	if _, ok := filesByRoute["/assets/logo.png"]; !ok {
 		t.Fatalf("/assets/logo.png file missing")
 	}
-	if filesByRoute["/assets/logo.png"].ParentPageRoute != "/assets" {
-		t.Fatalf("/assets/logo.png parent = %q, want %q", filesByRoute["/assets/logo.png"].ParentPageRoute, "/assets")
+	if filesByRoute["/assets/logo.png"].ParentPageRoute != "/" {
+		t.Fatalf("/assets/logo.png parent = %q, want %q", filesByRoute["/assets/logo.png"].ParentPageRoute, "/")
 	}
 	if filesByRoute["/assets/logo.png"].MimeType != "image/png" {
 		t.Fatalf("/assets/logo.png mime = %q, want %q", filesByRoute["/assets/logo.png"].MimeType, "image/png")
@@ -86,6 +89,10 @@ func TestBuildIndexSnapshot(t *testing.T) {
 
 	if _, ok := filesByRoute["/skip/index.md"]; ok {
 		t.Fatalf("excluded file /skip/index.md should not be indexed")
+	}
+
+	if _, ok := filesByRoute["/assets/logo.png"]; !ok {
+		t.Fatalf("/assets/logo.png should be associated to nearest ancestor page")
 	}
 }
 
@@ -107,8 +114,8 @@ func TestBuildIndexSnapshotRootFallbackTitle(t *testing.T) {
 	if pagesByRoute["/a"].Title != "a" {
 		t.Fatalf("/a title = %q, want %q", pagesByRoute["/a"].Title, "a")
 	}
-	if pagesByRoute["/"].Title != "/" {
-		t.Fatalf("/ title = %q, want %q", pagesByRoute["/"].Title, "/")
+	if _, ok := pagesByRoute["/"]; ok {
+		t.Fatalf("/ should not be indexed as page without index file")
 	}
 
 	if _, err := fs.Stat(srcFS, "a/index.md"); err != nil {

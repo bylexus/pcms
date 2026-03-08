@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 
+	"alexi.ch/pcms/lib"
 	"alexi.ch/pcms/logging"
 	"alexi.ch/pcms/model"
 	"alexi.ch/pcms/webserver"
@@ -33,6 +34,7 @@ func RunServeCmd(config model.Config) error {
 	// serve mode: either by the configured file folder,
 	// or serve the embedded doc:
 	var siteFS fs.FS
+	var dbh *lib.DBH
 	switch config.ServeMode {
 	case model.SERVE_MODE_EMBEDDED_DOC:
 		errorLogger.Info("Serving embedded doc site")
@@ -43,6 +45,10 @@ func RunServeCmd(config model.Config) error {
 	default:
 		errorLogger.Info("Serving content from %s", config.SourcePath)
 		siteFS = os.DirFS(config.SourcePath)
+		dbh, err = lib.GetDBH()
+		if err != nil {
+			return err
+		}
 	}
 
 	defer accessLogger.Close()
@@ -54,7 +60,7 @@ func RunServeCmd(config model.Config) error {
 		accessLogger,
 		http.StripPrefix(
 			config.Server.Prefix,
-			webserver.NewRequestHandler(config, accessLogger, errorLogger, siteFS),
+			webserver.NewRequestHandler(config, accessLogger, errorLogger, siteFS, dbh),
 		),
 	)
 

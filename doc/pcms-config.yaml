@@ -1,6 +1,7 @@
 server:
   listen: ":3000"
   prefix: ""
+  cacheDir: ".pcms-cache"
   watch: true
   logging:
     access:
@@ -34,4 +35,3 @@ exclude_patterns:
 processors:
   scss:
     sass_bin: "/Users/alex/.nvm/versions/node/v18.13.0/bin/sass"
-

@@ -32,10 +32,11 @@ func TestMdProcessorPrepareFilePaths(t *testing.T) {
 		SourcePath: sourceRoot,
 		DestPath:   destRoot,
 		Server: struct {
-			Listen  string              "yaml:\"listen\""
-			Watch   bool                "yaml:\"watch\""
-			Prefix  string              "yaml:\"prefix\""
-			Logging model.LoggingConfig "yaml:\"logging\""
+			Listen   string              "yaml:\"listen\""
+			Watch    bool                "yaml:\"watch\""
+			Prefix   string              "yaml:\"prefix\""
+			CacheDir string              "yaml:\"cacheDir\""
+			Logging  model.LoggingConfig "yaml:\"logging\""
 		}{
 			Prefix: Webroot,
 		},
@@ -169,10 +170,11 @@ func TestMdProcessorTemplate(t *testing.T) {
 		SourcePath: sourceRoot,
 		DestPath:   destRoot,
 		Server: struct {
-			Listen  string              "yaml:\"listen\""
-			Watch   bool                "yaml:\"watch\""
-			Prefix  string              "yaml:\"prefix\""
-			Logging model.LoggingConfig "yaml:\"logging\""
+			Listen   string              "yaml:\"listen\""
+			Watch    bool                "yaml:\"watch\""
+			Prefix   string              "yaml:\"prefix\""
+			CacheDir string              "yaml:\"cacheDir\""
+			Logging  model.LoggingConfig "yaml:\"logging\""
 		}{
 			Prefix: "/webroot",
 		},

@@ -47,7 +47,7 @@ func BuildIndexSnapshot(srcFS fs.FS, excludePatterns []string) (*IndexSnapshot, 
 	return snapshot, nil
 }
 
-func walkIndexTree(srcFS fs.FS, relDir string, route string, parentRoute *string, excludePatterns []string, snapshot *IndexSnapshot) error {
+func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPageRoute *string, excludePatterns []string, snapshot *IndexSnapshot) error {
 	entries, err := fs.ReadDir(srcFS, relDir)
 	if err != nil {
 		return fmt.Errorf("read dir %s: %w", relDir, err)
@@ -63,16 +63,17 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, parentRoute *string
 		if isExcluded {
 			continue
 		}
-		if isSupportedIndexFile(entry.Name()) {
+		if processor.IsSupportedIndexFile(entry.Name()) {
 			if indexFileName == "" || entry.Name() < indexFileName {
 				indexFileName = entry.Name()
 			}
 		}
 	}
 
-	pageTitle := defaultTitleForRoute(route)
-	pageMetadata := make(stdlib.YamlFrontMatter)
+	currentPageRoute := (*string)(nil)
 	if indexFileName != "" {
+		pageTitle := defaultTitleForRoute(route)
+		pageMetadata := make(stdlib.YamlFrontMatter)
 		indexPath := indexFileName
 		if relDir != "." {
 			indexPath = path.Join(relDir, indexFileName)
@@ -83,33 +84,34 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, parentRoute *string
 		}
 		pageMetadata = metadata
 		pageTitle = title
-	}
 
-	pageMetadataJSON, err := toJSON(pageMetadata)
-	if err != nil {
-		return fmt.Errorf("marshal page metadata for %s: %w", route, err)
-	}
+		pageMetadataJSON, err := toJSON(pageMetadata)
+		if err != nil {
+			return fmt.Errorf("marshal page metadata for %s: %w", route, err)
+		}
 
-	snapshot.Pages = append(snapshot.Pages, IndexedPageRecord{
-		Route:           route,
-		ParentPageRoute: parentRoute,
-		Title:           pageTitle,
-		IndexFile:       indexFileName,
-		MetadataJSON:    pageMetadataJSON,
-	})
+		snapshot.Pages = append(snapshot.Pages, IndexedPageRecord{
+			Route:           route,
+			ParentPageRoute: inheritedParentPageRoute,
+			Title:           pageTitle,
+			IndexFile:       indexFileName,
+			MetadataJSON:    pageMetadataJSON,
+		})
 
-	pageSource := relDir
-	if pageSource == "." {
-		pageSource = "/"
-	}
-	if indexFileName != "" {
-		if relDir == "." {
-			pageSource = indexFileName
-		} else {
+		pageSource := indexFileName
+		if relDir != "." {
 			pageSource = path.Join(relDir, indexFileName)
 		}
+		fmt.Printf("type=page file=%s route=%s\n", pageSource, route)
+
+		currentRoute := route
+		currentPageRoute = &currentRoute
 	}
-	fmt.Printf("type=page file=%s route=%s\n", pageSource, route)
+
+	activeParentPageRoute := inheritedParentPageRoute
+	if currentPageRoute != nil {
+		activeParentPageRoute = currentPageRoute
+	}
 
 	for _, entry := range entries {
 		entryRoute := joinRoute(route, entry.Name())
@@ -123,8 +125,7 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, parentRoute *string
 			if relDir != "." {
 				nextRelDir = path.Join(relDir, entry.Name())
 			}
-			currentRoute := route
-			if err := walkIndexTree(srcFS, nextRelDir, entryRoute, &currentRoute, excludePatterns, snapshot); err != nil {
+			if err := walkIndexTree(srcFS, nextRelDir, entryRoute, activeParentPageRoute, excludePatterns, snapshot); err != nil {
 				return err
 			}
 			continue
@@ -135,6 +136,9 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, parentRoute *string
 			continue
 		}
 		if entry.Name() == indexFileName {
+			continue
+		}
+		if activeParentPageRoute == nil {
 			continue
 		}
 
@@ -154,7 +158,7 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, parentRoute *string
 
 		snapshot.Files = append(snapshot.Files, IndexedFileRecord{
 			Route:           entryRoute,
-			ParentPageRoute: route,
+			ParentPageRoute: *activeParentPageRoute,
 			FileName:        entry.Name(),
 			MimeType:        mimeType,
 			FileSize:        entryInfo.Size(),
@@ -183,10 +187,6 @@ func parsePageIndexFrontmatter(srcFS fs.FS, indexPath string, fallbackTitle stri
 	}
 
 	return metadata, title, nil
-}
-
-func isSupportedIndexFile(name string) bool {
-	return name == "index.html" || name == "index.md"
 }
 
 func joinRoute(parentRoute string, name string) string {
