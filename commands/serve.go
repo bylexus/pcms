@@ -17,6 +17,8 @@ import (
 // build the page tree and start the web engine.
 func RunServeCmd(config model.Config) error {
 	var err error = nil
+	var dbh *lib.DBH
+	var shouldCloseDBH bool
 	// setup logging:
 	accessLogger := logging.NewLogger(
 		config.Server.Logging.Access.File,
@@ -34,21 +36,32 @@ func RunServeCmd(config model.Config) error {
 	// serve mode: either by the configured file folder,
 	// or serve the embedded doc:
 	var siteFS fs.FS
-	var dbh *lib.DBH
 	switch config.ServeMode {
 	case model.SERVE_MODE_EMBEDDED_DOC:
+		if err := RunIndexCmd(config); err != nil {
+			return err
+		}
+
 		errorLogger.Info("Serving embedded doc site")
-		siteFS, err = fs.Sub(config.EmbeddedDocFS, "doc/build")
+		siteFS, _, err = model.GetEmbeddedSourceFS(config)
+		if err != nil {
+			return err
+		}
+
+		dbh, shouldCloseDBH, err = lib.GetDBHForConfig(config)
 		if err != nil {
 			return err
 		}
 	default:
 		errorLogger.Info("Serving content from %s", config.SourcePath)
 		siteFS = os.DirFS(config.SourcePath)
-		dbh, err = lib.GetDBH()
+		dbh, shouldCloseDBH, err = lib.GetDBHForConfig(config)
 		if err != nil {
 			return err
 		}
+	}
+	if shouldCloseDBH {
+		defer dbh.Close()
 	}
 
 	defer accessLogger.Close()

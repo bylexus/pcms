@@ -23,14 +23,12 @@ func TestHtmlProcessorPrepareFilePathsOnWebroot(t *testing.T) {
 
 	var destRoot = filepath.Join(os.TempDir(), filepath.FromSlash("/path/to/dest"))
 	var destFile = filepath.Join(destRoot, "sub", "folder", "file.html")
-	var RelDestPath = filepath.Join("sub", "folder", "file.html")
 	var RelDestRoot = filepath.Join("..", "..")
 
 	var Webroot = "/web/root"
 
 	var config = model.Config{
 		SourcePath: sourceRoot,
-		DestPath:   destRoot,
 		Server: struct {
 			Listen   string              "yaml:\"listen\""
 			Watch    bool                "yaml:\"watch\""
@@ -99,18 +97,6 @@ func TestHtmlProcessorPrepareFilePathsOnWebroot(t *testing.T) {
 		t.Errorf("AbsDestDir = %s; want %s", res.AbsDestDir, filepath.Dir(destFile))
 	}
 
-	// file path of the actual destination file relative to the RootDestDir
-	// RelDestPath
-	if res.RelDestPath != RelDestPath {
-		t.Errorf("RelDestPath = %s; want %s", res.RelDestPath, RelDestPath)
-	}
-
-	// dir path of the actual destination file relative to the RootSourceDir
-	// RelDestDir string
-	if res.RelDestDir != filepath.Dir(RelDestPath) {
-		t.Errorf("RelDestDir = %s; want %s", res.RelDestDir, filepath.Dir(RelDestPath))
-	}
-
 	// relative path from the actual dest file back to the RootSourceDir
 	// RelDestRoot string
 	if res.RelDestRoot != RelDestRoot {
@@ -124,35 +110,12 @@ func TestHtmlProcessorPrepareFilePathsOnWebroot(t *testing.T) {
 		t.Errorf("Webroot = %s; want %s", res.Webroot, Webroot)
 	}
 
-	// relative (to Webroot) web path to the actual output file
-	// relWebPath string
-	if res.RelWebPath != filepath.ToSlash(RelDestPath) {
-		t.Errorf("relWebPath = %s; want %s", res.RelWebPath, filepath.ToSlash(RelDestPath))
-	}
-
-	// relative (to Webroot) web path to the actual output file's folder
-	// RelWebDir string
-	if res.RelWebDir != filepath.ToSlash(filepath.Dir(RelDestPath)) {
-		t.Errorf("RelWebDir = %s; want %s", res.RelWebDir, filepath.ToSlash(filepath.Dir(RelDestPath)))
-	}
-
 	// relative path from the actual file back to the Webroot
 	// RelWebPathToRoot string
 	if res.RelWebPathToRoot != filepath.ToSlash(RelDestRoot) {
 		t.Errorf("RelWebPathToRoot = %s; want %s", res.RelWebPathToRoot, filepath.ToSlash(RelDestRoot))
 	}
 
-	// // absolute web path of the actual file, including the Webroot, starting always with "/"
-	// AbsWebPath string
-	if res.AbsWebPath != path.Clean(path.Join("/", Webroot, filepath.ToSlash(RelDestPath))) {
-		t.Errorf("AbsWebPath = %s; want %s", res.AbsWebPath, path.Join(Webroot, filepath.ToSlash(RelDestPath)))
-	}
-
-	// absolute web path of the actual file's dir, including the Webroot, starting always with "/"
-	// AbsWebDir string
-	if res.AbsWebDir != path.Clean(path.Join("/", Webroot, filepath.ToSlash(filepath.Dir(RelDestPath)))) {
-		t.Errorf("AbsWebDir = %s; want %s", res.AbsWebDir, path.Join(Webroot, filepath.ToSlash(filepath.Dir(RelDestPath))))
-	}
 }
 
 func TestHtmlProcessorPrepareFilePathsWithoutWebroot(t *testing.T) {
@@ -171,7 +134,6 @@ func TestHtmlProcessorPrepareFilePathsWithoutWebroot(t *testing.T) {
 
 	var config = model.Config{
 		SourcePath: sourceRoot,
-		DestPath:   destRoot,
 		Server: struct {
 			Listen   string              "yaml:\"listen\""
 			Watch    bool                "yaml:\"watch\""
@@ -309,7 +271,6 @@ func TestHtmlProcessorTemplate(t *testing.T) {
 
 	var config = model.Config{
 		SourcePath: sourceRoot,
-		DestPath:   destRoot,
 		Server: struct {
 			Listen   string              "yaml:\"listen\""
 			Watch    bool                "yaml:\"watch\""

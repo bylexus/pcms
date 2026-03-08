@@ -3,6 +3,7 @@ package model
 import (
 	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -39,7 +40,6 @@ type Config struct {
 	Variables       map[string]interface{} `yaml:"variables"`
 	ConfigFile      string
 	SourcePath      string   `yaml:"source"`
-	DestPath        string   `yaml:"dest"`
 	TemplateDir     string   `yaml:"template_dir"`
 	ExcludePatterns []string `yaml:"exclude_patterns"`
 	Processors      struct {
@@ -52,37 +52,59 @@ type Config struct {
 	ServeMode     string
 }
 
-func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
+func NewConfig(conffilePath string, cliArgs CmdArgs, embeddedDocFS embed.FS) Config {
 	config := Config{}
 	config.ConfigFile = conffilePath
+	config.EmbeddedDocFS = embeddedDocFS
+	serveMode := ""
 
 	// determine mode:
 	switch cliArgs.FlagSet.Name() {
 	case "serve":
-		config.ServeMode = SERVE_MODE_FILES
+		serveMode = SERVE_MODE_FILES
 	case "serve-doc":
-		config.ServeMode = SERVE_MODE_EMBEDDED_DOC
+		serveMode = SERVE_MODE_EMBEDDED_DOC
 	case "index":
-		config.ServeMode = SERVE_MODE_FILES
+		serveMode = SERVE_MODE_FILES
 		// config.ServeMode = SERVE_MODE_EMBEDDED_DOC
 	case "init":
 		// we don't need to parse the config in init mode:
 		return config
 	}
+	config.ServeMode = serveMode
 
 	log.Printf("Reading config file: %v", conffilePath)
 
 	// reading yaml config:
 	confDir, _ := os.Getwd()
-	confFile, err := os.ReadFile(conffilePath)
-	if err != nil {
-		log.Printf("Not using a config file - using default values\n")
-	} else {
+	var (
+		confFile []byte
+		err      error
+	)
+
+	if serveMode == SERVE_MODE_EMBEDDED_DOC {
+		confFile, err = config.EmbeddedDocFS.ReadFile(conffilePath)
+		if err != nil {
+			log.Fatal(fmt.Errorf("embedded doc config file not found (%s): %w", conffilePath, err))
+		}
 		confDir = path.Dir(conffilePath)
+	} else {
+		confFile, err = os.ReadFile(conffilePath)
+		if err != nil {
+			log.Printf("Not using a config file - using default values\n")
+		} else {
+			confDir = path.Dir(conffilePath)
+		}
+	}
+
+	if len(confFile) > 0 {
 		err = yaml.Unmarshal(confFile, &config)
 		if err != nil {
 			log.Fatal(err)
 		}
+		config.ServeMode = serveMode
+		config.ConfigFile = conffilePath
+		config.EmbeddedDocFS = embeddedDocFS
 	}
 
 	// read command specific flags
@@ -98,10 +120,13 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 		config.Server.CacheDir = ".pcms-cache"
 	}
 
-	// Set current working dir to the conf file dir for subsequent commands:
-	err = os.Chdir(confDir)
-	if err != nil {
-		log.Fatal(err)
+	// Set current working dir to the conf file dir for subsequent commands,
+	// except when serving embedded docs.
+	if config.ServeMode != SERVE_MODE_EMBEDDED_DOC {
+		err = os.Chdir(confDir)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	if config.ServeMode != SERVE_MODE_EMBEDDED_DOC {
@@ -114,30 +139,6 @@ func NewConfig(conffilePath string, cliArgs CmdArgs) Config {
 			log.Fatal(err)
 		}
 		if cliArgs.FlagSet.Name() == "serve" {
-			// dest dir is relative to the working dir, or an absolute path:
-			if len(config.DestPath) == 0 {
-				log.Fatal(fmt.Errorf("SourcePath cannot be empty"))
-			}
-			config.DestPath, err = filepath.Abs(config.DestPath)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			// source and dest path must not be the same
-			if config.SourcePath == config.DestPath {
-				log.Fatal("Source and Destination path must not be the same")
-			}
-
-			// source and dest path must not be the same as the actual cwd:
-			cwd, err := os.Getwd()
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			if config.SourcePath == cwd || config.DestPath == cwd {
-				log.Fatal("Source and Destination path must not be in the actual working dir")
-			}
-
 			// template dir is relative to the working dir, or an absolute path:
 			config.TemplateDir, err = filepath.Abs(config.TemplateDir)
 			if err != nil {
@@ -163,4 +164,18 @@ func configPongoTemplatePathLoader(conf Config) {
 		log.Panic(err)
 	}
 	pongo2.DefaultSet.AddLoader(loader)
+}
+
+func GetEmbeddedSourceFS(config Config) (fs.FS, string, error) {
+	if config.SourcePath == "" {
+		return nil, "", fmt.Errorf("source path empty")
+	}
+
+	embeddedRoot := path.Clean(path.Join(path.Dir(config.ConfigFile), config.SourcePath))
+	subFS, err := fs.Sub(config.EmbeddedDocFS, embeddedRoot)
+	if err != nil {
+		return nil, "", fmt.Errorf("create embedded source fs (%s): %w", embeddedRoot, err)
+	}
+
+	return subFS, "embedded:" + embeddedRoot, nil
 }

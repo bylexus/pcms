@@ -142,7 +142,7 @@ func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (P
 	var err error = nil
 	result := ProcessingFileInfo{}
 	result.RootSourceDir = config.SourcePath
-	result.RootDestDir = config.DestPath
+	result.RootDestDir = config.SourcePath
 	result.Webroot = config.Server.Prefix
 	result.AbsSourcePath = sourceFile
 	result.AbsSourceDir = filepath.Dir(result.AbsSourcePath)
@@ -164,7 +164,7 @@ func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (P
 	}
 
 	// calc outfile path and create dest directory
-	outFile := filepath.Join(config.DestPath, result.RelSourcePath)
+	outFile := filepath.Join(config.SourcePath, result.RelSourcePath)
 	outBase := strings.Replace(filepath.Base(outFile), ".md", ".html", 1)
 	// full output file path's dir:
 	result.AbsDestDir = filepath.Dir(outFile)
@@ -176,13 +176,13 @@ func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (P
 	}
 
 	// path to the output destionation file, relative to the base destination dir:
-	result.RelDestPath, err = filepath.Rel(config.DestPath, result.AbsDestPath)
+	result.RelDestPath, err = filepath.Rel(config.SourcePath, result.AbsDestPath)
 	if err != nil {
 		return result, err
 	}
 
 	// path to the output destionation file's directory, relative to the base destination dir:
-	result.RelDestDir, err = filepath.Rel(config.DestPath, result.AbsDestDir)
+	result.RelDestDir, err = filepath.Rel(config.SourcePath, result.AbsDestDir)
 	if err != nil {
 		return result, err
 	}
@@ -193,7 +193,7 @@ func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (P
 	result.AbsWebPath = path.Join("/", config.Server.Prefix, result.RelDestPath)
 
 	// relative path to the destination root folder:
-	result.RelDestRoot, err = filepath.Rel(result.AbsDestDir, config.DestPath)
+	result.RelDestRoot, err = filepath.Rel(result.AbsDestDir, config.SourcePath)
 	if err != nil {
 		return result, err
 	}

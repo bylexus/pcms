@@ -11,7 +11,6 @@ server:
       file: STDERR
       level: DEBUG
 source: "site"
-dest: "build"
 variables:
   siteTitle: pcms-go - Documentation
   siteMetaTags:
@@ -32,6 +31,3 @@ template_dir: templates
 exclude_patterns:
   - "^\\..*"
   - "^page\\.json$"
-processors:
-  scss:
-    sass_bin: "/Users/alex/.nvm/versions/node/v18.13.0/bin/sass"

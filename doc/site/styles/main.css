@@ -1,9 +1,21 @@
-@import 'header';
-@import 'footer';
-@import 'home';
-@import 'fonts';
+@import "fonts.css";
+@import "header.css";
+@import "footer.css";
+@import "home.css";
 
-$large-width: 961px;
+:root {
+    --font-sans: "Source Sans 3", sans-serif;
+    --font-mono: "Roboto Mono", monospace;
+    --large-width: 961px;
+    --text-color: black;
+    --link-hover-bg: #d7eaff;
+    --toc-active-bg: #cce2f9;
+    --inline-code-color: #cc1154;
+    --header-bg: #12134f;
+    --header-gradient-start: #374599;
+    --muted-text: #aaa;
+    --heading-small: #999;
+}
 
 html {
     width: 100%;
@@ -13,19 +25,20 @@ html {
 html, body {
     margin: 0;
     padding: 0;
-    font-family: "Source Sans 3", sans-serif;
+    font-family: var(--font-sans);
     font-weight: 400;
     font-size: 13pt;
-    color: black;
+    color: var(--text-color);
 }
 
 a {
     text-decoration: none;
     font-weight: normal;
-    color: black;
+    color: var(--text-color);
     text-decoration: underline;
+
     &:hover {
-        background-color: #d7eaff;
+        background-color: var(--link-hover-bg);
     }
 }
 
@@ -37,11 +50,14 @@ a {
         ul {
             list-style-type: none;
             padding-inline-start: 1rem;
+
             li {
                 margin-bottom: 0;
+
                 &.active {
-                    background-color: #cce2f9;
+                    background-color: var(--toc-active-bg);
                 }
+
                 a {
                     display: block;
                     padding: 0.2rem;
@@ -49,20 +65,24 @@ a {
             }
         }
     }
+
     .main {
-        @media(min-width: $large-width) {
+        @media (min-width: 961px) {
             overflow: auto;
         }
     }
+
     code {
-        font-family: "Roboto Mono";
+        font-family: var(--font-mono);
         font-weight: normal;
         font-size: 0.8em;
-
     }
-    p,ul,ol {
+
+    p,
+    ul,
+    ol {
         code {
-            color: #cc1154;
+            color: var(--inline-code-color);
         }
     }
 
@@ -78,21 +98,25 @@ small {
 .row {
     display: flex;
     flex-direction: column;
-    @media(min-width: $large-width) {
+
+    @media (min-width: 961px) {
         flex-direction: row;
     }
 
     .col-3 {
         flex-basis: 0;
         flex-grow: 12;
-        @media(min-width: $large-width) {
+
+        @media (min-width: 961px) {
             flex-grow: 3;
         }
     }
+
     .col-9 {
         flex-basis: 0;
         flex-grow: 12;
-        @media(min-width: $large-width) {
+
+        @media (min-width: 961px) {
             flex-grow: 9;
         }
     }

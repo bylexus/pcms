@@ -24,9 +24,12 @@ func RunIndexCmd(config model.Config) error {
 		return err
 	}
 
-	dbh, err := lib.GetDBH()
+	dbh, shouldClose, err := lib.GetDBHForConfig(config)
 	if err != nil {
 		return err
+	}
+	if shouldClose {
+		defer dbh.Close()
 	}
 
 	if err := dbh.BeginIndexRun(); err != nil {
@@ -75,11 +78,7 @@ func RunIndexCmd(config model.Config) error {
 
 func getIndexSourceFS(config model.Config) (fs.FS, string, error) {
 	if config.ServeMode == model.SERVE_MODE_EMBEDDED_DOC {
-		subFS, err := fs.Sub(config.EmbeddedDocFS, "doc/build")
-		if err != nil {
-			return nil, "", fmt.Errorf("create embedded doc fs: %w", err)
-		}
-		return subFS, "embedded:doc/build", nil
+		return model.GetEmbeddedSourceFS(config)
 	}
 
 	if config.SourcePath == "" {

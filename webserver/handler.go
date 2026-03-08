@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -44,8 +43,6 @@ func NewRequestHandler(
 	return &r
 }
 
-var slashRemoveRe = regexp.MustCompile(`^\/*(.*?)\/*$`)
-
 /*
 The RequestHandler's Serve function. This should be the inner-most
 handler, so middlewares should already be applied (e.g. the StripPrefix handler).
@@ -53,10 +50,8 @@ We take the URL's path and prefix the local destination path to find a matching
 local file, then deliver it.
 */
 func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// TODO: remove this behaviour: this is not longer needed, as all requests
-	// use the db handler now:
 	if h.DBH == nil {
-		h.serveStatic(w, req)
+		h.errorHandler(w, fmt.Errorf("db handler not configured"), http.StatusInternalServerError)
 		return
 	}
 
@@ -90,48 +85,6 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	h.errorHandler(w, fmt.Errorf("not found: %s", route), http.StatusNotFound)
-}
-
-// TODO: remove: old / obsolete code
-func (h *RequestHandler) serveStatic(w http.ResponseWriter, req *http.Request) {
-	// create a file path from the requested URL path:
-	relUrl := req.URL
-	fsPath := relUrl.Path
-	// remove trailing/leading slashes: FS system's paths must not begin/end with slashes:
-	fsPath = slashRemoveRe.FindStringSubmatch(fsPath)[1]
-	if len(fsPath) == 0 {
-		fsPath = "."
-	}
-
-	// check if file exists, output an error if not:
-	info, err := fs.Stat(h.siteFS, fsPath)
-	// info, err := os.Stat(filePath)
-	if errors.Is(err, fs.ErrNotExist) {
-		h.errorHandler(w, fmt.Errorf("not found: %s", relUrl), http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		h.errorHandler(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	// if the requested file is a dir, add index.html to the path and try again:
-	if info.IsDir() {
-		fsPath = path.Join(fsPath, "index.html")
-		_, err = fs.Stat(h.siteFS, fsPath)
-		if errors.Is(err, fs.ErrNotExist) {
-			h.errorHandler(w, fmt.Errorf("not found: %s", relUrl), http.StatusNotFound)
-			return
-		}
-		if err != nil {
-			h.errorHandler(w, err, http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// all well, deliver it!
-	staticHandler := http.FileServer(http.FS(h.siteFS))
-	staticHandler.ServeHTTP(w, req)
 }
 
 func normalizeRoute(rawPath string) string {

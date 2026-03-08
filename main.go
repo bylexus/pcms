@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path"
 
 	"alexi.ch/pcms/commands"
 	"alexi.ch/pcms/model"
@@ -18,7 +17,7 @@ var templateContent embed.FS
 
 // embed the built doc folder:
 //
-//go:embed doc/build
+//go:embed doc
 var embeddedDocFS embed.FS
 
 func printUsage(flagMap map[string]*flag.FlagSet) {
@@ -131,15 +130,12 @@ func main() {
 	args := parseCmdArgs()
 
 	confFilePath := model.GetConfFilePath(args.ConfigFilePath)
-
-	// change the app's CWD to the conf file location's dir:
-	cwd := path.Dir(confFilePath)
-	err := os.Chdir(cwd)
-	if err != nil {
-		panic(err)
+	if args.FlagSet.Name() == "serve-doc" {
+		confFilePath = "doc/pcms-config.yaml"
 	}
-	config := model.NewConfig(confFilePath, args)
-	config.EmbeddedDocFS = embeddedDocFS
+
+	config := model.NewConfig(confFilePath, args, embeddedDocFS)
+	var err error
 
 	switch args.FlagSet.Name() {
 	case "serve":
@@ -147,6 +143,7 @@ func main() {
 	case "serve-doc":
 		config.Server.Logging.Access.File = "STDOUT"
 		config.Server.Logging.Error.File = "STDERR"
+		config.ServeMode = model.SERVE_MODE_EMBEDDED_DOC
 		err = commands.RunServeCmd(config)
 	case "init":
 		commands.RunInitCmd(args, &templateContent)

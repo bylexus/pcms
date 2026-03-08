@@ -7,12 +7,14 @@ import (
 	"sync"
 	"time"
 
+	"alexi.ch/pcms/model"
 	_ "modernc.org/sqlite"
 )
 
 const (
-	defaultDBPath   = "pcms.db"
-	currentDBSchema = 1
+	defaultDBPath     = "pcms.db"
+	currentDBSchema   = 1
+	embeddedDocDBPath = "pcms-doc.db"
 )
 
 type DBH struct {
@@ -499,4 +501,21 @@ func (h *DBH) queryRowIndex(query string, args ...any) *sql.Row {
 	}
 
 	return h.db.QueryRow(query, args...)
+}
+
+func GetDBHForConfig(config model.Config) (*DBH, bool, error) {
+	if config.ServeMode == model.SERVE_MODE_EMBEDDED_DOC {
+		dbh, err := OpenDBH(embeddedDocDBPath)
+		if err != nil {
+			return nil, false, err
+		}
+		return dbh, true, nil
+	}
+
+	dbh, err := GetDBH()
+	if err != nil {
+		return nil, false, err
+	}
+
+	return dbh, false, nil
 }
