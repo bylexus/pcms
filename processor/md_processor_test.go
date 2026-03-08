@@ -21,7 +21,7 @@ func TestMdProcessorPrepareFilePaths(t *testing.T) {
 	var RelSourcePath = filepath.Join("sub", "folder", "file.md")
 	var RelSourceRoot = filepath.Join("..", "..")
 
-	var destRoot = filepath.Join(os.TempDir(), filepath.FromSlash("/path/to/dest"))
+	var destRoot = sourceRoot
 	var destFile = filepath.Join(destRoot, "sub", "folder", "file.html")
 	var RelDestPath = filepath.Join("sub", "folder", "file.html")
 	var RelDestRoot = filepath.Join("..", "..")
@@ -30,7 +30,6 @@ func TestMdProcessorPrepareFilePaths(t *testing.T) {
 
 	var config = model.Config{
 		SourcePath: sourceRoot,
-		DestPath:   destRoot,
 		Server: struct {
 			Listen   string              "yaml:\"listen\""
 			Watch    bool                "yaml:\"watch\""
@@ -164,11 +163,8 @@ func TestMdProcessorTemplate(t *testing.T) {
 	var sourceRoot = filepath.Join(osTempDir, "input")
 	var sourceFile = filepath.Join(sourceRoot, "input.md")
 
-	var destRoot = filepath.Join(osTempDir, "output")
-
 	var config = model.Config{
 		SourcePath: sourceRoot,
-		DestPath:   destRoot,
 		Server: struct {
 			Listen   string              "yaml:\"listen\""
 			Watch    bool                "yaml:\"watch\""
@@ -182,7 +178,6 @@ func TestMdProcessorTemplate(t *testing.T) {
 
 	// prepare fixture files:
 	os.MkdirAll(sourceRoot, os.ModeDir|0777)
-	os.MkdirAll(destRoot, os.ModeDir|0777)
 	stdlib.CopyFile(mdFixtureInput, sourceFile)
 	expectedOutput, err := os.ReadFile(mdFixtureOutput)
 	if err != nil {

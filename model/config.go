@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -152,6 +153,9 @@ func NewConfig(conffilePath string, cliArgs CmdArgs, embeddedDocFS embed.FS) Con
 		if err != nil {
 			log.Fatal(err)
 		}
+	}
+
+	if cliArgs.FlagSet.Name() == "serve" || cliArgs.FlagSet.Name() == "serve-doc" {
 		configPongoTemplatePathLoader(config)
 	}
 
@@ -159,9 +163,19 @@ func NewConfig(conffilePath string, cliArgs CmdArgs, embeddedDocFS embed.FS) Con
 }
 
 func configPongoTemplatePathLoader(conf Config) {
+	if conf.ServeMode == SERVE_MODE_EMBEDDED_DOC {
+		templateRoot := path.Clean(path.Join(path.Dir(conf.ConfigFile), conf.TemplateDir))
+		loader, err := pongo2.NewHttpFileSystemLoader(http.FS(conf.EmbeddedDocFS), templateRoot)
+		if err != nil {
+			log.Fatal(fmt.Errorf("configure embedded pongo2 loader (%s): %w", templateRoot, err))
+		}
+		pongo2.DefaultSet.AddLoader(loader)
+		return
+	}
+
 	loader, err := pongo2.NewLocalFileSystemLoader(conf.TemplateDir)
 	if err != nil {
-		log.Panic(err)
+		log.Fatal(fmt.Errorf("configure local pongo2 loader (%s): %w", conf.TemplateDir, err))
 	}
 	pongo2.DefaultSet.AddLoader(loader)
 }
