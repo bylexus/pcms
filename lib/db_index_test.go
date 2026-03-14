@@ -3,6 +3,8 @@ package lib
 import (
 	"path/filepath"
 	"testing"
+
+	"alexi.ch/pcms/model"
 )
 
 func TestDBHIndexLifecycle(t *testing.T) {
@@ -21,7 +23,7 @@ func TestDBHIndexLifecycle(t *testing.T) {
 		t.Fatalf("CleanIndex() error = %v", err)
 	}
 
-	if err := dbh.ReplacePage(IndexedPageRecord{
+	if err := dbh.ReplacePage(model.IndexedPage{
 		Route:        "/",
 		Title:        "root",
 		IndexFile:    "index.md",
@@ -31,7 +33,7 @@ func TestDBHIndexLifecycle(t *testing.T) {
 	}
 
 	rootRoute := "/"
-	if err := dbh.ReplacePage(IndexedPageRecord{
+	if err := dbh.ReplacePage(model.IndexedPage{
 		Route:           "/blog",
 		ParentPageRoute: &rootRoute,
 		Title:           "blog",
@@ -41,7 +43,7 @@ func TestDBHIndexLifecycle(t *testing.T) {
 		t.Fatalf("ReplacePage(/blog) error = %v", err)
 	}
 
-	if err := dbh.ReplaceFile(IndexedFileRecord{
+	if err := dbh.ReplaceFile(model.IndexedFile{
 		Route:           "/blog/image.png",
 		ParentPageRoute: "/blog",
 		FileName:        "image.png",
@@ -94,7 +96,7 @@ func TestDBHIndexForeignKeyIntegrity(t *testing.T) {
 		t.Fatalf("CleanIndex() error = %v", err)
 	}
 
-	err = dbh.ReplaceFile(IndexedFileRecord{
+	err = dbh.ReplaceFile(model.IndexedFile{
 		Route:           "/orphan.txt",
 		ParentPageRoute: "/missing",
 		FileName:        "orphan.txt",
@@ -123,7 +125,7 @@ func TestDBHGetByRoute(t *testing.T) {
 		t.Fatalf("CleanIndex() error = %v", err)
 	}
 
-	if err := dbh.ReplacePage(IndexedPageRecord{
+	if err := dbh.ReplacePage(model.IndexedPage{
 		Route:        "/",
 		Title:        "root",
 		IndexFile:    "index.md",
@@ -132,7 +134,7 @@ func TestDBHGetByRoute(t *testing.T) {
 		t.Fatalf("ReplacePage(root) error = %v", err)
 	}
 
-	if err := dbh.ReplaceFile(IndexedFileRecord{
+	if err := dbh.ReplaceFile(model.IndexedFile{
 		Route:           "/robots.txt",
 		ParentPageRoute: "/",
 		FileName:        "robots.txt",

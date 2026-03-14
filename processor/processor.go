@@ -5,9 +5,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
+	"alexi.ch/pcms/lib"
 	"alexi.ch/pcms/model"
 	"alexi.ch/pcms/stdlib"
 	"github.com/flosch/pongo2/v4"
@@ -19,7 +19,10 @@ type Processor interface {
 	ProcessFile(sourceFile string, config model.Config) (destFile string, err error)
 }
 
-type ProcessingFileInfo struct {
+type PageInfo struct {
+	// the actual page record from the index
+	ActPage model.IndexedPage `yaml:"-"`
+
 	// file paths:
 	// start / top path of the source folder
 	RootSourceDir string `yaml:"rootSourceDir"`
@@ -62,7 +65,7 @@ type ProcessingFileInfo struct {
 	AbsWebDir string `yaml:"absWebDir"`
 }
 
-func (p ProcessingFileInfo) GetStdObject() (map[string]interface{}, error) {
+func (p PageInfo) GetStdObject() (map[string]interface{}, error) {
 	yamlStr, err := yaml.Marshal(p)
 	if err != nil {
 		return nil, err
@@ -87,13 +90,9 @@ func GetProcessor(sourceFile string, config model.Config) Processor {
 	}
 }
 
-func IsSupportedIndexFile(fileName string) bool {
-	base := strings.ToLower(filepath.Base(fileName))
-	return base == "index.html" || base == "index.md"
-}
-
-func BuildPageProcessingFileInfo(route string, indexFile string, config model.Config) (ProcessingFileInfo, error) {
-	result := ProcessingFileInfo{}
+func BuildPageTemplateVariables(route string, indexFile string, config model.Config, page model.IndexedPage) (PageInfo, error) {
+	result := PageInfo{}
+	result.ActPage = page
 	result.RootSourceDir = config.SourcePath
 	result.RootDestDir = config.Server.CacheDir
 	result.Webroot = config.Server.Prefix
@@ -162,25 +161,6 @@ func BuildPageProcessingFileInfo(route string, indexFile string, config model.Co
 	return result, nil
 }
 
-// Checks if the given file matches a set of exclude regex patterns.
-// The relative path within the source dir is used as input.
-//
-// Returns true and the matching pattern if the file name matches a exclude pattern.
-func IsFileExcluded(filePath string, excludePatterns []string) (bool, string) {
-	skipfiles := []string{"variables.yaml"}
-	if stdlib.InSlice(&skipfiles, filepath.Base(filePath)) {
-		return true, filepath.Base(filePath)
-	}
-	for _, pattern := range excludePatterns {
-		r := regexp.MustCompile(pattern)
-		if r.MatchString(filePath) {
-			return true, pattern
-		}
-	}
-
-	return false, ""
-}
-
 // Takes multiple string maps, and merges them.
 // later map entries override previous ones.
 func mergeStringMaps(maps ...map[string]interface{}) map[string]interface{} {
@@ -197,25 +177,43 @@ func AbsUrl(relPath string, Webroot string) string {
 	return path.Clean(path.Join("/", Webroot, relPath))
 }
 
-func prepareTemplateContext(sourceFile string, config model.Config, filePaths ProcessingFileInfo, yamlFrontMatter stdlib.YamlFrontMatter) (pongo2.Context, error) {
+func prepareTemplateContext(sourceFile string, config model.Config, fileInfo PageInfo, yamlFrontMatter stdlib.YamlFrontMatter) (pongo2.Context, error) {
 
 	// combined variables object:
 	variables := collectPageVariables(sourceFile, config, yamlFrontMatter)
 
 	// convert paths object to an anonymous, lower-cased map:
-	pathObj, err := filePaths.GetStdObject()
+	pathObj, err := fileInfo.GetStdObject()
+	if err != nil {
+		return nil, err
+	}
+
+	dbh, err := lib.GetDBH()
+	if err != nil {
+		return nil, err
+	}
+	childPages, err := dbh.GetChildPages(fileInfo.ActPage.Route)
+	if err != nil {
+		return nil, err
+	}
+	childFiles, err := dbh.GetChildFiles(fileInfo.ActPage.Route)
 	if err != nil {
 		return nil, err
 	}
 
 	var context = pongo2.Context{
+		"page": fileInfo.ActPage,
+
+		"childPages": childPages,
+		"childFiles": childFiles,
+
 		// contains the combined variables
 		"variables": variables,
 		// several file path variants for the actual file:
 		"paths": pathObj,
 		// creates an absolute, webroot-based url from a relative url
 		"webroot": func(relPath string) string {
-			return AbsUrl(relPath, filePaths.Webroot)
+			return AbsUrl(relPath, fileInfo.Webroot)
 		},
 		// helper function to check a string for a prefix
 		"startsWith": strings.HasPrefix,

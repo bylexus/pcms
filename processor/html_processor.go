@@ -63,16 +63,16 @@ func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (dest
 	return filePaths.AbsDestPath, nil
 }
 
-func (p HtmlProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, filePaths ProcessingFileInfo) ([]byte, error) {
+func (p HtmlProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, pageInfo PageInfo) ([]byte, error) {
 	sourceBytes, err := fs.ReadFile(siteFS, sourceFSPath)
 	if err != nil {
 		return nil, fmt.Errorf("read html source %s: %w", sourceFSPath, err)
 	}
 
-	return p.render(sourceFile, string(sourceBytes), config, filePaths)
+	return p.render(sourceFile, string(sourceBytes), config, pageInfo)
 }
 
-func (p HtmlProcessor) render(sourceFile string, sourceString string, config model.Config, filePaths ProcessingFileInfo) ([]byte, error) {
+func (p HtmlProcessor) render(sourceFile string, sourceString string, config model.Config, pageInfo PageInfo) ([]byte, error) {
 	// Extract yaml frontmatter:
 	yamlFrontMatter, sourceString, err := stdlib.ExtractYamlFrontMatter(sourceString)
 	if err != nil {
@@ -85,7 +85,7 @@ func (p HtmlProcessor) render(sourceFile string, sourceString string, config mod
 		return nil, err
 	}
 
-	context, err := prepareTemplateContext(sourceFile, config, filePaths, yamlFrontMatter)
+	context, err := prepareTemplateContext(sourceFile, config, pageInfo, yamlFrontMatter)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +98,9 @@ func (p HtmlProcessor) render(sourceFile string, sourceString string, config mod
 	return []byte(out), nil
 }
 
-func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) (ProcessingFileInfo, error) {
+func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) (PageInfo, error) {
 	var err error = nil
-	result := ProcessingFileInfo{}
+	result := PageInfo{}
 	result.RootSourceDir = config.SourcePath
 	result.RootDestDir = config.SourcePath
 	result.Webroot = config.Server.Prefix

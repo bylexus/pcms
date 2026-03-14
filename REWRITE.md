@@ -57,7 +57,7 @@ As mentioned in the readme, I want to rewrite pcms to use a db index.
 - Prefer WAL mode for serving workflow (`PRAGMA journal_mode = WAL`)
 - Keep route identity canonical and stable, because route is the DB key for both pages and files
 
-## Implementation step 1: Base DB architecture
+## Implementation step 1: Base DB architecture [DONE]
 
 A centralized db handler should be created that collects all the needed functionality to access the DB and manages the schema.
 
@@ -80,7 +80,16 @@ import (
 	dbh, err := lib.GetDBH()
 ```
 
-## Implementation step 2: Index command
+### Status
+
+Implemented in `lib/db.go`:
+- `DBH` struct with singleton via `sync.Once` pattern (`GetDBH()`, `GetDBHForConfig()`)
+- Schema: 3 tables (`pages`, `files`, `app_settings`) with WAL mode, foreign keys, JSON validity checks
+- Full index lifecycle: `BeginIndexRun`, `CommitIndexRun`, `RollbackIndexRun`, `ReplacePage`, `ReplaceFile`, `CleanIndex`
+- Query APIs: `GetPageByRoute()`, `GetFileByRoute()`, `CountPages()`, `CountFiles()`
+- Uses `modernc.org/sqlite` (pure Go)
+
+## Implementation step 2: Index command [DONE]
 
 The index command creates the page and file index based on the given file system (`fs.FS`). The file system is either a directory on the disk (os.DirFs), or an embedded
 file system as defined in the main.go file (go:embed). This fs is the root route ('/').
@@ -93,7 +102,18 @@ The goal is to have the full page tree in the sqlite db.
 The `pcms index` command now creates the full page index based on the configured fs.FS. It creates entries in the `pages` and `files` tables in the sqlite db
 by walking the file tree.
 
-## Implementation step 3: serve command
+### Status
+
+Implemented in `commands/index.go` and `lib/treewalk.go`:
+- `RunIndexCmd()` orchestrates: get source FS, build snapshot, persist to DB transactionally
+- `BuildIndexSnapshot()` walks `fs.FS`, creates `IndexedPageRecord` / `IndexedFileRecord` entries
+- Frontmatter metadata extraction (YAML), title fallback logic, parent page tracking
+- File association via foreign key to nearest ancestor page
+- Regex-based path exclusion, MIME type detection via `gabriel-vasile/mimetype`
+- Supports both filesystem and embedded doc sources
+- `commands/build.go` removed
+
+## Implementation step 3: serve command [DONE]
 
 The `pcms serve` command starts the web server and begins serving the pages. This involves the following steps:
 
@@ -139,7 +159,7 @@ File requests are just delivered back to the client using the correct mime type
 	- goal for now is to keep the available variables - we will refactor them later for the new structure.
 - Add page cache support based on configured `server.cacheDir` (`cacheDir` in `pcms-config.yaml`).
 
-### 1) Config and startup wiring
+### 1) Config and startup wiring [DONE]
 
 1. Extend `model.Config`:
    - add `Server.CacheDir string \`yaml:"cacheDir"\``.
@@ -150,7 +170,7 @@ File requests are just delivered back to the client using the correct mime type
    - open DB via `lib.GetDBH()` and pass DB handle + resolved `siteFS` + cache dir to the request handler.
    - keep existing embedded-doc/file serve mode selection.
 
-### 2) DB read API for runtime lookup
+### 2) DB read API for runtime lookup [DONE]
 
 Add query methods to `lib.DBH` for request-time resolution:
 
@@ -162,7 +182,7 @@ Notes:
 - Keep route matching canonical (`/foo` and `/foo/` normalization in handler before lookup).
 - Reuse existing record structs from `lib/treewalk.go` to avoid duplicate models.
 
-### 3) Handler rewrite (DB-first dispatch)
+### 3) Handler rewrite (DB-first dispatch) [DONE]
 
 In `webserver/handler.go`, replace filesystem-first `fs.Stat` flow with DB lookup flow:
 
@@ -175,7 +195,7 @@ In `webserver/handler.go`, replace filesystem-first `fs.Stat` flow with DB looku
 
 This preserves existing middleware and logging behavior while changing only route resolution and response generation.
 
-### 4) Page cache design
+### 4) Page cache design [DONE]
 
 Cache storage uses a dedicated directory tree under `server.cacheDir`:
 
@@ -188,7 +208,7 @@ Cache storage uses a dedicated directory tree under `server.cacheDir`:
    - route + `index_file` from DB (`/blog` + `index.md` => `blog/index.md`, root => `index.md`).
 4. If invalid/missing cache: render page and overwrite cache atomically.
 
-### 5) Processor package changes (required)
+### 5) Processor package changes (required) [DONE]
 
 Current processors are build-oriented (`ProcessFile` writes directly to `dest`). Step 3 needs render-for-serve behavior. Planned refactor:
 
@@ -205,7 +225,7 @@ This keeps processor behavior consistent across `build` and `serve`, while avoid
 
 The 'ScssProcessor' can be removed: we do no longer support SCSS building.
 
-### 6) Reuse from `commands/build.go`
+### 6) Reuse from `commands/build.go` [DONE]
 
 **Note:** The build command is ONLY used for reference! It would / should not run / build anymore. After the implementation of the serve command, it can be removed.
 
@@ -218,7 +238,7 @@ The old build flow still contains reusable pieces:
    - handler layer serves.
 3. Avoid reusing recursive filesystem traversal from build for request handling (serve must use DB lookup), but keep traversal logic in indexing (step 2) as already refactored into `lib/treewalk.go`.
 
-### 7) File serving details
+### 7) File serving details [DONE]
 
 For DB-matched files:
 
@@ -227,26 +247,38 @@ For DB-matched files:
 3. Serve via `http.ServeContent` / stream to response.
 4. Return 404 if DB entry exists but source file is missing (stale index case), with error log entry.
 
-### 8) Tests to add/update
+### 8) Tests to add/update [PARTIAL]
 
-1. `lib/db` tests:
+1. `lib/db` tests: [DONE]
    - query methods by route (found/not found behavior).
-2. `webserver` handler tests:
-   - page request hits cache when valid.
-   - page request re-renders when cache stale/missing.
-   - file request returns DB mime type.
-   - unknown route returns 404.
-3. `processor` tests:
+   - `TestDBHIndexLifecycle`, `TestDBHIndexForeignKeyIntegrity`, `TestDBHGetByRoute`
+2. `webserver` handler tests: [PARTIAL]
+   - route normalization tests exist (`handler_test.go`)
+   - TODO: page request hits cache when valid.
+   - TODO: page request re-renders when cache stale/missing.
+   - TODO: file request returns DB mime type.
+   - TODO: unknown route returns 404.
+3. `processor` tests: [DONE]
    - render API parity with existing output behavior for md/html.
    - index-file extension dispatch.
-4. Integration test (serve path):
+4. Integration test (serve path): [TODO]
    - run index + serve handler against fixture FS and assert page/file responses.
 
 ### 9) Incremental execution order
 
-1. Add config + DB query APIs.
-2. Refactor processors to shared render API (keep build backward compatible).
-3. Rewrite request handler to DB-first routing and cache pipeline.
-4. Implement direct file serving from `siteFS` using DB metadata.
-5. remove unnecessary code like build.go
-6. Add/update tests, then run `go test ./...` and `go build ./...`.
+1. [x] Add config + DB query APIs.
+2. [x] Refactor processors to shared render API (keep build backward compatible).
+3. [x] Rewrite request handler to DB-first routing and cache pipeline.
+4. [x] Implement direct file serving from `siteFS` using DB metadata.
+5. [x] remove unnecessary code like build.go
+6. [ ] Add/update tests, then run `go test ./...` and `go build ./...`.
+   - DB and treewalk tests: done
+   - Processor tests: done
+   - Handler tests: partial (route normalization only, missing cache/render/404 tests)
+   - Integration test (full serve path): TODO
+
+## TODO
+
+- de/serialize the page metadata json when loading from the  db
+- Remove the Metadata column from the File objects
+- remove unused template vars, as it can be fetched from the Page object

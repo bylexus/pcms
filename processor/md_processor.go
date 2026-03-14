@@ -73,7 +73,7 @@ func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFi
 	return filePaths.AbsDestPath, nil
 }
 
-func (p MdProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, filePaths ProcessingFileInfo) ([]byte, error) {
+func (p MdProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, filePaths PageInfo) ([]byte, error) {
 	sourceBytes, err := fs.ReadFile(siteFS, sourceFSPath)
 	if err != nil {
 		return nil, fmt.Errorf("read markdown source %s: %w", sourceFSPath, err)
@@ -82,7 +82,7 @@ func (p MdProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourc
 	return p.render(sourceFile, string(sourceBytes), config, filePaths)
 }
 
-func (p MdProcessor) render(sourceFile string, sourceString string, config model.Config, filePaths ProcessingFileInfo) ([]byte, error) {
+func (p MdProcessor) render(sourceFile string, sourceString string, config model.Config, filePaths PageInfo) ([]byte, error) {
 	// Extract yaml frontmatter:
 	yamlFrontMatter, sourceString, err := stdlib.ExtractYamlFrontMatter(sourceString)
 	if err != nil {
@@ -138,9 +138,9 @@ func (p MdProcessor) render(sourceFile string, sourceString string, config model
 	return []byte(out), nil
 }
 
-func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (ProcessingFileInfo, error) {
+func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (PageInfo, error) {
 	var err error = nil
-	result := ProcessingFileInfo{}
+	result := PageInfo{}
 	result.RootSourceDir = config.SourcePath
 	result.RootDestDir = config.SourcePath
 	result.Webroot = config.Server.Prefix

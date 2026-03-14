@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"alexi.ch/pcms/model"
 )
 
 func TestBuildIndexSnapshot(t *testing.T) {
@@ -23,7 +25,7 @@ func TestBuildIndexSnapshot(t *testing.T) {
 		t.Fatalf("BuildIndexSnapshot() error = %v", err)
 	}
 
-	pagesByRoute := make(map[string]IndexedPageRecord)
+	pagesByRoute := make(map[string]model.IndexedPage)
 	for _, page := range snapshot.Pages {
 		pagesByRoute[page.Route] = page
 	}
@@ -65,7 +67,7 @@ func TestBuildIndexSnapshot(t *testing.T) {
 		t.Fatalf("container folder /assets should not be indexed as page")
 	}
 
-	filesByRoute := make(map[string]IndexedFileRecord)
+	filesByRoute := make(map[string]model.IndexedFile)
 	for _, file := range snapshot.Files {
 		filesByRoute[file.Route] = file
 	}
@@ -106,7 +108,7 @@ func TestBuildIndexSnapshotRootFallbackTitle(t *testing.T) {
 		t.Fatalf("BuildIndexSnapshot() error = %v", err)
 	}
 
-	pagesByRoute := make(map[string]IndexedPageRecord)
+	pagesByRoute := make(map[string]model.IndexedPage)
 	for _, page := range snapshot.Pages {
 		pagesByRoute[page.Route] = page
 	}

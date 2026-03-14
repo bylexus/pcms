@@ -139,7 +139,7 @@ func (h *DBH) CleanIndex() error {
 	return nil
 }
 
-func (h *DBH) ReplacePage(record IndexedPageRecord) error {
+func (h *DBH) ReplacePage(record model.IndexedPage) error {
 	stmt := `
 		INSERT INTO pages (route, parent_page_route, title, index_file, metadata_json)
 		VALUES (?, ?, ?, ?, ?)
@@ -158,7 +158,7 @@ func (h *DBH) ReplacePage(record IndexedPageRecord) error {
 	return nil
 }
 
-func (h *DBH) ReplaceFile(record IndexedFileRecord) error {
+func (h *DBH) ReplaceFile(record model.IndexedFile) error {
 	stmt := `
 		INSERT INTO files (route, parent_page_route, file_name, mime_type, file_size, metadata_json)
 		VALUES (?, ?, ?, ?, ?, ?)
@@ -218,14 +218,14 @@ func (h *DBH) CountFiles() (int, error) {
 	return count, nil
 }
 
-func (h *DBH) GetPageByRoute(route string) (IndexedPageRecord, bool, error) {
+func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 	stmt := `
 		SELECT route, parent_page_route, title, index_file, metadata_json
 		FROM pages
 		WHERE route = ?
 	`
 
-	var record IndexedPageRecord
+	var record model.IndexedPage
 	var parentRoute sql.NullString
 	err := h.queryRowIndex(stmt, route).Scan(
 		&record.Route,
@@ -236,9 +236,9 @@ func (h *DBH) GetPageByRoute(route string) (IndexedPageRecord, bool, error) {
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return IndexedPageRecord{}, false, nil
+			return model.IndexedPage{}, false, nil
 		}
-		return IndexedPageRecord{}, false, fmt.Errorf("query page by route %s: %w", route, err)
+		return model.IndexedPage{}, false, fmt.Errorf("query page by route %s: %w", route, err)
 	}
 
 	if parentRoute.Valid {
@@ -249,14 +249,14 @@ func (h *DBH) GetPageByRoute(route string) (IndexedPageRecord, bool, error) {
 	return record, true, nil
 }
 
-func (h *DBH) GetFileByRoute(route string) (IndexedFileRecord, bool, error) {
+func (h *DBH) GetFileByRoute(route string) (model.IndexedFile, bool, error) {
 	stmt := `
 		SELECT route, parent_page_route, file_name, mime_type, file_size, metadata_json
 		FROM files
 		WHERE route = ?
 	`
 
-	var record IndexedFileRecord
+	var record model.IndexedFile
 	err := h.queryRowIndex(stmt, route).Scan(
 		&record.Route,
 		&record.ParentPageRoute,
@@ -267,12 +267,90 @@ func (h *DBH) GetFileByRoute(route string) (IndexedFileRecord, bool, error) {
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return IndexedFileRecord{}, false, nil
+			return model.IndexedFile{}, false, nil
 		}
-		return IndexedFileRecord{}, false, fmt.Errorf("query file by route %s: %w", route, err)
+		return model.IndexedFile{}, false, fmt.Errorf("query file by route %s: %w", route, err)
 	}
 
 	return record, true, nil
+}
+
+func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
+	stmt := `
+		SELECT route, parent_page_route, title, index_file, metadata_json
+		FROM pages
+		WHERE parent_page_route = ?
+		ORDER BY route
+	`
+
+	rows, err := h.queryIndex(stmt, route)
+	if err != nil {
+		return nil, fmt.Errorf("query child pages for %s: %w", route, err)
+	}
+	defer rows.Close()
+
+	var pages []model.IndexedPage
+	for rows.Next() {
+		var record model.IndexedPage
+		var parentRoute sql.NullString
+		if err := rows.Scan(
+			&record.Route,
+			&parentRoute,
+			&record.Title,
+			&record.IndexFile,
+			&record.MetadataJSON,
+		); err != nil {
+			return nil, fmt.Errorf("scan child page for %s: %w", route, err)
+		}
+		if parentRoute.Valid {
+			r := parentRoute.String
+			record.ParentPageRoute = &r
+		}
+		pages = append(pages, record)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate child pages for %s: %w", route, err)
+	}
+
+	return pages, nil
+}
+
+func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
+	stmt := `
+		SELECT route, parent_page_route, file_name, mime_type, file_size, metadata_json
+		FROM files
+		WHERE parent_page_route = ?
+		ORDER BY route
+	`
+
+	rows, err := h.queryIndex(stmt, route)
+	if err != nil {
+		return nil, fmt.Errorf("query child files for %s: %w", route, err)
+	}
+	defer rows.Close()
+
+	var files []model.IndexedFile
+	for rows.Next() {
+		var record model.IndexedFile
+		if err := rows.Scan(
+			&record.Route,
+			&record.ParentPageRoute,
+			&record.FileName,
+			&record.MimeType,
+			&record.FileSize,
+			&record.MetadataJSON,
+		); err != nil {
+			return nil, fmt.Errorf("scan child file for %s: %w", route, err)
+		}
+		files = append(files, record)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate child files for %s: %w", route, err)
+	}
+
+	return files, nil
 }
 
 func (h *DBH) ensureSchema() error {
@@ -501,6 +579,14 @@ func (h *DBH) queryRowIndex(query string, args ...any) *sql.Row {
 	}
 
 	return h.db.QueryRow(query, args...)
+}
+
+func (h *DBH) queryIndex(query string, args ...any) (*sql.Rows, error) {
+	if h.indexTx != nil {
+		return h.indexTx.Query(query, args...)
+	}
+
+	return h.db.Query(query, args...)
 }
 
 func GetDBHForConfig(config model.Config) (*DBH, bool, error) {

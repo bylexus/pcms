@@ -111,8 +111,8 @@ func routeToFSPath(route string) string {
 	return trimmed
 }
 
-func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, route string, page lib.IndexedPageRecord) {
-	fileInfo, err := processor.BuildPageProcessingFileInfo(route, page.IndexFile, h.ServerConfig)
+func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, route string, page model.IndexedPage) {
+	fileInfo, err := processor.BuildPageTemplateVariables(route, page.IndexFile, h.ServerConfig, page)
 	if err != nil {
 		h.errorHandler(w, err, http.StatusInternalServerError)
 		return
@@ -154,7 +154,7 @@ func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, rou
 	http.ServeFile(w, req, fileInfo.AbsDestPath)
 }
 
-func (h *RequestHandler) renderPage(indexFile string, sourceFSPath string, fileInfo processor.ProcessingFileInfo) ([]byte, error) {
+func (h *RequestHandler) renderPage(indexFile string, sourceFSPath string, fileInfo processor.PageInfo) ([]byte, error) {
 	switch strings.ToLower(path.Ext(indexFile)) {
 	case ".html":
 		return (processor.HtmlProcessor{}).RenderFileForServe(h.siteFS, sourceFSPath, fileInfo.AbsSourcePath, h.ServerConfig, fileInfo)
@@ -165,7 +165,7 @@ func (h *RequestHandler) renderPage(indexFile string, sourceFSPath string, fileI
 	}
 }
 
-func (h *RequestHandler) serveFile(w http.ResponseWriter, req *http.Request, file lib.IndexedFileRecord) {
+func (h *RequestHandler) serveFile(w http.ResponseWriter, req *http.Request, file model.IndexedFile) {
 	fsPath := routeToFSPath(file.Route)
 	f, err := h.siteFS.Open(fsPath)
 	if errors.Is(err, fs.ErrNotExist) {

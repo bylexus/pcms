@@ -6,38 +6,18 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 
-	"alexi.ch/pcms/processor"
+	"alexi.ch/pcms/model"
 	"alexi.ch/pcms/stdlib"
 	"github.com/gabriel-vasile/mimetype"
 )
 
-type IndexedPageRecord struct {
-	Route           string
-	ParentPageRoute *string
-	Title           string
-	IndexFile       string
-	MetadataJSON    string
-}
-
-type IndexedFileRecord struct {
-	Route           string
-	ParentPageRoute string
-	FileName        string
-	MimeType        string
-	FileSize        int64
-	MetadataJSON    string
-}
-
-type IndexSnapshot struct {
-	Pages []IndexedPageRecord
-	Files []IndexedFileRecord
-}
-
-func BuildIndexSnapshot(srcFS fs.FS, excludePatterns []string) (*IndexSnapshot, error) {
-	snapshot := &IndexSnapshot{
-		Pages: make([]IndexedPageRecord, 0),
-		Files: make([]IndexedFileRecord, 0),
+func BuildIndexSnapshot(srcFS fs.FS, excludePatterns []string) (*model.IndexSnapshot, error) {
+	snapshot := &model.IndexSnapshot{
+		Pages: make([]model.IndexedPage, 0),
+		Files: make([]model.IndexedFile, 0),
 	}
 
 	if err := walkIndexTree(srcFS, ".", "/", nil, excludePatterns, snapshot); err != nil {
@@ -47,7 +27,7 @@ func BuildIndexSnapshot(srcFS fs.FS, excludePatterns []string) (*IndexSnapshot, 
 	return snapshot, nil
 }
 
-func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPageRoute *string, excludePatterns []string, snapshot *IndexSnapshot) error {
+func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPageRoute *string, excludePatterns []string, snapshot *model.IndexSnapshot) error {
 	entries, err := fs.ReadDir(srcFS, relDir)
 	if err != nil {
 		return fmt.Errorf("read dir %s: %w", relDir, err)
@@ -59,11 +39,11 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 			continue
 		}
 		entryRoute := joinRoute(route, entry.Name())
-		isExcluded, _ := processor.IsFileExcluded(entryRoute, excludePatterns)
+		isExcluded, _ := isFileExcluded(entryRoute, excludePatterns)
 		if isExcluded {
 			continue
 		}
-		if processor.IsSupportedIndexFile(entry.Name()) {
+		if isSupportedIndexFile(entry.Name()) {
 			if indexFileName == "" || entry.Name() < indexFileName {
 				indexFileName = entry.Name()
 			}
@@ -90,7 +70,7 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 			return fmt.Errorf("marshal page metadata for %s: %w", route, err)
 		}
 
-		snapshot.Pages = append(snapshot.Pages, IndexedPageRecord{
+		snapshot.Pages = append(snapshot.Pages, model.IndexedPage{
 			Route:           route,
 			ParentPageRoute: inheritedParentPageRoute,
 			Title:           pageTitle,
@@ -116,7 +96,7 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 	for _, entry := range entries {
 		entryRoute := joinRoute(route, entry.Name())
 		if entry.IsDir() {
-			isExcluded, _ := processor.IsFileExcluded(entryRoute, excludePatterns)
+			isExcluded, _ := isFileExcluded(entryRoute, excludePatterns)
 			if isExcluded {
 				continue
 			}
@@ -131,7 +111,7 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 			continue
 		}
 
-		isExcluded, _ := processor.IsFileExcluded(entryRoute, excludePatterns)
+		isExcluded, _ := isFileExcluded(entryRoute, excludePatterns)
 		if isExcluded {
 			continue
 		}
@@ -156,7 +136,7 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 			return err
 		}
 
-		snapshot.Files = append(snapshot.Files, IndexedFileRecord{
+		snapshot.Files = append(snapshot.Files, model.IndexedFile{
 			Route:           entryRoute,
 			ParentPageRoute: *activeParentPageRoute,
 			FileName:        entry.Name(),
@@ -239,4 +219,28 @@ func detectMimeTypeFromFS(srcFS fs.FS, filePath string) (string, error) {
 	}
 
 	return mtype.String(), nil
+}
+
+func isSupportedIndexFile(fileName string) bool {
+	base := strings.ToLower(filepath.Base(fileName))
+	return base == "index.html" || base == "index.md"
+}
+
+// Checks if the given file matches a set of exclude regex patterns.
+// The relative path within the source dir is used as input.
+//
+// Returns true and the matching pattern if the file name matches a exclude pattern.
+func isFileExcluded(filePath string, excludePatterns []string) (bool, string) {
+	skipfiles := []string{"variables.yaml"}
+	if stdlib.InSlice(&skipfiles, filepath.Base(filePath)) {
+		return true, filepath.Base(filePath)
+	}
+	for _, pattern := range excludePatterns {
+		r := regexp.MustCompile(pattern)
+		if r.MatchString(filePath) {
+			return true, pattern
+		}
+	}
+
+	return false, ""
 }
