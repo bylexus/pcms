@@ -27,7 +27,7 @@ func TestDBHIndexLifecycle(t *testing.T) {
 		Route:        "/",
 		Title:        "root",
 		IndexFile:    "index.md",
-		MetadataJSON: `{"title":"root"}`,
+		Metadata: map[string]any{"title": "root"},
 	}); err != nil {
 		t.Fatalf("ReplacePage(root) error = %v", err)
 	}
@@ -38,7 +38,7 @@ func TestDBHIndexLifecycle(t *testing.T) {
 		ParentPageRoute: &rootRoute,
 		Title:           "blog",
 		IndexFile:       "index.html",
-		MetadataJSON:    `{"title":"blog"}`,
+		Metadata:        map[string]any{"title": "blog"},
 	}); err != nil {
 		t.Fatalf("ReplacePage(/blog) error = %v", err)
 	}
@@ -49,7 +49,6 @@ func TestDBHIndexLifecycle(t *testing.T) {
 		FileName:        "image.png",
 		MimeType:        "image/png",
 		FileSize:        42,
-		MetadataJSON:    `{}`,
 	}); err != nil {
 		t.Fatalf("ReplaceFile() error = %v", err)
 	}
@@ -102,7 +101,6 @@ func TestDBHIndexForeignKeyIntegrity(t *testing.T) {
 		FileName:        "orphan.txt",
 		MimeType:        "text/plain",
 		FileSize:        1,
-		MetadataJSON:    `{}`,
 	})
 	if err == nil {
 		t.Fatalf("ReplaceFile() expected foreign key error, got nil")
@@ -129,7 +127,7 @@ func TestDBHGetByRoute(t *testing.T) {
 		Route:        "/",
 		Title:        "root",
 		IndexFile:    "index.md",
-		MetadataJSON: `{"title":"root"}`,
+		Metadata: map[string]any{"title": "root"},
 	}); err != nil {
 		t.Fatalf("ReplacePage(root) error = %v", err)
 	}
@@ -140,7 +138,6 @@ func TestDBHGetByRoute(t *testing.T) {
 		FileName:        "robots.txt",
 		MimeType:        "text/plain",
 		FileSize:        10,
-		MetadataJSON:    `{}`,
 	}); err != nil {
 		t.Fatalf("ReplaceFile(robots) error = %v", err)
 	}

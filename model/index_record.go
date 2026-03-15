@@ -5,7 +5,7 @@ type IndexedPage struct {
 	ParentPageRoute *string
 	Title           string
 	IndexFile       string
-	MetadataJSON    string
+	Metadata        map[string]any
 }
 
 type IndexedFile struct {
@@ -14,7 +14,6 @@ type IndexedFile struct {
 	FileName        string
 	MimeType        string
 	FileSize        int64
-	MetadataJSON    string
 }
 
 type IndexSnapshot struct {

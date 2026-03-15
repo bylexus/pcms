@@ -2,6 +2,7 @@ package lib
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -151,7 +152,12 @@ func (h *DBH) ReplacePage(record model.IndexedPage) error {
 			updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
 	`
 
-	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.Title, record.IndexFile, record.MetadataJSON); err != nil {
+	metadataJSON, err := marshalMetadata(record.Metadata)
+	if err != nil {
+		return fmt.Errorf("marshal metadata for page %s: %w", record.Route, err)
+	}
+
+	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.Title, record.IndexFile, metadataJSON); err != nil {
 		return fmt.Errorf("replace page %s: %w", record.Route, err)
 	}
 
@@ -160,18 +166,17 @@ func (h *DBH) ReplacePage(record model.IndexedPage) error {
 
 func (h *DBH) ReplaceFile(record model.IndexedFile) error {
 	stmt := `
-		INSERT INTO files (route, parent_page_route, file_name, mime_type, file_size, metadata_json)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO files (route, parent_page_route, file_name, mime_type, file_size)
+		VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(route) DO UPDATE SET
 			parent_page_route = excluded.parent_page_route,
 			file_name = excluded.file_name,
 			mime_type = excluded.mime_type,
 			file_size = excluded.file_size,
-			metadata_json = excluded.metadata_json,
 			updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
 	`
 
-	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.FileName, record.MimeType, record.FileSize, record.MetadataJSON); err != nil {
+	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.FileName, record.MimeType, record.FileSize); err != nil {
 		return fmt.Errorf("replace file %s: %w", record.Route, err)
 	}
 
@@ -227,12 +232,13 @@ func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 
 	var record model.IndexedPage
 	var parentRoute sql.NullString
+	var metadataJSON string
 	err := h.queryRowIndex(stmt, route).Scan(
 		&record.Route,
 		&parentRoute,
 		&record.Title,
 		&record.IndexFile,
-		&record.MetadataJSON,
+		&metadataJSON,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -246,12 +252,17 @@ func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 		record.ParentPageRoute = &r
 	}
 
+	record.Metadata, err = unmarshalMetadata(metadataJSON)
+	if err != nil {
+		return model.IndexedPage{}, false, fmt.Errorf("unmarshal metadata for page %s: %w", route, err)
+	}
+
 	return record, true, nil
 }
 
 func (h *DBH) GetFileByRoute(route string) (model.IndexedFile, bool, error) {
 	stmt := `
-		SELECT route, parent_page_route, file_name, mime_type, file_size, metadata_json
+		SELECT route, parent_page_route, file_name, mime_type, file_size
 		FROM files
 		WHERE route = ?
 	`
@@ -263,7 +274,6 @@ func (h *DBH) GetFileByRoute(route string) (model.IndexedFile, bool, error) {
 		&record.FileName,
 		&record.MimeType,
 		&record.FileSize,
-		&record.MetadataJSON,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -293,18 +303,24 @@ func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 	for rows.Next() {
 		var record model.IndexedPage
 		var parentRoute sql.NullString
+		var metadataJSON string
 		if err := rows.Scan(
 			&record.Route,
 			&parentRoute,
 			&record.Title,
 			&record.IndexFile,
-			&record.MetadataJSON,
+			&metadataJSON,
 		); err != nil {
 			return nil, fmt.Errorf("scan child page for %s: %w", route, err)
 		}
 		if parentRoute.Valid {
 			r := parentRoute.String
 			record.ParentPageRoute = &r
+		}
+		var err error
+		record.Metadata, err = unmarshalMetadata(metadataJSON)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal metadata for child page %s: %w", record.Route, err)
 		}
 		pages = append(pages, record)
 	}
@@ -318,7 +334,7 @@ func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 
 func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
 	stmt := `
-		SELECT route, parent_page_route, file_name, mime_type, file_size, metadata_json
+		SELECT route, parent_page_route, file_name, mime_type, file_size
 		FROM files
 		WHERE parent_page_route = ?
 		ORDER BY route
@@ -339,7 +355,6 @@ func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
 			&record.FileName,
 			&record.MimeType,
 			&record.FileSize,
-			&record.MetadataJSON,
 		); err != nil {
 			return nil, fmt.Errorf("scan child file for %s: %w", route, err)
 		}
@@ -440,7 +455,6 @@ func (h *DBH) ensureFilesTable() error {
 			file_name         TEXT NOT NULL,
 			mime_type         TEXT NOT NULL DEFAULT 'application/octet-stream',
 			file_size         INTEGER NOT NULL DEFAULT 0 CHECK (file_size >= 0),
-			metadata_json     TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json)),
 			created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 			updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 		)
@@ -460,9 +474,6 @@ func (h *DBH) ensureFilesTable() error {
 		return err
 	}
 	if err := h.ensureTableColumn("files", "file_size", "INTEGER NOT NULL DEFAULT 0 CHECK (file_size >= 0)"); err != nil {
-		return err
-	}
-	if err := h.ensureTableColumn("files", "metadata_json", "TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json))"); err != nil {
 		return err
 	}
 	if err := h.ensureTableColumn("files", "created_at", "TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))"); err != nil {
@@ -587,6 +598,25 @@ func (h *DBH) queryIndex(query string, args ...any) (*sql.Rows, error) {
 	}
 
 	return h.db.Query(query, args...)
+}
+
+func marshalMetadata(m map[string]any) (string, error) {
+	if m == nil {
+		return "{}", nil
+	}
+	raw, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+func unmarshalMetadata(s string) (map[string]any, error) {
+	var m map[string]any
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func GetDBHForConfig(config model.Config) (*DBH, bool, error) {

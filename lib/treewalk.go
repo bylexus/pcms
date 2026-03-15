@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"path"
@@ -65,17 +64,12 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 		pageMetadata = metadata
 		pageTitle = title
 
-		pageMetadataJSON, err := toJSON(pageMetadata)
-		if err != nil {
-			return fmt.Errorf("marshal page metadata for %s: %w", route, err)
-		}
-
 		snapshot.Pages = append(snapshot.Pages, model.IndexedPage{
 			Route:           route,
 			ParentPageRoute: inheritedParentPageRoute,
 			Title:           pageTitle,
 			IndexFile:       indexFileName,
-			MetadataJSON:    pageMetadataJSON,
+			Metadata:        pageMetadata,
 		})
 
 		pageSource := indexFileName
@@ -142,7 +136,6 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 			FileName:        entry.Name(),
 			MimeType:        mimeType,
 			FileSize:        entryInfo.Size(),
-			MetadataJSON:    "{}",
 		})
 		fmt.Printf("type=file file=%s route=%s mime=%s\n", filePath, entryRoute, mimeType)
 	}
@@ -187,16 +180,6 @@ func defaultTitleForRoute(route string) string {
 	return base
 }
 
-func toJSON(obj interface{}) (string, error) {
-	raw, err := json.Marshal(obj)
-	if err != nil {
-		return "", err
-	}
-	if len(raw) == 0 {
-		return "{}", nil
-	}
-	return string(raw), nil
-}
 
 func detectMimeTypeFromFS(srcFS fs.FS, filePath string) (string, error) {
 	ext := filepath.Ext(filePath)
