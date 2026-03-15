@@ -162,6 +162,28 @@ func parsePageIndexFrontmatter(srcFS fs.FS, indexPath string, fallbackTitle stri
 	return metadata, title, nil
 }
 
+// ReindexSinglePage re-reads the frontmatter from the source file and returns
+// an updated IndexedPage. The caller is responsible for persisting it via ReplacePage.
+func ReindexSinglePage(srcFS fs.FS, route string, existingPage model.IndexedPage) (model.IndexedPage, error) {
+	indexPath := existingPage.IndexFile
+	if route != "/" {
+		indexPath = path.Join(strings.TrimPrefix(route, "/"), existingPage.IndexFile)
+	}
+
+	metadata, title, err := parsePageIndexFrontmatter(srcFS, indexPath, defaultTitleForRoute(route))
+	if err != nil {
+		return model.IndexedPage{}, err
+	}
+
+	return model.IndexedPage{
+		Route:           route,
+		ParentPageRoute: existingPage.ParentPageRoute,
+		Title:           title,
+		IndexFile:       existingPage.IndexFile,
+		Metadata:        metadata,
+	}, nil
+}
+
 func joinRoute(parentRoute string, name string) string {
 	if parentRoute == "/" {
 		return path.Clean("/" + name)

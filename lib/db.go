@@ -225,7 +225,7 @@ func (h *DBH) CountFiles() (int, error) {
 
 func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 	stmt := `
-		SELECT route, parent_page_route, title, index_file, metadata_json
+		SELECT route, parent_page_route, title, index_file, metadata_json, updated_at
 		FROM pages
 		WHERE route = ?
 	`
@@ -233,12 +233,14 @@ func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 	var record model.IndexedPage
 	var parentRoute sql.NullString
 	var metadataJSON string
+	var updatedAtStr string
 	err := h.queryRowIndex(stmt, route).Scan(
 		&record.Route,
 		&parentRoute,
 		&record.Title,
 		&record.IndexFile,
 		&metadataJSON,
+		&updatedAtStr,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -255,6 +257,11 @@ func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 	record.Metadata, err = unmarshalMetadata(metadataJSON)
 	if err != nil {
 		return model.IndexedPage{}, false, fmt.Errorf("unmarshal metadata for page %s: %w", route, err)
+	}
+
+	record.UpdatedAt, err = time.Parse(time.RFC3339Nano, updatedAtStr)
+	if err != nil {
+		return model.IndexedPage{}, false, fmt.Errorf("parse updated_at for page %s: %w", route, err)
 	}
 
 	return record, true, nil

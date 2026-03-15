@@ -1,11 +1,14 @@
 package model
 
+import "time"
+
 type IndexedPage struct {
 	Route           string
 	ParentPageRoute *string
 	Title           string
 	IndexFile       string
 	Metadata        map[string]any
+	UpdatedAt       time.Time
 }
 
 type IndexedFile struct {

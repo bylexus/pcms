@@ -112,12 +112,6 @@ func routeToFSPath(route string) string {
 }
 
 func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, route string, page model.IndexedPage) {
-	fileInfo, err := processor.BuildPageTemplateVariables(route, page.IndexFile, h.ServerConfig, page)
-	if err != nil {
-		h.errorHandler(w, err, http.StatusInternalServerError)
-		return
-	}
-
 	sourceFSPath := path.Clean(path.Join(strings.TrimPrefix(route, "/"), page.IndexFile))
 	if route == "/" {
 		sourceFSPath = page.IndexFile
@@ -131,6 +125,25 @@ func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, rou
 	if err != nil {
 		h.errorHandler(w, err, http.StatusInternalServerError)
 		return
+	}
+
+	// Re-index page if source file is newer than the DB record:
+	page, reindexed, err := h.reindexPageIfStale(route, page, sourceStat.ModTime())
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	// Build template variables with current (possibly refreshed) page data:
+	fileInfo, err := processor.BuildPageTemplateVariables(route, page.IndexFile, h.ServerConfig, page)
+	if err != nil {
+		h.errorHandler(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	// If re-indexed, invalidate the cache so it gets rebuilt with fresh metadata:
+	if reindexed {
+		os.Remove(fileInfo.AbsDestPath)
 	}
 
 	isValid, err := isPageCacheValid(fileInfo.AbsDestPath, sourceStat.ModTime())
@@ -152,6 +165,30 @@ func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, rou
 	}
 
 	http.ServeFile(w, req, fileInfo.AbsDestPath)
+}
+
+// reindexPageIfStale checks if the source file is newer than the DB record's updated_at.
+// If so, it re-reads the frontmatter, persists the updated page, and returns it.
+func (h *RequestHandler) reindexPageIfStale(route string, page model.IndexedPage, sourceModTime time.Time) (model.IndexedPage, bool, error) {
+	if !sourceModTime.After(page.UpdatedAt) {
+		return page, false, nil
+	}
+
+	// Source is newer than DB record: re-index the page
+	updatedPage, err := lib.ReindexSinglePage(h.siteFS, route, page)
+	if err != nil {
+		return page, false, fmt.Errorf("re-index page %s: %w", route, err)
+	}
+
+	if err := h.DBH.ReplacePage(updatedPage); err != nil {
+		return page, false, fmt.Errorf("persist re-indexed page %s: %w", route, err)
+	}
+
+	if h.ErrorLogger != nil {
+		h.ErrorLogger.Info("re-indexed stale page: %s (index file: %s)", route, page.IndexFile)
+	}
+
+	return updatedPage, true, nil
 }
 
 func (h *RequestHandler) renderPage(indexFile string, sourceFSPath string, fileInfo processor.PageInfo) ([]byte, error) {

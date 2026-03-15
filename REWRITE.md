@@ -313,3 +313,6 @@ If a page/front matter does not define `enabled`, it must default to active (`tr
 - migrate `site-template/site/variables-page/` to show available template vars and functions instead of the removed variables.yaml feature
 - migrate templates (`doc/templates/base.html`, `site-template/templates/base.html`) from `variables.xxx` to `page.Metadata.xxx` / `page.Title`
 - remove `variables` config key from `pcms-config.yaml` once doc/template migration is complete
+- use in-memory index+db for internal doc
+- ~~re-index single route when page newer index entry~~ [DONE]
+- pcms config in template context, too. It also should contain all non-defined props in the yaml, too

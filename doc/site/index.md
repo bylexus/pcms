@@ -8,6 +8,19 @@ metaTags:
     content: "pcms,cms"
   - name: "description"
     content": "Documentation for the pcms system, the programmer's cms"
+toc:
+  - title: Features
+    relDestDir: features
+  - title: "Requirements"
+    relDestDir: requirements
+  - title: "Quickstart"
+    relDestDir: quickstart
+  - title: Architecture
+    relDestDir: architecture
+  - title: "Install / setup"
+    relDestDir: install_setup
+  - title: "Reference"
+    relDestDir: reference
 ---
 # Welcome to pcms <small>the Programmer's Content management System</small>
 
@@ -46,12 +59,15 @@ If you can answer "Yes, piece of cake!" to those question, then **pcms** is for 
 
 I am a programmer and I love fiddling with languages, tools, the web and stuff.
 My own goal is to create as much as possible by myself. So this is first of all
-an approach to build my own web engine. Because I am currently learning GO,
+an approach to build my own web engine. Because I find GO a very approachable language,
 pcms is also written in GO (while it was written in NodeJS/JavaScript before ALREADY).
 
 ## Table of contents
 
 * <a href="{{webroot("/")}}">[home]</a>
-{% for child in variables.toc %}* <a href="{{webroot(child.relDestDir)}}/">{{child.title}}
+{% for child in page.Metadata.toc %}* <a href="{{webroot(child.relDestDir)}}/">{{child.title}}
 {% endfor %}
 
+<pre>
+{{page.Metadata | stringformat:"%#v"}}
+</pre>
