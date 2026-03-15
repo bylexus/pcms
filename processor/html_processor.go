@@ -3,9 +3,6 @@ package processor
 import (
 	"fmt"
 	"io/fs"
-	"os"
-	"path"
-	"path/filepath"
 
 	"alexi.ch/pcms/model"
 	"alexi.ch/pcms/stdlib"
@@ -19,7 +16,7 @@ The input HTML is processed as pongo2 template.
 It also supports a YAML front matter:
 
 	---
-	# yaml frontmatter: can contain arbitary data, available in the `variables` pongo template variable:
+	# yaml frontmatter: can contain arbitary data, available via the page.Metadata template object:
 	title: My Site
 	mainClass: my-site
 	---
@@ -27,40 +24,6 @@ It also supports a YAML front matter:
 	<p>some html</p>
 */
 type HtmlProcessor struct {
-}
-
-func (p HtmlProcessor) Name() string {
-	return "html"
-}
-
-func (p HtmlProcessor) ProcessFile(sourceFile string, config model.Config) (destFile string, err error) {
-	filePaths, err := p.prepareFilePaths(sourceFile, config)
-	if err != nil {
-		return "", err
-	}
-
-	// read input file
-	sourceBytes, err := os.ReadFile(sourceFile)
-	if err != nil {
-		return "", err
-	}
-	rendered, err := p.render(sourceFile, string(sourceBytes), config, filePaths)
-	if err != nil {
-		return "", err
-	}
-
-	outWriter, err := os.Create(filePaths.AbsDestPath)
-	if err != nil {
-		return "", err
-	}
-	defer outWriter.Close()
-
-	_, err = outWriter.Write(rendered)
-	if err != nil {
-		return "", err
-	}
-
-	return filePaths.AbsDestPath, nil
 }
 
 func (p HtmlProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, pageInfo PageInfo) ([]byte, error) {
@@ -73,8 +36,8 @@ func (p HtmlProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sou
 }
 
 func (p HtmlProcessor) render(sourceFile string, sourceString string, config model.Config, pageInfo PageInfo) ([]byte, error) {
-	// Extract yaml frontmatter:
-	yamlFrontMatter, sourceString, err := stdlib.ExtractYamlFrontMatter(sourceString)
+	// Extract yaml frontmatter (strip it from source):
+	_, sourceString, err := stdlib.ExtractYamlFrontMatter(sourceString)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +48,7 @@ func (p HtmlProcessor) render(sourceFile string, sourceString string, config mod
 		return nil, err
 	}
 
-	context, err := prepareTemplateContext(sourceFile, config, pageInfo, yamlFrontMatter)
+	context, err := prepareTemplateContext(config, pageInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -98,65 +61,3 @@ func (p HtmlProcessor) render(sourceFile string, sourceString string, config mod
 	return []byte(out), nil
 }
 
-func (p HtmlProcessor) prepareFilePaths(sourceFile string, config model.Config) (PageInfo, error) {
-	var err error = nil
-	result := PageInfo{}
-	result.RootSourceDir = config.SourcePath
-	result.RootDestDir = config.SourcePath
-	result.Webroot = config.Server.Prefix
-	result.AbsSourcePath = sourceFile
-	result.AbsSourceDir = filepath.Dir(result.AbsSourcePath)
-
-	result.RelSourcePath, err = filepath.Rel(config.SourcePath, sourceFile)
-	if err != nil {
-		return result, err
-	}
-
-	result.RelSourceDir, err = filepath.Rel(config.SourcePath, filepath.Dir(sourceFile))
-	if err != nil {
-		return result, err
-	}
-	if result.RelSourceDir == "" {
-		result.RelSourceDir = "."
-	}
-	result.RelSourceRoot, err = filepath.Rel(result.AbsSourceDir, config.SourcePath)
-	if err != nil {
-		return result, err
-	}
-
-	// calc destination paths and create dest directory
-	result.AbsDestPath = filepath.Join(config.SourcePath, result.RelSourcePath)
-	result.AbsDestDir = filepath.Dir(result.AbsDestPath)
-	err = os.MkdirAll(result.AbsDestDir, fs.ModeDir|0777)
-	if err != nil {
-		return result, err
-	}
-
-	result.RelDestPath, err = filepath.Rel(config.SourcePath, result.AbsDestPath)
-	if err != nil {
-		return result, err
-	}
-	result.RelWebPath = filepath.ToSlash(result.RelDestPath)
-	result.AbsWebPath = path.Join("/", config.Server.Prefix, result.RelDestPath)
-
-	result.RelDestDir, err = filepath.Rel(config.SourcePath, result.AbsDestDir)
-	if err != nil {
-		return result, err
-	}
-	if result.RelDestDir == "" {
-		result.RelDestDir = "."
-	}
-	result.RelDestRoot, err = filepath.Rel(result.AbsDestDir, config.SourcePath)
-	if err != nil {
-		return result, err
-	}
-	if result.RelDestRoot == "" {
-		result.RelDestRoot = "."
-	}
-
-	result.RelWebDir = filepath.ToSlash(result.RelDestDir)
-	result.AbsWebDir = path.Join("/", config.Server.Prefix, result.RelWebDir)
-	result.RelWebPathToRoot = filepath.ToSlash(result.RelDestRoot)
-
-	return result, nil
-}

@@ -79,10 +79,9 @@ After initializing a skeleton app with `pcms init`, you get the following file s
 │   ├── markdown-page
 │   │   ├── index.md
 │   │   └── sunset.webp
-│   ├── static
-│   │   └── css
-│   │       └── main.css
-│   └── variables.yaml
+│   └── static
+│       └── css
+│           └── main.css
 └── templates               # pongo2 templates for your html / markdown content
     ├── base.html
     ├── error.html
@@ -131,7 +130,7 @@ Use an icon: <i class="{{variales.iconCls}}"></i>
 ```
 
 The YAML front matter is the start part beteween the `---` separators, and (may) contain valid YAML content.
-This content then will become availabe in your `pongo2` templates in the `variables` map.
+This content then will become available in your `pongo2` templates via the `page.Metadata` object.
 For Markdown files, the only needed entry is `template: `, which defines the HTML template to be used from the `templates/` folder
 to generate the final HTML.
 

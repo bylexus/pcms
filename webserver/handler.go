@@ -155,14 +155,11 @@ func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, rou
 }
 
 func (h *RequestHandler) renderPage(indexFile string, sourceFSPath string, fileInfo processor.PageInfo) ([]byte, error) {
-	switch strings.ToLower(path.Ext(indexFile)) {
-	case ".html":
-		return (processor.HtmlProcessor{}).RenderFileForServe(h.siteFS, sourceFSPath, fileInfo.AbsSourcePath, h.ServerConfig, fileInfo)
-	case ".md":
-		return (processor.MdProcessor{}).RenderFileForServe(h.siteFS, sourceFSPath, fileInfo.AbsSourcePath, h.ServerConfig, fileInfo)
-	default:
-		return nil, fmt.Errorf("unsupported page index file type: %s", indexFile)
+	renderer, err := processor.GetProcessor(indexFile)
+	if err != nil {
+		return nil, err
 	}
+	return renderer.RenderFileForServe(h.siteFS, sourceFSPath, fileInfo.AbsSourcePath, h.ServerConfig, fileInfo)
 }
 
 func (h *RequestHandler) serveFile(w http.ResponseWriter, req *http.Request, file model.IndexedFile) {

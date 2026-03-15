@@ -2,23 +2,21 @@ package processor
 
 import (
 	"fmt"
-	"os"
+	"io/fs"
 	"path"
 	"path/filepath"
 	"strings"
 
 	"alexi.ch/pcms/lib"
 	"alexi.ch/pcms/model"
-	"alexi.ch/pcms/stdlib"
 	"github.com/flosch/pongo2/v4"
 	"gopkg.in/yaml.v3"
 )
 
+// Processor is the interface for processors that can render a page's index file.
 type Processor interface {
-	Name() string
-	ProcessFile(sourceFile string, config model.Config) (destFile string, err error)
+	RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, filePaths PageInfo) ([]byte, error)
 }
-
 type PageInfo struct {
 	// the actual page record from the index
 	ActPage model.IndexedPage `yaml:"-"`
@@ -76,18 +74,6 @@ func (p PageInfo) GetStdObject() (map[string]interface{}, error) {
 		return nil, err
 	}
 	return obj, err
-}
-
-func GetProcessor(sourceFile string, config model.Config) Processor {
-	fileExt := filepath.Ext(sourceFile)
-	switch strings.ToLower(fileExt) {
-	case ".html":
-		return HtmlProcessor{}
-	case ".md":
-		return MdProcessor{}
-	default:
-		return RawProcessor{}
-	}
 }
 
 func BuildPageTemplateVariables(route string, indexFile string, config model.Config, page model.IndexedPage) (PageInfo, error) {
@@ -161,27 +147,24 @@ func BuildPageTemplateVariables(route string, indexFile string, config model.Con
 	return result, nil
 }
 
-// Takes multiple string maps, and merges them.
-// later map entries override previous ones.
-func mergeStringMaps(maps ...map[string]interface{}) map[string]interface{} {
-	resultMap := make(map[string]interface{})
-	for _, m := range maps {
-		for k, v := range m {
-			resultMap[k] = v
-		}
+// GetProcessor returns the appropriate PageRenderer for the given index file,
+// based on its file extension.
+func GetProcessor(indexFile string) (Processor, error) {
+	switch strings.ToLower(path.Ext(indexFile)) {
+	case ".html":
+		return HtmlProcessor{}, nil
+	case ".md":
+		return MdProcessor{}, nil
+	default:
+		return nil, fmt.Errorf("unsupported page index file type: %s", indexFile)
 	}
-	return resultMap
 }
 
 func AbsUrl(relPath string, Webroot string) string {
 	return path.Clean(path.Join("/", Webroot, relPath))
 }
 
-func prepareTemplateContext(sourceFile string, config model.Config, fileInfo PageInfo, yamlFrontMatter stdlib.YamlFrontMatter) (pongo2.Context, error) {
-
-	// combined variables object:
-	variables := collectPageVariables(sourceFile, config, yamlFrontMatter)
-
+func prepareTemplateContext(config model.Config, fileInfo PageInfo) (pongo2.Context, error) {
 	// convert paths object to an anonymous, lower-cased map:
 	pathObj, err := fileInfo.GetStdObject()
 	if err != nil {
@@ -207,8 +190,6 @@ func prepareTemplateContext(sourceFile string, config model.Config, fileInfo Pag
 		"childPages": childPages,
 		"childFiles": childFiles,
 
-		// contains the combined variables
-		"variables": variables,
 		// several file path variants for the actual file:
 		"paths": pathObj,
 		// creates an absolute, webroot-based url from a relative url
@@ -221,51 +202,4 @@ func prepareTemplateContext(sourceFile string, config model.Config, fileInfo Pag
 		"endsWith": strings.HasSuffix,
 	}
 	return context, nil
-}
-
-func collectPageVariables(sourceFile string, config model.Config, yamlFrontMatter stdlib.YamlFrontMatter) stdlib.YamlFrontMatter {
-	// The variables content is prepared in the follwing priority (higher prio overrides lower prio).
-	// 4. frontmatter content
-	// 3. variables.yaml file in the actual source file's directory
-	// 2. variables.yaml files further up the directory tree, until the root source dir is reached
-	// 1. global variables from pcms-config.yaml
-	variables := make(stdlib.YamlFrontMatter)
-
-	// merge pcms-config variables:
-	variables = mergeStringMaps(variables, config.Variables)
-
-	// find and combine all variables.yaml files in the hierarchy:
-	variableFiles := make([]string, 0)
-	for actPath := filepath.Dir(sourceFile); strings.HasPrefix(actPath, config.SourcePath); actPath = filepath.Dir(actPath) {
-		yamlFile := filepath.Join(actPath, "variables.yaml")
-		fileInfo, err := os.Stat(yamlFile)
-		if err != nil {
-			continue
-		}
-		if !fileInfo.IsDir() {
-			variableFiles = append(variableFiles, yamlFile)
-		}
-	}
-	// process the collected variables.yaml file backward (top file first):
-	for i := len(variableFiles) - 1; i >= 0; i-- {
-		yamlFile := variableFiles[i]
-		fileContent, err := os.ReadFile(yamlFile)
-		if err != nil {
-			continue
-		}
-
-		// parse yaml file
-		variablesObj := make(stdlib.YamlFrontMatter)
-		err = yaml.Unmarshal(fileContent, &variablesObj)
-		if err != nil {
-			fmt.Printf("ERROR while reading yaml from %s: %s\n", yamlFile, err)
-			continue
-		}
-		variables = mergeStringMaps(variables, variablesObj)
-	}
-
-	// merge frontmatter variables:
-	variables = mergeStringMaps(variables, yamlFrontMatter)
-
-	return variables
 }

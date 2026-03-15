@@ -277,8 +277,39 @@ For DB-matched files:
    - Handler tests: partial (route normalization only, missing cache/render/404 tests)
    - Integration test (full serve path): TODO
 
+
+## Remove variables.yaml [DONE]
+
+The `variables.yaml` file support has been removed:
+- Removed `collectPageVariables()`, `mergeStringMaps()` from `processor/processor.go`
+- Removed `variables` template context variable (use `page.Metadata` instead)
+- Removed `variables.yaml` skip from `lib/treewalk.go` indexing exclusion
+- Removed `variables.yaml` files from `site-template/`
+- Updated documentation (reference, architecture, quickstart)
+
+## add enabled flag
+
+Each page should be able to define an `enabled` property in its YAML front matter. This boolean property defines whether the page is active.
+
+If a page is not active, it must not be served on requests and should return `404`.
+
+When loading a page object from the database, the `enabled` property must be resolved recursively through its parent pages, with override logic applied. If any parent page is already disabled, child pages must also be treated as disabled and must not be served.
+
+The `enabled` property must also be stored as a separate database column. During indexing, read it from front matter (analogous to `title`) and persist it in the `pages` table.
+
+Implement the required code changes and database/schema updates so this new flag is fully supported. The flag must be included when creating/populating the index database.
+
+If a page/front matter does not define `enabled`, it must default to active (`true`).
+
+## create page query builder
+
+
 ## TODO
 
 - de/serialize the page metadata json when loading from the  db
 - Remove the Metadata column from the File objects
 - remove unused template vars, as it can be fetched from the Page object
+- add demo page with all available template objects and functions
+- migrate `site-template/site/variables-page/` to show available template vars and functions instead of the removed variables.yaml feature
+- migrate templates (`doc/templates/base.html`, `site-template/templates/base.html`) from `variables.xxx` to `page.Metadata.xxx` / `page.Title`
+- remove `variables` config key from `pcms-config.yaml` once doc/template migration is complete

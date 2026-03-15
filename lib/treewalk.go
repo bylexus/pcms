@@ -214,10 +214,6 @@ func isSupportedIndexFile(fileName string) bool {
 //
 // Returns true and the matching pattern if the file name matches a exclude pattern.
 func isFileExcluded(filePath string, excludePatterns []string) (bool, string) {
-	skipfiles := []string{"variables.yaml"}
-	if stdlib.InSlice(&skipfiles, filepath.Base(filePath)) {
-		return true, filepath.Base(filePath)
-	}
 	for _, pattern := range excludePatterns {
 		r := regexp.MustCompile(pattern)
 		if r.MatchString(filePath) {

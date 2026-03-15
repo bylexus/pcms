@@ -18,7 +18,6 @@ metaTags:
   - [using Markdown files with templates](#using-markdown-files-with-templates)
   - [available template variables](#available-template-variables)
   - [YAML front matter variables](#yaml-front-matter-variables)
-  - [hierarchical template variables with variables.yaml files](#hierarchical-template-variables-with-variablesyaml-files)
 - [pcms cli reference](#pcms-cli-reference)
 
 
@@ -44,7 +43,6 @@ root folder
 ├── pcms-config.yaml          # The config file for the site
 ├── site/                     # The site dir contains the page content, and listens to the "/" route
 │   ├── index.html            # additional page content / templates
-│   ├── variables.yaml        # A YAML file containing variables. Inherited to all (sub-)pages
 │   └── ... more files/folder # add your source files/folders as needed
 └── templates                 # pongo2 templates for your html / markdown content
     ├── base.html             # a pongo2 template, e.g. a base html template
@@ -88,7 +86,7 @@ source: "site"
 # Note that this dir will be COMPLETELY EMPTIED on build.
 # Relative to the config file dir:
 dest: "build"
-# Global variables for the pongo2 templates, available as "variables" pongo2 template variable as a map:
+# Global variables for the pongo2 templates (kept for migration, will be removed in the future):
 variables:
   siteTitle: My Site Title
   siteMetaTags:
@@ -134,8 +132,8 @@ then inherit from this base template in your site folder:
 <!doctype html>
 <html lang="en">
     <head>
-        <title>{%if variables.title %}{{variables.title}}{% endif%}</title>
-        {% for meta in variables.metaTags %}
+        <title>{%if page.Title %}{{page.Title}}{% endif%}</title>
+        {% for meta in page.Metadata.metaTags %}
         <meta name="{{meta.name}}" content="{{meta.content}}" />
         {% endfor %}
     </head>
@@ -180,7 +178,7 @@ This **Markdown** partial file has the relative path: {% verbatim %}{{paths.relW
 <!doctype html>
 <html lang="en">
     <head>
-        <title>{%if variables.title %}{{variables.title}}{% endif%}</title>
+        <title>{%if page.Title %}{{page.Title}}{% endif%}</title>
     </head>
     <body>
         <main id="content">
@@ -194,9 +192,9 @@ This **Markdown** partial file has the relative path: {% verbatim %}{{paths.relW
 
 pcms defines the following variables which you can use in your templates:
 
-* `variables`: This is a map of the combined variables from `pcms-config.yaml::variables`, `variables.yaml` files and the actual file's YAML Front matter.<br>
+* `page`: The page object from the index database. Contains the page's metadata (from YAML front matter) as `page.Metadata`.<br>
   Example usage in a template:<br>
-  {% verbatim %}`Title: {{ variables.title|default:"My Site" }}`{% endverbatim %}
+  {% verbatim %}`Title: {{ page.Title|default:"My Site" }}`{% endverbatim %}
 * `paths`: a map of several path strings for the actual file:
   * `paths.rootSourceDir`: The full file path to the used `site` folder
   * `paths.absSourcePath`: The full file path to the actual source file
@@ -238,7 +236,7 @@ Example: You want to output a page-specific title tag, which is defined in the b
 <html lang="en">
     <head>
       <!-- Output page-specific title: -->
-        <title>{{ variables.title|default:"My Page" }}</title>
+        <title>{{ page.Title|default:"My Page" }}</title>
     </head>
     <body>
         <main id="content">
@@ -277,62 +275,6 @@ This generates the following output page:
         </main>
     </body>
 </html>{% endverbatim %}
-```
-
-### hierarchical template variables with variables.yaml files 
-
-You can also define template variables outside the YAML front matter, in `variables.yaml` files. `variables.yaml` files must contain a variables map,
-and will be processed in the hierarchy of the actual file up to the site root folder.
-
-An example:
-
-Your site folder contains the following files:
-
-```text
-└── site/
-    ├── index.html
-    ├── variables.yaml
-    └── subpage/
-        ├── index.md
-        └── variables.yaml
-```
-
-Say we process the file `site/subpage/index.md`, which has the following content:
-
-```text
----
-var3: "Ice man"
-var4: "Bruce Wayne"
----
-Some page content
-```
-
-The file `site/variables.yaml` contains site-wide variables:
-
-```yaml
-title: "Site title"
-var1: "Top"
-var2: "Batman"
-```
-
-The file `site/subpage/variables.yaml` contains the following variables:
-
-
-```yaml
-title: "Subpage"
-var1: "subfolder"
-var3: "Robin"
-```
-
-If the processor processes the file `site/subpage/index.md`, the `variables` template variable contain the merged variables from all files AND the front matter (deeper variables override top ones):
-
-```text
-variables:
-  title: Subpage
-  var1: subfolder
-  var2: Batman
-  var3: Ice man
-  var4: Bruce Wayne
 ```
 
 ## pcms cli reference

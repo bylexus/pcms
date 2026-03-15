@@ -3,10 +3,6 @@ package processor
 import (
 	"fmt"
 	"io/fs"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
 
 	"alexi.ch/pcms/model"
 	"alexi.ch/pcms/stdlib"
@@ -26,7 +22,7 @@ The MdProcessor processes Markdown (.md) files to HTML.
 Example:
 
 	---
-	# yaml frontmatter: can contain arbitary data, available in the `variables` pongo template variable:
+	# yaml frontmatter: can contain arbitary data, available via the page.Metadata template object:
 	title: My Site
 	mainClass: my-site
 	# define template to inject markdown as `content` variable:
@@ -37,40 +33,6 @@ Example:
 	hello, Markdown!
 */
 type MdProcessor struct {
-}
-
-func (p MdProcessor) Name() string {
-	return "markdown"
-}
-
-func (p MdProcessor) ProcessFile(sourceFile string, config model.Config) (destFile string, err error) {
-	filePaths, err := p.prepareFilePaths(sourceFile, config)
-	if err != nil {
-		return "", err
-	}
-
-	// read input file
-	sourceBytes, err := os.ReadFile(sourceFile)
-	if err != nil {
-		return "", err
-	}
-	rendered, err := p.render(sourceFile, string(sourceBytes), config, filePaths)
-	if err != nil {
-		return "", err
-	}
-
-	outWriter, err := os.Create(filePaths.AbsDestPath)
-	if err != nil {
-		return "", err
-	}
-	defer outWriter.Close()
-
-	_, err = outWriter.Write(rendered)
-	if err != nil {
-		return "", err
-	}
-
-	return filePaths.AbsDestPath, nil
 }
 
 func (p MdProcessor) RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, filePaths PageInfo) ([]byte, error) {
@@ -89,7 +51,7 @@ func (p MdProcessor) render(sourceFile string, sourceString string, config model
 		return nil, err
 	}
 
-	context, err := prepareTemplateContext(sourceFile, config, filePaths, yamlFrontMatter)
+	context, err := prepareTemplateContext(config, filePaths)
 	if err != nil {
 		return nil, err
 	}
@@ -138,71 +100,3 @@ func (p MdProcessor) render(sourceFile string, sourceString string, config model
 	return []byte(out), nil
 }
 
-func (p MdProcessor) prepareFilePaths(sourceFile string, config model.Config) (PageInfo, error) {
-	var err error = nil
-	result := PageInfo{}
-	result.RootSourceDir = config.SourcePath
-	result.RootDestDir = config.SourcePath
-	result.Webroot = config.Server.Prefix
-	result.AbsSourcePath = sourceFile
-	result.AbsSourceDir = filepath.Dir(result.AbsSourcePath)
-
-	// path to the input source file, relative to the base source dir:
-	result.RelSourcePath, err = filepath.Rel(config.SourcePath, sourceFile)
-	if err != nil {
-		return result, err
-	}
-
-	// path to the input source file's directory, relative to the base source dir:
-	result.RelSourceDir, err = filepath.Rel(config.SourcePath, filepath.Dir(sourceFile))
-	if err != nil {
-		return result, err
-	}
-	result.RelSourceRoot, err = filepath.Rel(result.AbsSourceDir, config.SourcePath)
-	if err != nil {
-		return result, err
-	}
-
-	// calc outfile path and create dest directory
-	outFile := filepath.Join(config.SourcePath, result.RelSourcePath)
-	outBase := strings.Replace(filepath.Base(outFile), ".md", ".html", 1)
-	// full output file path's dir:
-	result.AbsDestDir = filepath.Dir(outFile)
-	// full output file path:
-	result.AbsDestPath = filepath.Join(result.AbsDestDir, outBase)
-	err = os.MkdirAll(result.AbsDestDir, fs.ModeDir|0777)
-	if err != nil {
-		return result, err
-	}
-
-	// path to the output destionation file, relative to the base destination dir:
-	result.RelDestPath, err = filepath.Rel(config.SourcePath, result.AbsDestPath)
-	if err != nil {
-		return result, err
-	}
-
-	// path to the output destionation file's directory, relative to the base destination dir:
-	result.RelDestDir, err = filepath.Rel(config.SourcePath, result.AbsDestDir)
-	if err != nil {
-		return result, err
-	}
-	if result.RelDestDir == "" {
-		result.RelDestDir = "."
-	}
-	result.RelWebPath = filepath.ToSlash(result.RelDestPath)
-	result.AbsWebPath = path.Join("/", config.Server.Prefix, result.RelDestPath)
-
-	// relative path to the destination root folder:
-	result.RelDestRoot, err = filepath.Rel(result.AbsDestDir, config.SourcePath)
-	if err != nil {
-		return result, err
-	}
-	if result.RelDestRoot == "" {
-		result.RelDestRoot = "."
-	}
-
-	result.RelWebDir = filepath.ToSlash(result.RelDestDir)
-	result.AbsWebDir = path.Join("/", config.Server.Prefix, result.RelWebDir)
-	result.RelWebPathToRoot = filepath.ToSlash(result.RelDestRoot)
-	return result, nil
-}

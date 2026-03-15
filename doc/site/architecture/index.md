@@ -31,14 +31,12 @@ A typical `pcms` site may look as follows:
 ├── site/                     # The site dir contains the page content, and listens to the "/" route
 │   ├── index.html            # additional page content / templates
 │   ├── styles.scss           # an scss file which may be transpiled to css using dart-css
-│   ├── variables.yaml        # A YAML file containing variables. Inherited to all (sub-)pages
 │   ├── favicon.png
 │   ├── html-page             # another page, here route /html-page
 │   │   ├── index.html        # a html content file
 │   │   └── sunset.webp       # some static content
 │   └── markdown-page         # another page, here a Markdown page for the route /markdown-page
 │       ├── index.md          # a Markdown content file
-│       ├── variables.yaml    # A local YAML file containing variables. Overrides upper variables
 │       ├── favicon.png
 │       └── sunset.webp
 └── templates               # pongo2 templates for your html / markdown content
@@ -65,22 +63,17 @@ is examined, processed and written to the output (`build/`) folder.
 The system supports different processors, determined by the source file's file ending:
 
 * `*.html` files are processed by the `html_processor`:
-  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter is available as `variables` map in the
-    `pongo2` template
-  * The HTML file is processed as `pongo2` template, having access to the variables defined in the frontmatter or in `variables` files.
+  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter metadata is available via the `page.Metadata` template object.
+  * The HTML file is processed as `pongo2` template.
   * Finally, the processd file is written to the output folder to the same relative path.
 * `*.md` files are processed by the `md_processor`:
-  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter is available as `variables` map in the
-    `pongo2` template
-  * The Markdown file is processed as `pongo2` template, having access to the variables defined in the frontmatter or in `variables` files.
+  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter metadata is available via the `page.Metadata` template object.
+  * The Markdown file is processed as `pongo2` template.
   * The Markdown file is converted to HTML.
   * Optionally, the converted HTML can be embedded into a template, defined in the `template` YAML frontmatter variable.
   * Finally, the processd file is written to the output folder to the same relative path, but with a `.html` ending.
 * `*.scss` files are processed by the `dart-sass` compiler, which must be present as an external binary, and
   written as `.css` file to the output folder.
-* `variables.yaml` files are read and merged into the `variables` map, which is available in the templates.
-  Deeper `variables.yaml` file entries override values in higher files, and are merged within the hierarchy.
-  `variables.yaml` files are not written to the output folder. 
 * All other files are treatened as raw files and copied 1:1 to the output folder.
 
 
@@ -104,10 +97,8 @@ title: 'Hello'
 <p>This file is processed using the 'base-template.html' template file</p>{% endverbatim %}
 ```
 
-1. All variables from `variables.yaml` files in the hierarchy from this file's folder up to the root folder are
-   merged into the `variables` map.
-2. The YAML Frontmatter is extracted from the HTML file, and merged with the `variables` map
-3. The complete HTML then is processed using the `pongo2` engine, and written as final HTML to the output folder.
+1. The YAML Frontmatter is extracted from the HTML file. Metadata is available via the `page.Metadata` template object.
+2. The complete HTML then is processed using the `pongo2` engine, and written as final HTML to the output folder.
 
 
 ### Markdown processor
@@ -130,10 +121,8 @@ title: 'Hello'
 This **Markdown** file is processed using the 'base-template.html' template file
 ```
 
-1. All variables from `variables.yaml` files in the hierarchy from this file's folder up to the root folder are
-   merged into the `variables` map.
-2. The YAML Frontmatter is extracted from the Markdown file, and merged with the `variables` map
-3. The `template` variable defines the used pongo2 template file: The (processed) contents of this file is available as `content` variable.
+1. The YAML Frontmatter is extracted from the Markdown file. Metadata is available via the `page.Metadata` template object.
+2. The `template` variable defines the used pongo2 template file: The (processed) contents of this file is available as `content` variable.
    For example, the `base-template` file may look as follows:
 
 ```html
@@ -141,7 +130,7 @@ This **Markdown** file is processed using the 'base-template.html' template file
 <!doctype html>
 <html lang="en">
     <head>
-        <title>{{variables.title}}</title>
+        <title>{{page.Title}}</title>
     </head>
     <body>
       <div id="page_content">
