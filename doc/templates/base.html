@@ -18,7 +18,7 @@
     </head>
     <body>
         <header>
-            <div class="title"><a href="{{Webroot("/")}}/"><i class="fas fa-pencil-ruler"></i> pcms documentation</a></div>
+            <div class="title"><a href="{{Webroot("/")}}"><i class="fas fa-pencil-ruler"></i> pcms documentation</a></div>
             <div class="github"><a href="https://github.com/bylexus/pcms"><i class="fab fa-github"></i> checkout the source</a></div>
         </header>
         <div id="content" class={{Config.Variables.mainClass}}>
@@ -26,10 +26,10 @@
                 <div class="col-3 toc">
                     <h2>Table of contents</h2>
                     <ul>
-                    <li class="{% if Paths.RelDestDir== "." %}active{% endif %}"><a href="{{Webroot("/")}}">[home]</a></li>
+                    <li class="{% if Paths.RelWebDir== "." %}active{% endif %}"><a href="{{Webroot("/")}}">[home]</a></li>
                     {% for child in Config.Variables.toc %}
-                    <li class="{% if child.relDestDir == Paths.RelDestDir %}active{% endif %}">
-                        <a href="{{Webroot(child.relDestDir)}}/">{{child.title}}</a></li>
+                    <li class="{% if child.route == Paths.RelWebDir %}active{% endif %}">
+                        <a href="{{Webroot(child.route)}}/">{{child.title}}</a></li>
                     {% endfor %}
                     </ul>
                 </div>

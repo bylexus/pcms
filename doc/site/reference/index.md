@@ -206,12 +206,6 @@ pcms defines the following variables which you can use in your templates:
   * `Paths.RelSourcePath`: The relative file path of the actual file to the root source dir.
   * `Paths.RelSourceDir`: The relative file path of the actual file's directory to the root source dir.
   * `Paths.RelSourceRoot`: The relative file path of the actual file back to the `RootSourceDir` (e.g. `../../..`)
-  * `Paths.RootDestDir`: The full file path to the used `build` (output) folder
-  * `Paths.AbsDestPath`: The full file path to the actual dest file
-  * `Paths.AbsDestDir`: The full file path to the actual dest file's directory
-  * `Paths.RelDestPath`: The relative file path of the actual file to the root sest dir.
-  * `Paths.RelDestDir`: The relative file path of the actual file's directory to the root dest dir.
-  * `Paths.RelDestRoot`: The relative file path of the actual file back to the `RootSourceDir` (e.g. `../../..`)
   * `Paths.Webroot`: 	The Webroot prefix, "/" by default
   * `Paths.RelWebPath`: relative (to Webroot) web path to the actual output file
   * `Paths.RelWebDir`: relative (to Webroot) web path to the actual output file's folder

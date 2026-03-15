@@ -141,12 +141,16 @@ func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, rou
 		return
 	}
 
+	// Compute cache file path from route:
+	cacheRelPath := filepath.Join(filepath.FromSlash(strings.TrimPrefix(route, "/")), "index.html")
+	cachePath := filepath.Join(h.ServerConfig.Server.CacheDir, cacheRelPath)
+
 	// If re-indexed, invalidate the cache so it gets rebuilt with fresh metadata:
 	if reindexed {
-		os.Remove(fileInfo.AbsDestPath)
+		os.Remove(cachePath)
 	}
 
-	isValid, err := isPageCacheValid(fileInfo.AbsDestPath, sourceStat.ModTime())
+	isValid, err := isPageCacheValid(cachePath, sourceStat.ModTime())
 	if err != nil {
 		h.errorHandler(w, err, http.StatusInternalServerError)
 		return
@@ -158,13 +162,13 @@ func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, rou
 			h.errorHandler(w, err, http.StatusInternalServerError)
 			return
 		}
-		if err := writeCacheFile(fileInfo.AbsDestPath, rendered); err != nil {
+		if err := writeCacheFile(cachePath, rendered); err != nil {
 			h.errorHandler(w, err, http.StatusInternalServerError)
 			return
 		}
 	}
 
-	http.ServeFile(w, req, fileInfo.AbsDestPath)
+	http.ServeFile(w, req, cachePath)
 }
 
 // reindexPageIfStale checks if the source file is newer than the DB record's updated_at.

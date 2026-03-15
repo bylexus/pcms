@@ -34,19 +34,6 @@ type PageInfo struct {
 	// relative path from the actual source file back to the RootSourceDir
 	RelSourceRoot string `yaml:"relSourceRoot"`
 
-	// start / top path of the destination folder
-	RootDestDir string `yaml:"rootDestDir"`
-	// absolute path of the actual destination file
-	AbsDestPath string `yaml:"absDestPath"`
-	// absolute path of the actual destination file
-	AbsDestDir string `yaml:"absDestDir"`
-	// file path of the actual destination file relative to the RootDestDir
-	RelDestPath string `yaml:"relDestPath"`
-	// dir path of the actual destination file relative to the RootSourceDir
-	RelDestDir string `yaml:"relDestDir"`
-	// relative path from the actual dest file back to the RootSourceDir
-	RelDestRoot string `yaml:"relDestRoot"`
-
 	// web paths:
 	// the Webroot prefix, "/" by default
 	Webroot string `yaml:"webroot"`
@@ -67,7 +54,6 @@ func BuildPageTemplateVariables(route string, indexFile string, config model.Con
 	result := PageInfo{}
 	result.ActPage = page
 	result.RootSourceDir = config.SourcePath
-	result.RootDestDir = config.Server.CacheDir
 	result.Webroot = config.Server.Prefix
 
 	routeDir := strings.TrimPrefix(path.Clean(route), "/")
@@ -100,34 +86,19 @@ func BuildPageTemplateVariables(route string, indexFile string, config model.Con
 		return result, err
 	}
 
-	destRelPath := filepath.Join(filepath.FromSlash(routeDir), "index.html")
 	if routeDir == "" {
-		destRelPath = "index.html"
+		result.RelWebPath = "index.html"
+		result.RelWebDir = "."
+		result.RelWebPathToRoot = "."
+	} else {
+		result.RelWebPath = routeDir + "/index.html"
+		result.RelWebDir = routeDir
+		result.RelWebPathToRoot, err = filepath.Rel(filepath.FromSlash(routeDir), ".")
+		if err != nil {
+			return result, err
+		}
+		result.RelWebPathToRoot = filepath.ToSlash(result.RelWebPathToRoot)
 	}
-	result.AbsDestPath = filepath.Join(result.RootDestDir, destRelPath)
-	result.AbsDestDir = filepath.Dir(result.AbsDestPath)
-	result.RelDestPath, err = filepath.Rel(result.RootDestDir, result.AbsDestPath)
-	if err != nil {
-		return result, err
-	}
-	result.RelDestDir, err = filepath.Rel(result.RootDestDir, result.AbsDestDir)
-	if err != nil {
-		return result, err
-	}
-	if result.RelDestDir == "" {
-		result.RelDestDir = "."
-	}
-	result.RelDestRoot, err = filepath.Rel(result.AbsDestDir, result.RootDestDir)
-	if err != nil {
-		return result, err
-	}
-	if result.RelDestRoot == "" {
-		result.RelDestRoot = "."
-	}
-
-	result.RelWebPath = filepath.ToSlash(result.RelDestPath)
-	result.RelWebDir = filepath.ToSlash(result.RelDestDir)
-	result.RelWebPathToRoot = filepath.ToSlash(result.RelDestRoot)
 	result.AbsWebPath = path.Clean(path.Join("/", result.Webroot, result.RelWebPath))
 	result.AbsWebDir = path.Clean(path.Join("/", result.Webroot, result.RelWebDir))
 

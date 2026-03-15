@@ -16,17 +16,17 @@ variables:
   siteMetaTags:
   toc:
     - title: Features
-      relDestDir: features
+      route: features
     - title: "Requirements"
-      relDestDir: requirements
+      route: requirements
     - title: "Quickstart"
-      relDestDir: quickstart
+      route: quickstart
     - title: Architecture
-      relDestDir: architecture
+      route: architecture
     - title: "Install / setup"
-      relDestDir: install_setup
+      route: install_setup
     - title: "Reference"
-      relDestDir: reference
+      route: reference
 template_dir: templates
 exclude_patterns:
   - "^\\..*"
