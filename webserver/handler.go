@@ -16,7 +16,7 @@ import (
 	"alexi.ch/pcms/logging"
 	"alexi.ch/pcms/model"
 	"alexi.ch/pcms/processor"
-	"github.com/flosch/pongo2/v4"
+	"github.com/flosch/pongo2/v6"
 )
 
 type RequestHandler struct {

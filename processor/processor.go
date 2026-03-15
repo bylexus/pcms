@@ -9,7 +9,7 @@ import (
 
 	"alexi.ch/pcms/lib"
 	"alexi.ch/pcms/model"
-	"github.com/flosch/pongo2/v4"
+	"github.com/flosch/pongo2/v6"
 )
 
 // Processor is the interface for processors that can render a page's index file.

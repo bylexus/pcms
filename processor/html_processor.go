@@ -6,7 +6,7 @@ import (
 
 	"alexi.ch/pcms/model"
 	"alexi.ch/pcms/stdlib"
-	"github.com/flosch/pongo2/v4"
+	"github.com/flosch/pongo2/v6"
 )
 
 /*
