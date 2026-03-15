@@ -287,7 +287,7 @@ The `variables.yaml` file support has been removed:
 - Removed `variables.yaml` files from `site-template/`
 - Updated documentation (reference, architecture, quickstart)
 
-## add enabled flag
+## add enabled flag [DONE]
 
 Each page should be able to define an `enabled` property in its YAML front matter. This boolean property defines whether the page is active.
 
@@ -306,13 +306,12 @@ If a page/front matter does not define `enabled`, it must default to active (`tr
 
 ## TODO
 
-- de/serialize the page metadata json when loading from the  db
-- Remove the Metadata column from the File objects
+- ~~de/serialize the page metadata JSON when loading from the DB~~ [DONE]
+- ~~Remove the `Metadata` column from the `File` objects~~ [DONE]
 - remove unused template vars, as it can be fetched from the Page object
 - add demo page with all available template objects and functions
 - migrate `site-template/site/variables-page/` to show available template vars and functions instead of the removed variables.yaml feature
-- migrate templates (`doc/templates/base.html`, `site-template/templates/base.html`) from `variables.xxx` to `page.Metadata.xxx` / `page.Title`
-- remove `variables` config key from `pcms-config.yaml` once doc/template migration is complete
+- ~~migrate templates (`doc/templates/base.html`, `site-template/templates/base.html`) from `variables.xxx` to `page.Metadata.xxx` / `page.Title`~~ [DONE]
+- ~~remove `variables` config key from `pcms-config.yaml` once doc/template migration is complete~~ [DONE]
 - use in-memory index+db for internal doc
 - ~~re-index single route when page newer index entry~~ [DONE]
-- pcms config in template context, too. It also should contain all non-defined props in the yaml, too

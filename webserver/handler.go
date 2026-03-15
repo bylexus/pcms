@@ -64,6 +64,15 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if found {
+		enabled, err := h.DBH.IsPageEffectivelyEnabled(page)
+		if err != nil {
+			h.errorHandler(w, err, http.StatusInternalServerError)
+			return
+		}
+		if !enabled {
+			h.errorHandler(w, fmt.Errorf("not found: %s", route), http.StatusNotFound)
+			return
+		}
 		h.servePage(w, req, route, page)
 		return
 	}

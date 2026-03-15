@@ -275,6 +275,44 @@ This generates the following output page:
 </html>{% endverbatim %}
 ```
 
+### Reserved front matter properties
+
+The following front matter properties have special meaning and are handled by pcms directly
+(they are not just passed through to `Page.Metadata`):
+
+| Property  | Type    | Default | Description |
+|-----------|---------|---------|-------------|
+| `title`   | string  | directory name | Sets `Page.Title`. Used for page titles and navigation. |
+| `enabled` | boolean | `true`  | Controls whether the page is active. A disabled page returns 404 and is hidden from `ChildPages`. |
+
+#### The `enabled` property
+
+Each page can define an `enabled` property in its YAML front matter to control whether the page is active:
+
+```yaml
+---
+title: "My hidden page"
+enabled: false
+---
+```
+
+**Behavior:**
+
+* If `enabled` is not set, the page defaults to **active** (`true`).
+* A disabled page returns **404** on direct requests.
+* Disabled pages are **excluded from `ChildPages`** lists, so they do not appear in navigation or template loops.
+* The flag is **resolved recursively through parent pages**: if any ancestor page is disabled, all its descendant pages are also treated as disabled — even if the child pages themselves have `enabled: true` or no `enabled` property at all.
+
+**Example:** Given this page tree:
+
+```text
+/           (enabled: true)
+/blog       (enabled: false)
+/blog/post1 (enabled: true)
+```
+
+Both `/blog` and `/blog/post1` will return 404, because `/blog` is disabled and `/blog/post1` inherits that state.
+
 ## pcms cli reference
 
 ```text

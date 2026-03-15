@@ -7,6 +7,7 @@ type IndexedPage struct {
 	ParentPageRoute *string
 	Title           string
 	IndexFile       string
+	Enabled         bool
 	Metadata        map[string]any
 	UpdatedAt       time.Time
 }

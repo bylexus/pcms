@@ -57,18 +57,19 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 		if relDir != "." {
 			indexPath = path.Join(relDir, indexFileName)
 		}
-		metadata, title, err := parsePageIndexFrontmatter(srcFS, indexPath, pageTitle)
+		fm, err := parsePageIndexFrontmatter(srcFS, indexPath, pageTitle)
 		if err != nil {
 			return err
 		}
-		pageMetadata = metadata
-		pageTitle = title
+		pageMetadata = fm.Metadata
+		pageTitle = fm.Title
 
 		snapshot.Pages = append(snapshot.Pages, model.IndexedPage{
 			Route:           route,
 			ParentPageRoute: inheritedParentPageRoute,
 			Title:           pageTitle,
 			IndexFile:       indexFileName,
+			Enabled:         fm.Enabled,
 			Metadata:        pageMetadata,
 		})
 
@@ -143,15 +144,21 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 	return nil
 }
 
-func parsePageIndexFrontmatter(srcFS fs.FS, indexPath string, fallbackTitle string) (stdlib.YamlFrontMatter, string, error) {
+type parsedFrontmatter struct {
+	Metadata stdlib.YamlFrontMatter
+	Title    string
+	Enabled  bool
+}
+
+func parsePageIndexFrontmatter(srcFS fs.FS, indexPath string, fallbackTitle string) (parsedFrontmatter, error) {
 	content, err := fs.ReadFile(srcFS, indexPath)
 	if err != nil {
-		return nil, "", fmt.Errorf("read index file %s: %w", indexPath, err)
+		return parsedFrontmatter{}, fmt.Errorf("read index file %s: %w", indexPath, err)
 	}
 
 	metadata, _, err := stdlib.ExtractYamlFrontMatter(string(content))
 	if err != nil {
-		return nil, "", fmt.Errorf("parse frontmatter in %s: %w", indexPath, err)
+		return parsedFrontmatter{}, fmt.Errorf("parse frontmatter in %s: %w", indexPath, err)
 	}
 
 	title := fallbackTitle
@@ -159,7 +166,15 @@ func parsePageIndexFrontmatter(srcFS fs.FS, indexPath string, fallbackTitle stri
 		title = fmt.Sprintf("%v", rawTitle)
 	}
 
-	return metadata, title, nil
+	enabled := true
+	if rawEnabled, hasEnabled := metadata["enabled"]; hasEnabled {
+		switch v := rawEnabled.(type) {
+		case bool:
+			enabled = v
+		}
+	}
+
+	return parsedFrontmatter{Metadata: metadata, Title: title, Enabled: enabled}, nil
 }
 
 // ReindexSinglePage re-reads the frontmatter from the source file and returns
@@ -170,7 +185,7 @@ func ReindexSinglePage(srcFS fs.FS, route string, existingPage model.IndexedPage
 		indexPath = path.Join(strings.TrimPrefix(route, "/"), existingPage.IndexFile)
 	}
 
-	metadata, title, err := parsePageIndexFrontmatter(srcFS, indexPath, defaultTitleForRoute(route))
+	fm, err := parsePageIndexFrontmatter(srcFS, indexPath, defaultTitleForRoute(route))
 	if err != nil {
 		return model.IndexedPage{}, err
 	}
@@ -178,9 +193,10 @@ func ReindexSinglePage(srcFS fs.FS, route string, existingPage model.IndexedPage
 	return model.IndexedPage{
 		Route:           route,
 		ParentPageRoute: existingPage.ParentPageRoute,
-		Title:           title,
+		Title:           fm.Title,
 		IndexFile:       existingPage.IndexFile,
-		Metadata:        metadata,
+		Enabled:         fm.Enabled,
+		Metadata:        fm.Metadata,
 	}, nil
 }
 

@@ -14,7 +14,7 @@ import (
 
 const (
 	defaultDBPath     = "pcms.db"
-	currentDBSchema   = 1
+	currentDBSchema   = 2
 	embeddedDocDBPath = "pcms-doc.db"
 )
 
@@ -142,12 +142,13 @@ func (h *DBH) CleanIndex() error {
 
 func (h *DBH) ReplacePage(record model.IndexedPage) error {
 	stmt := `
-		INSERT INTO pages (route, parent_page_route, title, index_file, metadata_json)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO pages (route, parent_page_route, title, index_file, enabled, metadata_json)
+		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(route) DO UPDATE SET
 			parent_page_route = excluded.parent_page_route,
 			title = excluded.title,
 			index_file = excluded.index_file,
+			enabled = excluded.enabled,
 			metadata_json = excluded.metadata_json,
 			updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
 	`
@@ -157,7 +158,7 @@ func (h *DBH) ReplacePage(record model.IndexedPage) error {
 		return fmt.Errorf("marshal metadata for page %s: %w", record.Route, err)
 	}
 
-	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.Title, record.IndexFile, metadataJSON); err != nil {
+	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.Title, record.IndexFile, record.Enabled, metadataJSON); err != nil {
 		return fmt.Errorf("replace page %s: %w", record.Route, err)
 	}
 
@@ -225,7 +226,7 @@ func (h *DBH) CountFiles() (int, error) {
 
 func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 	stmt := `
-		SELECT route, parent_page_route, title, index_file, metadata_json, updated_at
+		SELECT route, parent_page_route, title, index_file, enabled, metadata_json, updated_at
 		FROM pages
 		WHERE route = ?
 	`
@@ -234,11 +235,13 @@ func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 	var parentRoute sql.NullString
 	var metadataJSON string
 	var updatedAtStr string
+	var enabledInt int
 	err := h.queryRowIndex(stmt, route).Scan(
 		&record.Route,
 		&parentRoute,
 		&record.Title,
 		&record.IndexFile,
+		&enabledInt,
 		&metadataJSON,
 		&updatedAtStr,
 	)
@@ -253,6 +256,7 @@ func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 		r := parentRoute.String
 		record.ParentPageRoute = &r
 	}
+	record.Enabled = enabledInt != 0
 
 	record.Metadata, err = unmarshalMetadata(metadataJSON)
 	if err != nil {
@@ -294,9 +298,10 @@ func (h *DBH) GetFileByRoute(route string) (model.IndexedFile, bool, error) {
 
 func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 	stmt := `
-		SELECT route, parent_page_route, title, index_file, metadata_json
+		SELECT route, parent_page_route, title, index_file, enabled, metadata_json
 		FROM pages
 		WHERE parent_page_route = ?
+		  AND enabled = 1
 		ORDER BY route
 	`
 
@@ -311,11 +316,13 @@ func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 		var record model.IndexedPage
 		var parentRoute sql.NullString
 		var metadataJSON string
+		var enabledInt int
 		if err := rows.Scan(
 			&record.Route,
 			&parentRoute,
 			&record.Title,
 			&record.IndexFile,
+			&enabledInt,
 			&metadataJSON,
 		); err != nil {
 			return nil, fmt.Errorf("scan child page for %s: %w", route, err)
@@ -324,6 +331,7 @@ func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 			r := parentRoute.String
 			record.ParentPageRoute = &r
 		}
+		record.Enabled = enabledInt != 0
 		var err error
 		record.Metadata, err = unmarshalMetadata(metadataJSON)
 		if err != nil {
@@ -337,6 +345,29 @@ func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 	}
 
 	return pages, nil
+}
+
+// IsPageEffectivelyEnabled checks whether the page itself and all its ancestor
+// pages are enabled. Returns false if the page or any parent is disabled.
+func (h *DBH) IsPageEffectivelyEnabled(page model.IndexedPage) (bool, error) {
+	if !page.Enabled {
+		return false, nil
+	}
+	parentRoute := page.ParentPageRoute
+	for parentRoute != nil {
+		parent, found, err := h.GetPageByRoute(*parentRoute)
+		if err != nil {
+			return false, err
+		}
+		if !found {
+			break
+		}
+		if !parent.Enabled {
+			return false, nil
+		}
+		parentRoute = parent.ParentPageRoute
+	}
+	return true, nil
 }
 
 func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
@@ -416,6 +447,7 @@ func (h *DBH) ensurePagesTable() error {
 				ON DELETE SET NULL,
 			title             TEXT NOT NULL DEFAULT '',
 			index_file        TEXT NOT NULL DEFAULT '',
+			enabled           INTEGER NOT NULL DEFAULT 1,
 			metadata_json     TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json)),
 			created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 			updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
@@ -433,6 +465,9 @@ func (h *DBH) ensurePagesTable() error {
 		return err
 	}
 	if err := h.ensureTableColumn("pages", "index_file", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	if err := h.ensureTableColumn("pages", "enabled", "INTEGER NOT NULL DEFAULT 1"); err != nil {
 		return err
 	}
 	if err := h.ensureTableColumn("pages", "metadata_json", "TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json))"); err != nil {
