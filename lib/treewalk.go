@@ -193,15 +193,14 @@ func joinRoute(parentRoute string, name string) string {
 
 func defaultTitleForRoute(route string) string {
 	if route == "/" {
-		return "/"
+		return ""
 	}
 	base := path.Base(route)
 	if base == "." || base == "/" {
-		return "/"
+		return ""
 	}
 	return base
 }
-
 
 func detectMimeTypeFromFS(srcFS fs.FS, filePath string) (string, error) {
 	ext := filepath.Ext(filePath)

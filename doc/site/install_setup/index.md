@@ -27,7 +27,7 @@ This documentation shows you how to install `pcms` and generate a new site from 
 
 ## Install pcms
 
-This section was already covered in the [Quick Start]({{webroot("quickstart/")}}) section. If you already followed there, you don't have to repeat this steps.
+This section was already covered in the [Quick Start]({{Webroot("quickstart/")}}) section. If you already followed there, you don't have to repeat this steps.
 
 You only need a single `pcms` binary to run a website. Check out the next chapters for a brief description how you get one.
 

@@ -4,7 +4,7 @@ shortTitle: "Markdown"
 template: "markdown.html"
 iconCls: "fab fa-markdown"
 mainClass: "markdown"
-metaTags: 
+metaTags:
   - name: "keywords"
     content": "pcms,cms"
   - name: "description"
@@ -12,24 +12,24 @@ metaTags:
 ---
 # Markdown Demo Page
 
-[<i class="fas fa-home"></i> Back to home]({{webroot("/")}})
+[<i class="fas fa-home"></i> Back to home]({{Webroot("/")}})
 
-Your actual Route: {{paths.absWebPath}}
+Your actual Route: {{Paths.AbsWebPath}}
 
 Access to pongo2 syntax, e.g. actual time: {% now "02.01.2006 15:04:05" %}
 
 <pre>
 Page variables:
-{{variables | stringformat:"%#v"}}
+{{Config.Variables | stringformat:"%#v"}}
 Page paths:
-{{paths | stringformat:"%#v"}}
+{{Paths | stringformat:"%#v"}}
 </pre>
 
 Some static content:
 
 * Relative addressed image: ./sunset.webp<br>
   ![relative addressd image](./sunset.webp)
-* Relative addressed from webroot: {{paths.relWebPathToRoot}}/{{paths.relWebDir}}/sunset.webp<br>
-  ![relative addressed from webroot]({{paths.relWebPathToRoot}}/{{paths.relWebDir}}/sunset.webp)
-* Absolute addressed image: {{paths.absWebDir}}/sunset2.webp<br>
-  ![absolute addressed image]({{paths.absWebDir}}/sunset2.webp)
+* Relative addressed from webroot: {{Paths.RelWebPathToRoot}}/{{Paths.RelWebDir}}/sunset.webp<br>
+  ![relative addressed from webroot]({{Paths.RelWebPathToRoot}}/{{Paths.RelWebDir}}/sunset.webp)
+* Absolute addressed image: {{Paths.AbsWebDir}}/sunset2.webp<br>
+  ![absolute addressed image]({{Paths.AbsWebDir}}/sunset2.webp)

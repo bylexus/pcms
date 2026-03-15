@@ -10,7 +10,6 @@ import (
 	"alexi.ch/pcms/lib"
 	"alexi.ch/pcms/model"
 	"github.com/flosch/pongo2/v4"
-	"gopkg.in/yaml.v3"
 )
 
 // Processor is the interface for processors that can render a page's index file.
@@ -63,18 +62,6 @@ type PageInfo struct {
 	AbsWebDir string `yaml:"absWebDir"`
 }
 
-func (p PageInfo) GetStdObject() (map[string]interface{}, error) {
-	yamlStr, err := yaml.Marshal(p)
-	if err != nil {
-		return nil, err
-	}
-	obj := make(map[string]interface{})
-	err = yaml.Unmarshal(yamlStr, &obj)
-	if err != nil {
-		return nil, err
-	}
-	return obj, err
-}
 
 func BuildPageTemplateVariables(route string, indexFile string, config model.Config, page model.IndexedPage) (PageInfo, error) {
 	result := PageInfo{}
@@ -165,12 +152,6 @@ func AbsUrl(relPath string, Webroot string) string {
 }
 
 func prepareTemplateContext(config model.Config, fileInfo PageInfo) (pongo2.Context, error) {
-	// convert paths object to an anonymous, lower-cased map:
-	pathObj, err := fileInfo.GetStdObject()
-	if err != nil {
-		return nil, err
-	}
-
 	dbh, err := lib.GetDBH()
 	if err != nil {
 		return nil, err
@@ -185,21 +166,23 @@ func prepareTemplateContext(config model.Config, fileInfo PageInfo) (pongo2.Cont
 	}
 
 	var context = pongo2.Context{
-		"page": fileInfo.ActPage,
+		"Page": fileInfo.ActPage,
 
-		"childPages": childPages,
-		"childFiles": childFiles,
+		"ChildPages": childPages,
+		"ChildFiles": childFiles,
+
+		"Config": config,
 
 		// several file path variants for the actual file:
-		"paths": pathObj,
+		"Paths": fileInfo,
 		// creates an absolute, webroot-based url from a relative url
-		"webroot": func(relPath string) string {
+		"Webroot": func(relPath string) string {
 			return AbsUrl(relPath, fileInfo.Webroot)
 		},
 		// helper function to check a string for a prefix
-		"startsWith": strings.HasPrefix,
+		"StartsWith": strings.HasPrefix,
 		// helper function to check a string for a postfix
-		"endsWith": strings.HasSuffix,
+		"EndsWith": strings.HasSuffix,
 	}
 	return context, nil
 }

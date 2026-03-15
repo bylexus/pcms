@@ -63,11 +63,11 @@ is examined, processed and written to the output (`build/`) folder.
 The system supports different processors, determined by the source file's file ending:
 
 * `*.html` files are processed by the `html_processor`:
-  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter metadata is available via the `page.Metadata` template object.
+  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter metadata is available via the `Page.Metadata` template object.
   * The HTML file is processed as `pongo2` template.
   * Finally, the processd file is written to the output folder to the same relative path.
 * `*.md` files are processed by the `md_processor`:
-  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter metadata is available via the `page.Metadata` template object.
+  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter metadata is available via the `Page.Metadata` template object.
   * The Markdown file is processed as `pongo2` template.
   * The Markdown file is converted to HTML.
   * Optionally, the converted HTML can be embedded into a template, defined in the `template` YAML frontmatter variable.
@@ -97,7 +97,7 @@ title: 'Hello'
 <p>This file is processed using the 'base-template.html' template file</p>{% endverbatim %}
 ```
 
-1. The YAML Frontmatter is extracted from the HTML file. Metadata is available via the `page.Metadata` template object.
+1. The YAML Frontmatter is extracted from the HTML file. Metadata is available via the `Page.Metadata` template object.
 2. The complete HTML then is processed using the `pongo2` engine, and written as final HTML to the output folder.
 
 
@@ -121,7 +121,7 @@ title: 'Hello'
 This **Markdown** file is processed using the 'base-template.html' template file
 ```
 
-1. The YAML Frontmatter is extracted from the Markdown file. Metadata is available via the `page.Metadata` template object.
+1. The YAML Frontmatter is extracted from the Markdown file. Metadata is available via the `Page.Metadata` template object.
 2. The `template` variable defines the used pongo2 template file: The (processed) contents of this file is available as `content` variable.
    For example, the `base-template` file may look as follows:
 
@@ -130,7 +130,7 @@ This **Markdown** file is processed using the 'base-template.html' template file
 <!doctype html>
 <html lang="en">
     <head>
-        <title>{{page.Title}}</title>
+        <title>{{Page.Title}}</title>
     </head>
     <body>
       <div id="page_content">

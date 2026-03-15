@@ -8,19 +8,6 @@ metaTags:
     content: "pcms,cms"
   - name: "description"
     content": "Documentation for the pcms system, the programmer's cms"
-toc:
-  - title: Features
-    relDestDir: features
-  - title: "Requirements"
-    relDestDir: requirements
-  - title: "Quickstart"
-    relDestDir: quickstart
-  - title: Architecture
-    relDestDir: architecture
-  - title: "Install / setup"
-    relDestDir: install_setup
-  - title: "Reference"
-    relDestDir: reference
 ---
 # Welcome to pcms <small>the Programmer's Content management System</small>
 
@@ -64,10 +51,6 @@ pcms is also written in GO (while it was written in NodeJS/JavaScript before ALR
 
 ## Table of contents
 
-* <a href="{{webroot("/")}}">[home]</a>
-{% for child in page.Metadata.toc %}* <a href="{{webroot(child.relDestDir)}}/">{{child.title}}
+* <a href="{{Webroot("/")}}">[home]</a>
+{% for tocEntry in Config.Variables.toc %}* <a href="{{Webroot(tocEntry.relDestDir)}}/">{{tocEntry.title}}
 {% endfor %}
-
-<pre>
-{{page.Metadata | stringformat:"%#v"}}
-</pre>

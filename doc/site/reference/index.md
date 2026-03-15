@@ -65,7 +65,7 @@ server:
   # watch: if true, the source folder is watched for file changes, and a rebuild
   # of changed / new files is triggered on the fly.
   watch: true
-  # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "". The webroot can be accessed by the `variables.webroot` variable in templates. 
+  # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "". The webroot can be accessed by the `Paths.Webroot` variable or the `Webroot()` function in templates.
   prefix: ""
   # Logging configuration: there are 2 diffenrent logs written:
   logging:
@@ -121,7 +121,7 @@ as soon as it contains a `page.json` file. The folder structure corresponds dire
 django-like template engine. For example, you can access the pre-defined and own variables in your HTML:
 
 ```html
-{% verbatim %}<div>Path of this file: {{ paths.relWebPath }}</div>{% endverbatim %}
+{% verbatim %}<div>Path of this file: {{ Paths.RelWebPath }}</div>{% endverbatim %}
 ```
 
 You can also inherit from a base template: Templates are searched within the `templates/` folder. As an example, define a base template,
@@ -132,8 +132,8 @@ then inherit from this base template in your site folder:
 <!doctype html>
 <html lang="en">
     <head>
-        <title>{%if page.Title %}{{page.Title}}{% endif%}</title>
-        {% for meta in page.Metadata.metaTags %}
+        <title>{%if Page.Title %}{{Page.Title}}{% endif%}</title>
+        {% for meta in Page.Metadata.metaTags %}
         <meta name="{{meta.name}}" content="{{meta.content}}" />
         {% endfor %}
     </head>
@@ -170,7 +170,7 @@ title: "Welcome"
 ---
 # Welcome!
 
-This **Markdown** partial file has the relative path: {% verbatim %}{{paths.relWebPath}}{% endverbatim %}.
+This **Markdown** partial file has the relative path: {% verbatim %}{{Paths.RelWebPath}}{% endverbatim %}.
 ```
 
 ```html
@@ -178,7 +178,7 @@ This **Markdown** partial file has the relative path: {% verbatim %}{{paths.relW
 <!doctype html>
 <html lang="en">
     <head>
-        <title>{%if page.Title %}{{page.Title}}{% endif%}</title>
+        <title>{%if Page.Title %}{{Page.Title}}{% endif%}</title>
     </head>
     <body>
         <main id="content">
@@ -192,35 +192,39 @@ This **Markdown** partial file has the relative path: {% verbatim %}{{paths.relW
 
 pcms defines the following variables which you can use in your templates:
 
-* `page`: The page object from the index database. Contains the page's metadata (from YAML front matter) as `page.Metadata`.<br>
+* `Page`: The page object from the index database. Contains the page's metadata (from YAML front matter) as `Page.Metadata`.<br>
   Example usage in a template:<br>
-  {% verbatim %}`Title: {{ page.Title|default:"My Site" }}`{% endverbatim %}
-* `paths`: a map of several path strings for the actual file:
-  * `paths.rootSourceDir`: The full file path to the used `site` folder
-  * `paths.absSourcePath`: The full file path to the actual source file
-  * `paths.absSourceDir`: The full file path to the actual source file's directory
-  * `paths.relSourcePath`: The relative file path of the actual file to the root source dir.
-  * `paths.relSourceDir`: The relative file path of the actual file's directory to the root source dir.
-  * `paths.relSourceRoot`: The relative file path of the actual file back to the `rootSourceDir` (e.g. `../../..`)
-  * `paths.rootDestDir`: The full file path to the used `build` (output) folder
-  * `paths.absDestPath`: The full file path to the actual dest file
-  * `paths.absDestDir`: The full file path to the actual dest file's directory
-  * `paths.relDestPath`: The relative file path of the actual file to the root sest dir.
-  * `paths.relDestDir`: The relative file path of the actual file's directory to the root dest dir.
-  * `paths.relDestRoot`: The relative file path of the actual file back to the `rootSourceDir` (e.g. `../../..`)
-  * `paths.webroot`: 	The Webroot prefix, "/" by default
-  * `paths.relWebPath`: relative (to Webroot) web path to the actual output file
-  * `paths.relWebDir`: relative (to Webroot) web path to the actual output file's folder
-  * `paths.relWebPathToRoot`: relative path from the actual output file back to the Webroot
-  * `paths.absWebPath`: absolute web path of the actual output file, including the Webroot, starting always with "/"
-  * `paths.absWebDir`: absolute web path of the actual output file's dir, including the Webroot, starting always with "/"
-* `webroot(string)`: Function to generate an absolute web path of a given relative path.<br>
+  {% verbatim %}`Title: {{ Page.Title|default:"My Site" }}`{% endverbatim %}
+* `ChildPages`: A list of child pages of the current page.
+* `ChildFiles`: A list of child files of the current page.
+* `Config`: The global configuration object. Access site-wide variables via `Config.Variables`.<br>
+  Example: {% verbatim %}`{{ Config.Variables.siteTitle }}`{% endverbatim %}
+* `Paths`: a map of several path strings for the actual file:
+  * `Paths.RootSourceDir`: The full file path to the used `site` folder
+  * `Paths.AbsSourcePath`: The full file path to the actual source file
+  * `Paths.AbsSourceDir`: The full file path to the actual source file's directory
+  * `Paths.RelSourcePath`: The relative file path of the actual file to the root source dir.
+  * `Paths.RelSourceDir`: The relative file path of the actual file's directory to the root source dir.
+  * `Paths.RelSourceRoot`: The relative file path of the actual file back to the `RootSourceDir` (e.g. `../../..`)
+  * `Paths.RootDestDir`: The full file path to the used `build` (output) folder
+  * `Paths.AbsDestPath`: The full file path to the actual dest file
+  * `Paths.AbsDestDir`: The full file path to the actual dest file's directory
+  * `Paths.RelDestPath`: The relative file path of the actual file to the root sest dir.
+  * `Paths.RelDestDir`: The relative file path of the actual file's directory to the root dest dir.
+  * `Paths.RelDestRoot`: The relative file path of the actual file back to the `RootSourceDir` (e.g. `../../..`)
+  * `Paths.Webroot`: 	The Webroot prefix, "/" by default
+  * `Paths.RelWebPath`: relative (to Webroot) web path to the actual output file
+  * `Paths.RelWebDir`: relative (to Webroot) web path to the actual output file's folder
+  * `Paths.RelWebPathToRoot`: relative path from the actual output file back to the Webroot
+  * `Paths.AbsWebPath`: absolute web path of the actual output file, including the Webroot, starting always with "/"
+  * `Paths.AbsWebDir`: absolute web path of the actual output file's dir, including the Webroot, starting always with "/"
+* `Webroot(string)`: Function to generate an absolute web path of a given relative path.<br>
   Example usage, assuming the web prefix is set to `/mysite`:<br>
-  `webroot('rel/path/to/file')` => `/mysite/rel/path/to/file`
-* `startsWith(str: string, prefix: string)`: Checks if the given string `str` starts with `prefix`. Same as `strings.HasPrefix`. Useful if you want to highlight navigation markers.<br>
+  `Webroot('rel/path/to/file')` => `/mysite/rel/path/to/file`
+* `StartsWith(str: string, prefix: string)`: Checks if the given string `str` starts with `prefix`. Same as `strings.HasPrefix`. Useful if you want to highlight navigation markers.<br>
   Example:<br>
-  {% verbatim %}`<a href="/foo" class="{% if startsWith(paths.absWebDir, webroot('/foo')) %}active{% endif%}">Nav to foo</a>`{% endverbatim %}
-* `endsWith(str: string, suffix: string)`: Same as `startsWith()`, but checks if the given string `str` ends with `suffix`. Same as `strings.HasSuffix`. Useful if you want to highlight navigation markers.
+  {% verbatim %}`<a href="/foo" class="{% if StartsWith(Paths.AbsWebDir, Webroot('/foo')) %}active{% endif%}">Nav to foo</a>`{% endverbatim %}
+* `EndsWith(str: string, suffix: string)`: Same as `StartsWith()`, but checks if the given string `str` ends with `suffix`. Same as `strings.HasSuffix`. Useful if you want to highlight navigation markers.
 
 ### YAML front matter variables
 
@@ -236,7 +240,7 @@ Example: You want to output a page-specific title tag, which is defined in the b
 <html lang="en">
     <head>
       <!-- Output page-specific title: -->
-        <title>{{ page.Title|default:"My Page" }}</title>
+        <title>{{ Page.Title|default:"My Page" }}</title>
     </head>
     <body>
         <main id="content">

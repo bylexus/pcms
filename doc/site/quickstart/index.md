@@ -120,17 +120,17 @@ metaTags:
 ---
 # Markdown Demo Page
 
-[<i class="fas fa-home"></i> Back to home]({{webroot("/")}})
+[<i class="fas fa-home"></i> Back to home]({{Webroot("/")}})
 
-Your actual Route: {{paths.absWebPath}}
+Your actual Route: {{Paths.AbsWebPath}}
 
 Access to pongo2 syntax, e.g. actual time: {% now "02.01.2006 15:04:05" %}
 
-Use an icon: <i class="{{variales.iconCls}}"></i>
+Use an icon: <i class="{{Config.Variables.iconCls}}"></i>
 ```
 
 The YAML front matter is the start part beteween the `---` separators, and (may) contain valid YAML content.
-This content then will become available in your `pongo2` templates via the `page.Metadata` object.
+This content then will become available in your `pongo2` templates via the `Page.Metadata` object.
 For Markdown files, the only needed entry is `template: `, which defines the HTML template to be used from the `templates/` folder
 to generate the final HTML.
 
