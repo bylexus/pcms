@@ -19,8 +19,8 @@ build-doc: build
 	$(GOBIN)/$(PROJECTNAME) -c $(GOBASE)/doc/pcms-config.yaml build
 
 .PHONY: serve-doc
-serve-doc: build-doc
-	$(GOBIN)/$(PROJECTNAME) -c $(GOBASE)/doc/pcms-config.yaml serve
+serve-doc: build
+	$(GOBIN)/$(PROJECTNAME) serve-doc
 
 .PHONY: build-docker-image-amd64
 build-docker-image-amd64:

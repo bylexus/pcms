@@ -2,9 +2,6 @@
 server:
   # listen address. This could also be e.g. "localhost:3000"
   listen: ":3000"
-  # watch: if true, the source folder is watched for file changes, and a rebuild
-  # of changed / new files is triggered on the fly.
-  watch: true
   # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "".
   prefix: ""
   # cache dir for rendered pages in serve mode.
@@ -20,14 +17,10 @@ server:
     error:
       file: STDERR
       level: DEBUG
-# The source folder of the site, containing the unbuilt site templates. Relative to
-# the config file dir:
-source: "site"
-# The destination folder of the site, containing the built static site. 
-# Note that this dir will be COMPLETELY EMPTIED on build.
+# The source folder of the site, containing the page content.
 # Relative to the config file dir:
-dest: "build"
-# Global variables for the pongo2 templates, available as "variables" pongo2 template var:
+source: "site"
+# Global variables available in pongo2 templates as "Config.Variables.xxx":
 variables:
   siteTitle: My Site Title
   siteMetaTags:
@@ -35,15 +28,12 @@ variables:
       content: bar
     - name: moo
       content: baz
-# Where to look for pongo2 templates when inheriting / defining a template file:
-# relative to the config file dir:
+# Where to look for pongo2 templates when inheriting / defining a template file.
+# Relative to the config file dir:
 template_dir: templates
-# Regular expression to exclude files/folders from the build process completely:
+# Regular expression to exclude files/folders from indexing and serving:
 exclude_patterns:
   # Ignore .* files:
   - "/\\..*"
   # Ignore all files in the /restricted folder:
   - "^/restricted/?.*"
-processors:
-  scss:
-    sass_bin: "/usr/bin/sass"

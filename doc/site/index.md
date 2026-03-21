@@ -19,20 +19,21 @@ I was at some point always limited by CMS systems, and I don't want a CMS that i
 For me, a CMS is too restrictive. I don't fear writing HTML and program code. I am a developer, at last, so I feel more
 comfortable writing code in an editor than clicking in a UI.
 
-This is the idea behind **pcms**, the Programmer's CMS: A clutter-free, code-centric, simple CMS to deliver (simple) web sites. For people who 
+This is the idea behind **pcms**, the Programmer's CMS: A clutter-free, code-centric, simple tool to create we pages to deliver (simple) web sites. For people who 
 love to code, and just want to produce content as they want, not fiddling with or around the CMS.
+
+In fact, pcms is ***not even a CMS!*** It is more a site builder to serve pages from Markdown/HTML and templates, with some additional tooling for indexing your content.
 
 This is the documentation of **pcms**. Be aware that you need to know the following architectures / concepts in order to use
 both pcms and this documentation:
 
 * You love (reading and writing) code.
 * You have a natural aversion of UIs.
-* You know **HTML**, **CSS** and know how to use them
+* You know the Web standards, so you know **HTML** and **CSS** and know how to use them - pcms will not give you fancy page templates.
 * You have heard of **Markdown**
 * You don't say "Bless you!" if you hear someone saying "JSON" or "YAML"!
 * If you want to dive deeper: You know [The GO Programming Language](https://go.dev/): pcms is
-  written in GO, and it *may* be that you need to tweak a few things. At least you may want to
-  compile it for yourself.
+  written in GO, and it *may* be that you need to tweak a few things. At least you may want to compile it for yourself.
 
 If you can answer "Yes, piece of cake!" to those question, then **pcms** is for you.
 

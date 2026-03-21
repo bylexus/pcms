@@ -65,6 +65,19 @@ func RunServeCmd(config model.Config) error {
 		if err != nil {
 			return err
 		}
+
+		// Auto-index on first startup: if the pages table is empty, build the index.
+		pageCount, err := dbh.CountPages()
+		if err != nil {
+			return err
+		}
+		if pageCount == 0 {
+			errorLogger.Info("No pages indexed yet — running initial index automatically")
+			log.Println("No pages indexed yet — running initial index automatically")
+			if err := RunIndexCmd(config); err != nil {
+				return err
+			}
+		}
 	}
 	if shouldCloseDBH {
 		defer dbh.Close()
