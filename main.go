@@ -106,7 +106,7 @@ func parseCmdArgs() model.CmdArgs {
 	indexCmd.Usage = func() {
 		fmt.Fprintf(os.Stderr, "index:      initializes or updates the local pcms db schema\n")
 		prevIndexUsage()
-		fmt.Fprintln(os.Stderr, "index: creates or migrates ./pcms.db to the current schema version")
+		fmt.Fprintln(os.Stderr, "index: creates or migrates the pcms.db to the current schema version (path configurable via database_path in pcms-config.yaml)")
 		fmt.Fprintln(os.Stderr, "")
 	}
 	subCommands[indexCmd.Name()] = indexCmd
@@ -136,6 +136,7 @@ func main() {
 	}
 
 	config := model.NewConfig(confFilePath, args, embeddedDocFS)
+	lib.SetDBPath(config.DatabasePath)
 	var err error
 
 	switch args.FlagSet.Name() {

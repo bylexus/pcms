@@ -17,6 +17,10 @@ server:
     error:
       file: STDERR
       level: DEBUG
+# Path to the sqlite database file. Relative to the config file dir, or absolute.
+# Defaults to "pcms.db" in the project dir. Useful for Docker setups where the
+# database should live on a separate volume.
+# database_path: "pcms.db"
 # The source folder of the site, containing the page content.
 # Relative to the config file dir:
 source: "site"

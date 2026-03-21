@@ -42,6 +42,7 @@ type Config struct {
 	ConfigFile      string
 	SourcePath      string   `yaml:"source"`
 	TemplateDir     string   `yaml:"template_dir"`
+	DatabasePath    string   `yaml:"database_path"`
 	ExcludePatterns []string `yaml:"exclude_patterns"`
 	Processors      struct {
 		Html struct{} `yaml:"html"`
@@ -120,6 +121,9 @@ func NewConfig(conffilePath string, cliArgs CmdArgs, embeddedDocFS embed.FS) Con
 	if config.Server.CacheDir == "" {
 		config.Server.CacheDir = ".pcms-cache"
 	}
+	if config.DatabasePath == "" {
+		config.DatabasePath = "pcms.db"
+	}
 
 	// Set current working dir to the conf file dir for subsequent commands,
 	// except when serving embedded docs.
@@ -136,6 +140,10 @@ func NewConfig(conffilePath string, cliArgs CmdArgs, embeddedDocFS embed.FS) Con
 			log.Fatal(fmt.Errorf("SourcePath cannot be empty"))
 		}
 		config.SourcePath, err = filepath.Abs(config.SourcePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		config.DatabasePath, err = filepath.Abs(config.DatabasePath)
 		if err != nil {
 			log.Fatal(err)
 		}
