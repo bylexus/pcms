@@ -91,7 +91,6 @@ This will generate a fully-working demo site into the given folder (here: `path-
 
 ```sh
 path-to-site/
-├── build/
 ├── log/
 ├── pcms-config.yaml
 ├── site
@@ -104,8 +103,7 @@ path-to-site/
 ```
 
 * `pcms-config.yaml` is the site-wide configuration. It contains pcms-specific settings like server port as well as user-defined content which can be used in your site templates.
-* `site/` is the folder where all your page content goes, and which is processed by the build process.
-* `build/` is where your generated static content goes by default.
+* `site/` is the folder where all your page content goes, and which is processed by the webserver.
 * `templates/` contains the `pongo2` templates used for your site.
 
 ## Site configuration: `pcms-config.yaml`
@@ -129,8 +127,6 @@ server:
       level: DEBUG
 # source filder:
 source: "site"
-# output / build folder:
-dest: "build"
 # site-specific global variables:
 variables:
   siteTitle: pcms-go - Documentation
@@ -140,9 +136,6 @@ variables:
 template_dir: templates
 exclude_patterns:
   - "^\\..*"
-processors:
-  scss:
-    sass_bin: "/usr/bin/sass"
 ```
 
 Adapt the config as needed by your page.

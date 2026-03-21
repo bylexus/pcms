@@ -2,7 +2,7 @@
 title: "architecture"
 shortTitle: "Architecture"
 template: "page-template.html"
-metaTags: 
+metaTags:
   - name: "keywords"
     content: "architecture,pcms,cms"
   - name: "description"
@@ -10,16 +10,27 @@ metaTags:
 ---
 # Architecture
 
-pcms is a static site builder and mini-webserver written in [GO](https://go.dev/) to build and deliver web pages from HTML / Markdown templates or static files.
-The main goal is to create static page content from templates and / or configuration/data files, all file-system-based, no UI configuration.
+pcms is a mini-webserver written in [GO](https://go.dev/) that delivers web pages from HTML / Markdown templates or static files.
+Content is indexed into a **SQLite database** and served on request — no static build step required.
 
 In essence pcms is built upon the following infrastructure:
 
-* a page builder that examines your `site/` dir and builds as static version to `build/`
-* a Web server that handles your requests and delivers the static pages
-* a Template engine based on [pongo2](https://github.com/flosch/pongo2), a Django-like template engine,
-  with support for YAML frontmatter and configuration variables
+* a **SQLite index** that tracks every page and file in your `site/` directory
+* a **web server** that resolves requests against the index, renders pages on demand, and caches the output
+* a **template engine** based on [pongo2](https://github.com/flosch/pongo2), a Django-like template engine,
+  with support for YAML frontmatter
 * all delivered in the single `pcms` binary!
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `pcms init` | Initialise a new site skeleton in the current directory |
+| `pcms index` | Walk the `site/` directory and build the SQLite route index |
+| `pcms serve` | Start the web server and serve pages from the index |
+| `pcms serve-doc` | Serve the built-in pcms documentation (embedded) |
+
+On first `pcms serve`, if the index is empty, indexing runs automatically.
 
 ## Site structure and routes
 
@@ -28,138 +39,177 @@ A typical `pcms` site may look as follows:
 ```sh
 .
 ├── pcms-config.yaml          # The main config file for the site
-├── site/                     # The site dir contains the page content, and listens to the "/" route
-│   ├── index.html            # additional page content / templates
-│   ├── styles.scss           # an scss file which may be transpiled to css using dart-css
-│   ├── favicon.png
-│   ├── html-page             # another page, here route /html-page
-│   │   ├── index.html        # a html content file
-│   │   └── sunset.webp       # some static content
-│   └── markdown-page         # another page, here a Markdown page for the route /markdown-page
-│       ├── index.md          # a Markdown content file
-│       ├── favicon.png
-│       └── sunset.webp
-└── templates               # pongo2 templates for your html / markdown content
+├── pcms.db                   # SQLite route index (auto-created)
+├── site/                     # The site dir contains the page content, root route is "/"
+│   ├── index.html            # Root page content
+│   ├── favicon.png           # Static file, served at /favicon.png
+│   ├── html-page/            # Route /html-page
+│   │   ├── index.html        # HTML content file
+│   │   └── sunset.webp       # Static file, served at /html-page/sunset.webp
+│   └── markdown-page/        # Route /markdown-page
+│       ├── index.md          # Markdown content file
+│       └── sunset.webp
+└── templates/                # pongo2 templates
     ├── base.html
     ├── error.html
     └── markdown.html
 ```
 
-* The **`site`** contents are stored as directory tree in the `site/` folder.
-* Every file within `site/` (including `site/` itself) is directly rendered to the same folder structure in the `build/` folder:
-  The files are renamed if processed:
-  * `.md` files become `.html` files
-  * `.html` files stay `.html` files
-  * `.scss` files become `.css` files
-  * all other files are copied 1:1 to the destination folder.
+* Each **subdirectory** inside `site/` that contains an `index.html` or `index.md` file is a **page** in the index, addressed by its directory path as the URL route.
+* Every other file inside `site/` is a **static file** in the index, addressed by its full path as the URL route.
+* Routes are keyed by path only — there is no separate `build/` output folder.
 
-The `build/` folder is the webroot folder, and the files correspond relatively to the build folder to the same URL route.
+## Indexing
 
-## Site building
+The `pcms index` command (and the automatic initial index on `serve` start) walks the `site/` directory and creates entries in the SQLite database:
 
-With the `pcms build` or `pcms serve` command, the site is built from the `site/` folder. Each file
-is examined, processed and written to the output (`build/`) folder.
+* Each directory containing an `index.html` or `index.md` file becomes a **page** entry in the `pages` table.
+* YAML frontmatter in the index file is parsed: `title`, `enabled`, and all other keys are stored as `metadata_json`.
+* All other files become **file** entries in the `files` table, including auto-detected MIME type.
+* Excluded paths (configurable via `exclude_patterns` in `pcms-config.yaml`) are skipped.
 
-The system supports different processors, determined by the source file's file ending:
+The database is a plain SQLite file (`pcms.db` by default, configurable via `database_path` in `pcms-config.yaml`).
 
-* `*.html` files are processed by the `html_processor`:
-  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter metadata is available via the `Page.Metadata` template object.
-  * The HTML file is processed as `pongo2` template.
-  * Finally, the processd file is written to the output folder to the same relative path.
-* `*.md` files are processed by the `md_processor`:
-  * A YAML Frontmatter is extracted from the file, if present. The Frontmatter metadata is available via the `Page.Metadata` template object.
-  * The Markdown file is processed as `pongo2` template.
-  * The Markdown file is converted to HTML.
-  * Optionally, the converted HTML can be embedded into a template, defined in the `template` YAML frontmatter variable.
-  * Finally, the processd file is written to the output folder to the same relative path, but with a `.html` ending.
-* `*.scss` files are processed by the `dart-sass` compiler, which must be present as an external binary, and
-  written as `.css` file to the output folder.
-* All other files are treatened as raw files and copied 1:1 to the output folder.
+## Request handling
 
+The web server resolves every incoming request **against the SQLite index**, not by probing the filesystem directly. Only indexed content is served — unknown routes get a 404.
+
+### Page request pipeline
+
+1. Normalize the URL path to a canonical route.
+2. Look up the route in the `pages` table.
+3. Check the page's effective `enabled` state (resolved recursively through parent pages).
+   If disabled, return 404.
+4. Check if the source index file is newer than the DB record — if so, re-index the single page on the fly.
+5. Check the page cache (`server.cacheDir`):
+   - If a valid cached file exists (cache mtime >= source file mtime), serve it directly.
+   - Otherwise, render the page via the appropriate processor and write the result to the cache.
+6. Serve the cached HTML file to the client.
+
+### File request pipeline
+
+1. Look up the route in the `files` table.
+2. Open the file from the source `fs.FS`.
+3. Set `Content-Type` from the DB `mime_type` field.
+4. Stream the file to the client via `http.ServeContent`.
 
 ## Processors
 
+Processors render a page's index file to HTML. The processor is chosen by the index file's extension.
+
 ### HTML processor
 
-The HTML processor takes `.html` files as input, and processes them:
+Takes `index.html` files as input:
 
-An HTML file is processed as pongo2 template, and may be configured using a YAML Frontmatter.
+1. YAML frontmatter is extracted. Metadata is available via the `Page.Metadata` template variable.
+2. The HTML file is processed as a pongo2 template.
+3. The rendered HTML is written to the page cache.
 
 Example:
 
 ```html{% verbatim %}
 ---
-# YAML front matter
 title: 'Hello'
+template: 'base.html'
 ---
-{% extends "base-template.html" %}
-<h1>{{title}}</h1>
-<p>This file is processed using the 'base-template.html' template file</p>{% endverbatim %}
+{% extends "base.html" %}
+<h1>{{ Page.Title }}</h1>{% endverbatim %}
 ```
-
-1. The YAML Frontmatter is extracted from the HTML file. Metadata is available via the `Page.Metadata` template object.
-2. The complete HTML then is processed using the `pongo2` engine, and written as final HTML to the output folder.
-
 
 ### Markdown processor
 
-The Markdown processor is working very similar to the HTML processor, but takes `.md` files as input, and processes them to HTML:
+Takes `index.md` files as input:
 
-A Markdown file is processed as pongo2 template with a YAML Frontmatter, converted to HTML using a template, 
-and again processed as a pongo2 HTML template.
+1. YAML frontmatter is extracted. Metadata is available via the `Page.Metadata` template variable.
+2. The Markdown file is processed as a pongo2 template.
+3. The Markdown is converted to HTML.
+4. If a `template` frontmatter key is set, the converted HTML is embedded into that pongo2 template as `{{ content }}`.
+5. The rendered HTML is written to the page cache.
 
 Example:
 
 ```markdown
 ---
-# YAML front matter
-template: 'base-template.html'
+template: 'base.html'
 title: 'Hello'
 ---
-# {% verbatim %}{{title}}{% endverbatim %}
+# {% verbatim %}{{ Page.Title }}{% endverbatim %}
 
-This **Markdown** file is processed using the 'base-template.html' template file
+This **Markdown** file uses the 'base.html' template.
 ```
 
-1. The YAML Frontmatter is extracted from the Markdown file. Metadata is available via the `Page.Metadata` template object.
-2. The `template` variable defines the used pongo2 template file: The (processed) contents of this file is available as `content` variable.
-   For example, the `base-template` file may look as follows:
+The `base.html` template receives the converted markdown via the `content` variable:
 
 ```html
-{% verbatim %}<!-- templates/base-template.html file -->
+{% verbatim %}<!-- templates/base.html -->
 <!doctype html>
 <html lang="en">
     <head>
-        <title>{{Page.Title}}</title>
+        <title>{{ Page.Title }}</title>
     </head>
     <body>
       <div id="page_content">
-      <!-- The processed markdown content is placed here: -->
-      {{ content | safe }}
+        {{ content | safe }}
       </div>
     </body>
 </html>{% endverbatim %}
 ```
-4. The complete HTML then is processed using the `pongo2` engine, and written as final HTML to the output folder.
 
+### Raw file handling
 
-### SCSS Processor
+Files that are not page index files are served directly from the source `site/` directory without processing.
+The stored MIME type from the index is used for the `Content-Type` header.
 
-pcms can convert `*.scss` (scss) files to css.
+## Template context variables
 
-Unfortunately I could not find a suitable go-based SASS/SCSS processor until today. So pcms uses an external SASS/SCSS processor: [dart-scss](https://sass-lang.com/dart-sass/).
-You have to download / install the dart-sass binary by yourself, then point to the binary in the `pcms-config.yaml` file:
+The following variables are available in all page templates (HTML and Markdown):
+
+| Variable | Type | Description |
+|---|---|---|
+| `Page` | `IndexedPage` | The current page record from the index |
+| `Page.Route` | `string` | Canonical URL route of the page, e.g. `/blog/hello` |
+| `Page.Title` | `string` | Page title (from frontmatter or filename fallback) |
+| `Page.IndexFile` | `string` | Index file name, e.g. `index.md` |
+| `Page.Enabled` | `bool` | Whether this page is enabled |
+| `Page.Metadata` | `map[string]any` | All frontmatter keys not explicitly mapped above |
+| `Page.ParentPageRoute` | `*string` | Route of the parent page, or `nil` for root |
+| `ChildPages` | `[]IndexedPage` | Direct child pages of the current page |
+| `ChildFiles` | `[]IndexedFile` | Files belonging to the current page |
+| `Config` | `Config` | The full pcms configuration |
+| `Paths` | `PageInfo` | File and web path variants for the current page |
+| `Webroot(relPath)` | function | Converts a relative path to an absolute, webroot-based URL |
+| `StartsWith(s, prefix)` | function | Returns true if `s` starts with `prefix` |
+| `EndsWith(s, suffix)` | function | Returns true if `s` ends with `suffix` |
+
+## Page `enabled` flag
+
+Each page can define an `enabled` property in its YAML frontmatter:
 
 ```yaml
-# pcms-config.yaml:
-processors:
-  scss:
-    sass_bin: "/path/to/bin/sass"
+---
+enabled: false
+---
 ```
 
-All `*.scss` files are processed and converted to `*.css` files to the same relative output folder.
+* Defaults to `true` if not set.
+* If a parent page is disabled, all descendant pages are also treated as disabled, regardless of their own `enabled` value.
+* Disabled pages return a 404 response.
 
-### Raw File Processor
+## Configuration
 
-This is the simplest processor: It just copies the input file 1:1 to the output file, keeping the same relative path
-with no further processing. All files that are not processed by another processor are processed by the raw processor.
+Key `pcms-config.yaml` settings relevant to this architecture:
+
+```yaml
+source: "site"            # Source directory (relative to config file)
+database_path: "pcms.db"  # SQLite index file path (relative to config file)
+template_dir: "templates" # pongo2 template directory
+
+server:
+  listen: ":8080"
+  prefix: ""              # URL prefix (webroot), e.g. "/app"
+  cacheDir: ".pcms-cache" # Rendered page cache directory
+  watch: true
+
+exclude_patterns:
+  - "^\\..*"              # Exclude hidden files/directories
+```
