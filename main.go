@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"alexi.ch/pcms/commands"
+	"alexi.ch/pcms/lib"
 	"alexi.ch/pcms/model"
 )
 
@@ -144,6 +145,7 @@ func main() {
 		config.Server.Logging.Access.File = "STDOUT"
 		config.Server.Logging.Error.File = "STDERR"
 		config.ServeMode = model.SERVE_MODE_EMBEDDED_DOC
+		lib.SetDBPath(":memory:")
 		err = commands.RunServeCmd(config)
 	case "init":
 		commands.RunInitCmd(args, &templateContent)

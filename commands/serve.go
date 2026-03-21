@@ -38,6 +38,12 @@ func RunServeCmd(config model.Config) error {
 	var siteFS fs.FS
 	switch config.ServeMode {
 	case model.SERVE_MODE_EMBEDDED_DOC:
+		// Clear stale cache from previous runs — the in-memory DB is fresh each
+		// time, so cached HTML must be rebuilt.
+		if config.Server.CacheDir != "" {
+			os.RemoveAll(config.Server.CacheDir)
+		}
+
 		if err := RunIndexCmd(config); err != nil {
 			return err
 		}

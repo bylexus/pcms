@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	defaultDBPath     = "pcms.db"
-	currentDBSchema   = 2
-	embeddedDocDBPath = "pcms-doc.db"
+	defaultDBPath   = "pcms.db"
+	currentDBSchema = 2
 )
 
 type DBH struct {
@@ -28,11 +27,18 @@ var (
 	dbhInstance *DBH
 	dbhErr      error
 	dbhOnce     sync.Once
+	dbhPath     = defaultDBPath
 )
+
+// SetDBPath configures the database path used by GetDBH.
+// Must be called before the first call to GetDBH.
+func SetDBPath(path string) {
+	dbhPath = path
+}
 
 func GetDBH() (*DBH, error) {
 	dbhOnce.Do(func() {
-		h, err := OpenDBH(defaultDBPath)
+		h, err := OpenDBH(dbhPath)
 		if err != nil {
 			dbhErr = err
 			return
@@ -51,6 +57,12 @@ func OpenDBH(dbPath string) (*DBH, error) {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite db: %w", err)
+	}
+
+	// In-memory databases are per-connection. Restrict the pool to a single
+	// connection so that all operations share the same database.
+	if dbPath == ":memory:" {
+		db.SetMaxOpenConns(1)
 	}
 
 	h := &DBH{db: db, path: dbPath}
@@ -662,14 +674,6 @@ func unmarshalMetadata(s string) (map[string]any, error) {
 }
 
 func GetDBHForConfig(config model.Config) (*DBH, bool, error) {
-	if config.ServeMode == model.SERVE_MODE_EMBEDDED_DOC {
-		dbh, err := OpenDBH(embeddedDocDBPath)
-		if err != nil {
-			return nil, false, err
-		}
-		return dbh, true, nil
-	}
-
 	dbh, err := GetDBH()
 	if err != nil {
 		return nil, false, err

@@ -21,10 +21,10 @@ variables:
       route: requirements
     - title: "Quickstart"
       route: quickstart
-    - title: Architecture
-      route: architecture
     - title: "Install / setup"
       route: install_setup
+    - title: Architecture
+      route: architecture
     - title: "Reference"
       route: reference
 template_dir: templates
