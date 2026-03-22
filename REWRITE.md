@@ -303,6 +303,80 @@ If a page/front matter does not define `enabled`, it must default to active (`tr
 
 ## create page query builder
 
+Within a page template, the user / writer of the template should be able to query for page objects, e.g. to query specific child pages, pages with assigned tags etc.
+
+This should be exposed as a query builder function that can be used directly in the pongo2 templates.
+
+The query builder then forms an SQL query to query the indexed pages table and retrieve the objects.
+
+### Features
+
+* chainable query builder function to fetch page objects from the index
+* supports filtering, paging, sorting of page objects
+* supports queries within the metadata json structure (e.g. list all page objects with tags a, b, c)
+* fetches single / first object or whole (paged) set
+* chainable as one expression, e.g. `pageQuery().where().order().page().fetchAll()` (example, not real syntax)
+* Supports paging and total count querying
+
+### Syntax definition
+
+**Create a query builder:**
+
+```
+var qb: PageQueryBuilder = PageQuery()
+```
+
+**supported Query Builder filter methods**
+
+Each method returns a copy of the PageQueryBuilder, so that they can be chained.
+All filters are ANDed.
+
+All the `WhereMetadata*` methods search within the JSON metadata page field, while the
+first value is an array of field paths to search: Multiple fields mean the search is performed in all the given fields (ORed). For example:
+
+`WhereMedatataEquals([]string{'foo', 'bar.baz'}, 'value') searches for entries where the field 'foo' OR 'bar.baz' has the value 'value'.
+
+* `WhereParentRoute(string)`: adds a filter by ParentPageRoute
+* `WhereMetadataEquals([]string, string)`: adds a json search for a metadata entry, based on a json path. Example: `WhereMetadataEquals([]string{'foo.bar'}, 'value')`: searches the Metadata json object in path `foo.bar` for the exact value 'value'
+* `WhereMetadataContains([]string, string)`: adds a json search for a metadata entry, based on a json path, supporting string and array values (e.g. where an array contains a certain value). Example: `WhereMetadataContains([]string{'foo.bar','baz'}, 'value')`: searches the Metadata json array in path `foo.bar` or `baz` for the exact value 'value'. If the field value is a string, it searches the value within the string.
+* `WhereMetadataIsOneOf([]string, []string)`: adds a json search for a metadata entry, based on a json path, supporting string and array values, looking for at least one match. Example: `WhereMetadataContains([]string{'foo.bar'}, []string{'one','two'})`: searches the Metadata json value in path `foo.bar` for the one of the values given, supporting both string and array metadata json values.
+* `WhereMetadata[LT|LTE|GT|GTE]([]string, string)`: searches the Metadata json for a less than, less than equals, greater than, greater than equals value. Useful for e.g. date searches: `WhereMetadataGTE([]string{'publish_date'}, '2025-01-01')`  would add a filter that looks for metadata.publish_date values that are greater than (string equality) '2025-01-01'.
+
+**supported Query Builder order and paging methods**
+
+* `OrderBy(field,direction)`: Adds a sort direction for a metadata field and direction ('asc', 'desc'). Multiple calls are allowed.
+* `PageSize(int)`: Adds a limit to the result. non-cumulative. Default: no limit.
+* `Page(int)`: calcs an offset to a limit set by `PageSize()`: adds an offset clause based on the page size and requested page. First page is `1`, which is also the default.
+
+**supported fetch methods**
+
+After building the query, the final methods form the sql, query the DB and return IndexedPage structs or other results. The following methods terminate the builder:
+
+* `First() *IndexedPage`: returns a single result from the builder (the first one), or nil if no result is found
+* `FetchAll() []IndexedPage`: returns an array of IndexedPage results (empty array if no result)
+* `Count() Int` returns the total count of results of a query by executing a count(*) query without limit/offset
+* `NrOfPages() Int`: Returns the number of pages available, by executing `Count()`, then calculate the total pages based on the PageSize. If PageSize was not set, NrOfPages returns 1 (as there is only one big page with no limit).
+
+### Example usage
+
+**Fetch a page's child pages, order by title:**
+
+```
+// Usage in Go code:
+var childPages: []IndexedPage = PageQuery().WhereParentRoute(page.Route).OrderBy('title').FetchAll()
+
+// Usage in pongo2 template:
+{% for child in pageQuery().WhereParentRoute(page.Route).OrderBy('title').FetchAll() %}
+   {{ child.Title }}
+{% endfor %}
+```
+
+### Limitations
+
+* The query must restrict searches to enabled pages only. disabled pages are not returned. It also
+  respects the disabled flag on parent pages, so each result must not be part of a disabled parent page.
+* The querbuilder must make sure no SQL injections can be used, by using prepared statements and/or proper quoting.
+
 
 ## TODO
 
@@ -318,7 +392,7 @@ If a page/front matter does not define `enabled`, it must default to active (`tr
 
 ---
 
-## DB Index / File System Sync on Serve Start
+## DB Index / File System Sync on Serve Start [DONE]
 
 ### Background
 

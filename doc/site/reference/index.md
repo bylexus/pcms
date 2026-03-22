@@ -18,6 +18,7 @@ metaTags:
   - [using Markdown files with templates](#using-markdown-files-with-templates)
   - [available template variables](#available-template-variables)
   - [YAML front matter variables](#yaml-front-matter-variables)
+- [PageQuery — querying pages from templates](#pagequery--querying-pages-from-templates)
 - [pcms cli reference](#pcms-cli-reference)
 
 
@@ -219,6 +220,9 @@ pcms defines the following variables which you can use in your templates:
   Example:<br>
   {% verbatim %}`<a href="/foo" class="{% if StartsWith(Paths.AbsWebDir, Webroot('/foo')) %}active{% endif%}">Nav to foo</a>`{% endverbatim %}
 * `EndsWith(str: string, suffix: string)`: Same as `StartsWith()`, but checks if the given string `str` ends with `suffix`. Same as `strings.HasSuffix`. Useful if you want to highlight navigation markers.
+* `PageQuery()`: Returns a chainable query builder for searching indexed pages. See the [PageQuery](#pagequery--querying-pages-from-templates) section for full documentation.
+* `List(items: ...string)`: Helper function that creates a string list from its arguments. Used with `PageQuery()` filter methods that accept multiple field paths.<br>
+  Example: {% verbatim %}`List("tags", "categories")`{% endverbatim %}
 
 ### YAML front matter variables
 
@@ -312,6 +316,239 @@ enabled: false
 ```
 
 Both `/blog` and `/blog/post1` will return 404, because `/blog` is disabled and `/blog/post1` inherits that state.
+
+## PageQuery — querying pages from templates
+
+`PageQuery()` is a chainable query builder that lets you search and filter indexed pages directly from pongo2 templates. It queries the SQLite page index and returns `IndexedPage` objects.
+
+### Creating a query
+
+Call the `PageQuery()` function to get a new builder instance:
+
+```text
+{% verbatim %}{% with qb=PageQuery() %}...{% endwith %}{% endverbatim %}
+```
+
+### The `List()` helper
+
+Several filter methods accept a list of JSON field paths. Since pongo2 does not support inline array literals, use the `List()` helper to create string lists:
+
+```text
+{% verbatim %}{{ List("tags", "categories") }}{% endverbatim %}
+```
+
+### Filter methods
+
+All filter methods return a new builder copy and can be chained. Multiple filters are ANDed.
+
+#### `WhereParentRoute(route: string)`
+
+Filters pages by their parent page route.
+
+```html
+{% verbatim %}{% for child in PageQuery().WhereParentRoute("/blog").FetchAll() %}
+    <li>{{ child.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereRoute(route: string)`
+
+Filters pages by their route. Supports exact match or prefix match with a trailing wildcard (`*`).
+
+```html
+{% verbatim %}{# exact match — find a single page by route: #}
+{% with p=PageQuery().WhereRoute("/blog/post-1").First() %}
+    <h2>{{ p.Title }}</h2>
+{% endwith %}
+
+{# wildcard — find all pages under /blog/ (including /blog itself): #}
+{% for p in PageQuery().WhereRoute("/blog/*").OrderBy("title", "asc").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataEquals(fields: List, value: string)`
+
+Matches pages where at least one of the given metadata JSON paths has the exact value. Multiple fields are ORed.
+
+```html
+{% verbatim %}{# find all pages by author "alice": #}
+{% for p in PageQuery().WhereMetadataEquals(List("author"), "alice").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}
+
+{# search in multiple fields (ORed): #}
+{% for p in PageQuery().WhereMetadataEquals(List("author", "editor"), "alice").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataContains(fields: List, value: string)`
+
+Matches pages where at least one of the given metadata fields contains the value. Works for both string values (substring match) and JSON array values (element match).
+
+```html
+{% verbatim %}{# find pages where the "tags" array contains "go": #}
+{% for p in PageQuery().WhereMetadataContains(List("tags"), "go").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}
+
+{# substring match on a string field: #}
+{% for p in PageQuery().WhereMetadataContains(List("description"), "tutorial").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataIsOneOf(fields: List, values: List)`
+
+Matches pages where at least one of the given metadata fields matches at least one of the given values. Works for both string and array metadata values.
+
+```html
+{% verbatim %}{# find pages tagged with "go" OR "rust": #}
+{% for p in PageQuery().WhereMetadataIsOneOf(List("tags"), List("go", "rust")).FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataLT(fields: List, value: string)`
+
+Matches pages where at least one of the given metadata fields is less than the value (string comparison).
+
+```html
+{% verbatim %}{# pages published before 2025-06-01: #}
+{% for p in PageQuery().WhereMetadataLT(List("publish_date"), "2025-06-01").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataLTE(fields: List, value: string)`
+
+Same as `WhereMetadataLT`, but less than or equal.
+
+#### `WhereMetadataGT(fields: List, value: string)`
+
+Matches pages where at least one of the given metadata fields is greater than the value.
+
+```html
+{% verbatim %}{# pages published after 2025-01-01: #}
+{% for p in PageQuery().WhereMetadataGT(List("publish_date"), "2025-01-01").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataGTE(fields: List, value: string)`
+
+Same as `WhereMetadataGT`, but greater than or equal.
+
+```html
+{% verbatim %}{% for p in PageQuery().WhereMetadataGTE(List("publish_date"), "2025-01-01").FetchAll() %}
+    <li>{{ p.Title }} ({{ p.Metadata.publish_date }})</li>
+{% endfor %}{% endverbatim %}
+```
+
+### Ordering and paging methods
+
+#### `OrderBy(field: string, direction: string)`
+
+Adds a sort clause. The field can be a standard page column (`route`, `title`, `updated_at`, `created_at`, `enabled`) or a metadata JSON path. The direction must be `"asc"` or `"desc"`. Multiple calls are cumulative.
+
+```html
+{% verbatim %}{# order by title ascending: #}
+{% for p in PageQuery().WhereParentRoute("/blog").OrderBy("title", "asc").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}
+
+{# order by a metadata field, e.g. publish_date descending: #}
+{% for p in PageQuery().OrderBy("publish_date", "desc").FetchAll() %}
+    <li>{{ p.Title }} — {{ p.Metadata.publish_date }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `PageSize(size: int)`
+
+Sets the maximum number of results per page. Non-cumulative: the last call wins.
+
+#### `Page(page: int)`
+
+Sets the 1-based page number for pagination. Has no effect unless `PageSize` is set.
+
+```html
+{% verbatim %}{# paginated blog listing, 5 per page, showing page 2: #}
+{% for p in PageQuery().WhereParentRoute("/blog").OrderBy("publish_date", "desc").PageSize(5).Page(2).FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+### Terminal methods
+
+These methods execute the query and return results. They end the builder chain.
+
+#### `FetchAll() -> []IndexedPage`
+
+Executes the query and returns all matching pages as a list.
+
+```html
+{% verbatim %}{% for p in PageQuery().WhereParentRoute(Page.Route).OrderBy("title", "asc").FetchAll() %}
+    <a href="{{ p.Route }}">{{ p.Title }}</a>
+{% endfor %}{% endverbatim %}
+```
+
+#### `First() -> IndexedPage or nil`
+
+Returns the first matching result, or nil if no result is found.
+
+```html
+{% verbatim %}{% with featured=PageQuery().WhereMetadataEquals(List("featured"), "true").First() %}
+    {% if featured %}<h2>Featured: {{ featured.Title }}</h2>{% endif %}
+{% endwith %}{% endverbatim %}
+```
+
+#### `Count() -> int`
+
+Returns the total number of matching pages (ignoring `PageSize`/`Page`).
+
+```html
+{% verbatim %}<p>Total blog posts: {{ PageQuery().WhereParentRoute("/blog").Count() }}</p>{% endverbatim %}
+```
+
+#### `NrOfPages() -> int`
+
+Returns the number of available result pages based on `Count()` and `PageSize`. Returns 1 if `PageSize` is not set.
+
+```html
+{% verbatim %}{% with qb=PageQuery().WhereParentRoute("/blog").PageSize(10) %}
+    <p>Page count: {{ qb.NrOfPages() }}</p>
+{% endwith %}{% endverbatim %}
+```
+
+### Enabled page filtering
+
+The query builder automatically filters out disabled pages. A page is excluded if:
+
+* its own `enabled` flag is `false`, or
+* any of its ancestor pages is disabled.
+
+This matches the behavior described in the [enabled property](#the-enabled-property) section.
+
+### Complete example
+
+```html
+{% verbatim %}{# Blog listing with tag filter and pagination: #}
+{% with qb=PageQuery().WhereParentRoute("/blog").WhereMetadataContains(List("tags"), "go").OrderBy("publish_date", "desc").PageSize(5) %}
+
+<h2>Blog posts tagged "go" ({{ qb.Count() }} total, {{ qb.NrOfPages() }} pages)</h2>
+
+<ul>
+{% for post in qb.Page(1).FetchAll() %}
+    <li>
+        <a href="{{ post.Route }}">{{ post.Title }}</a>
+        <small>{{ post.Metadata.publish_date }}</small>
+    </li>
+{% endfor %}
+</ul>
+
+{% endwith %}{% endverbatim %}
+```
 
 ## pcms cli reference
 

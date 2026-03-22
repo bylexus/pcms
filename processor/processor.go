@@ -154,6 +154,18 @@ func prepareTemplateContext(config model.Config, fileInfo PageInfo) (pongo2.Cont
 		"StartsWith": strings.HasPrefix,
 		// helper function to check a string for a postfix
 		"EndsWith": strings.HasSuffix,
+
+		// PageQuery returns a new PageQueryBuilder for querying indexed pages.
+		// Usage: PageQuery().WhereParentRoute(page.Route).OrderBy("title","asc").FetchAll()
+		"PageQuery": func() *lib.PageQueryBuilder {
+			return lib.NewPageQueryBuilder(dbh)
+		},
+		// List creates a string slice from its arguments, for use with
+		// WhereMetadata* methods that accept []string field paths.
+		// Usage: WhereMetadataEquals(List("foo.bar", "baz"), "value")
+		"List": func(items ...string) []string {
+			return items
+		},
 	}
 	return context, nil
 }

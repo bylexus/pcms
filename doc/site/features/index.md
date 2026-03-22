@@ -36,6 +36,7 @@ metaTags:
 * Page render cache: rendered pages are cached on disk; cache is invalidated automatically when the source file changes
 * Automatic re-indexing: individual pages are re-indexed on serve start if their source file is newer than the index entry
 * Per-page `enabled` flag: pages can be disabled via front matter; disabled pages (and their children) return 404
+* `PageQuery()` template builder: chainable query API for searching and filtering indexed pages directly from templates — supports filtering by route, parent route, metadata values, ordering, and pagination
 * generates starter skeleton
 * self-contained binary: you just need the one single binary to run a pcms site, AND to read the docs
 
