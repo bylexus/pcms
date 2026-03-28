@@ -418,7 +418,7 @@ Each entry in the SQLite index should store at least:
 | `indexed_at` | DATETIME | Timestamp of the last successful index/build for this entry |
 | `file_mtime` | DATETIME | `mtime` of the source file at indexing time |
 
-#### 2. Sync Algorithm
+#### 2. Sync Algorithm [OPEN]
 
 On every `serve` start, after the server socket is bound and the server is ready to accept connections, run the following three-phase sync **as a goroutine** (non-blocking, asynchronous):
 

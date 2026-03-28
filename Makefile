@@ -24,18 +24,29 @@ serve-doc: build
 
 .PHONY: build-docker-image-amd64
 build-docker-image-amd64:
-	docker build --pull --no-cache --platform=linux/amd64 -t $(PROJECTNAME):amd64 $(GOBASE)
+	docker build --pull --no-cache --platform=linux/amd64 -t $(PROJECTNAME):$(VERSION) $(GOBASE)
+	docker image tag $(PROJECTNAME):$(VERSION) $(PROJECTNAME):$(VERSION)-amd64
 
 .PHONY: build-docker-image-arm64
 build-docker-image-arm64:
-	docker build --pull --no-cache --platform=linux/arm64 -t $(PROJECTNAME):arm64 $(GOBASE)
+	docker build --pull --no-cache --platform=linux/arm64 -t $(PROJECTNAME):$(VERSION) $(GOBASE)
+	docker image tag $(PROJECTNAME):$(VERSION) $(PROJECTNAME):$(VERSION)-arm64
 
-.PHONY: docker-push-to-registry
-docker-push-to-registry: build-docker-image-amd64 build-docker-image-arm64
-	docker image tag $(PROJECTNAME):amd64 registry.alexi.ch/pcms:amd64
-	docker image tag $(PROJECTNAME):arm64 registry.alexi.ch/pcms:arm64
-	docker push registry.alexi.ch/pcms:amd64
-	docker push registry.alexi.ch/pcms:arm64
+# Note for building multi-platform docker images:
+# you need to use a multiplatform builder with docker buildx:
+# Create a parallel multi-platform builder
+#     docker buildx create --name multiplatform-builder --use
+# Make "buildx" the default
+#     docker buildx install
+# or used an existing multiplatform builder:
+#     docker buildx use multiplatform-builder
+.PHONY: docker-multibuild-to-registry
+docker-multibuild-to-registry:
+	docker buildx build --pull --no-cache --push --platform=linux/arm64,linux/amd64 -t $(PROJECTNAME):$(VERSION) $(GOBASE)
+# 	docker image tag $(PROJECTNAME):$(VERSION) registry.alexi.ch/pcms:$(VERSION)
+# 	docker image tag $(PROJECTNAME):$(VERSION) registry.alexi.ch/pcms:latest
+# 	docker push registry.alexi.ch/pcms:$(VERSION)
+# 	docker push registry.alexi.ch/pcms:latest
 
 
 .PHONY: build-release

@@ -1,6 +1,6 @@
 module alexi.ch/pcms
 
-go 1.26
+go 1.25
 
 require (
 	github.com/flosch/pongo2/v6 v6.0.0
