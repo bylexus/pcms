@@ -7,3 +7,5 @@
 /doc/build/
 /site-template/build/
 /site-template/log/
+.pcms-cache
+/demo-page/

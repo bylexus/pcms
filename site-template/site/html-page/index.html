@@ -3,17 +3,17 @@
 {% block content %}
 <h1>HTML Page Demo</h1>
 
-<p><a href="{{webroot("/")}}"><i class="fas fa-home"></i> Back to home</a></p>
+<p><a href="{{Webroot("/")}}"><i class="fas fa-home"></i> Back to home</a></p>
 
-<p>Your actual Route: {{paths.absWebPath}}</page>
+<p>Your actual Route: {{Paths.AbsWebPath}}</page>
 
 <p>Access to pongo2 syntax, e.g. actual time: {% now "02.01.2006 15:04:05" %}</p>
 
 <pre>
 Page variables:
-{{variables | stringformat:"%#v"}}
+{{Config.Variables | stringformat:"%#v"}}
 Page paths:
-{{paths | stringformat:"%#v"}}
+{{Paths | stringformat:"%#v"}}
 </pre>
 
 Some static content:
@@ -22,10 +22,10 @@ Some static content:
 	<pre>./sunset.webp</pre><br>
 	<img src="./sunset.webp" class="img-fluid" /></p>
 <p>Relative addressed from webroot:<br>
-	<pre>{{paths.relWebPathToRoot}}/{{paths.relWebDir}}/sunset.webp</pre><br>
-	<img src="{{paths.relWebPathToRoot}}/{{paths.relWebDir}}/sunset.webp" class="img-fluid" /></p>
+	<pre>{{Paths.RelWebPathToRoot}}/{{Paths.RelWebDir}}/sunset.webp</pre><br>
+	<img src="{{Paths.RelWebPathToRoot}}/{{Paths.RelWebDir}}/sunset.webp" class="img-fluid" /></p>
 <p>Absolute addressed image:<br>
-	<pre>{{paths.absWebDir}}/sunset2.webp</pre><br>
-	<img src="{{paths.absWebDir}}/sunset2.webp" class="img-fluid" /></p>
+	<pre>{{Paths.AbsWebDir}}/sunset2.webp</pre><br>
+	<img src="{{Paths.AbsWebDir}}/sunset2.webp" class="img-fluid" /></p>
 
 {% endblock %}

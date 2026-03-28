@@ -18,8 +18,12 @@ metaTags:
   - [using Markdown files with templates](#using-markdown-files-with-templates)
   - [available template variables](#available-template-variables)
   - [YAML front matter variables](#yaml-front-matter-variables)
-  - [hierarchical template variables with variables.yaml files](#hierarchical-template-variables-with-variablesyaml-files)
+- [PageQuery — querying pages from templates](#pagequery--querying-pages-from-templates)
 - [pcms cli reference](#pcms-cli-reference)
+  - [init](#init)
+  - [index](#index)
+  - [serve](#serve)
+  - [serve-doc](#serve-doc)
 
 
 ## Generating a site
@@ -42,9 +46,10 @@ $ pcms serve
 ```sh
 root folder
 ├── pcms-config.yaml          # The config file for the site
+├── pcms.db                   # SQLite page index (auto-created)
+├── .pcms-cache/              # Rendered page cache (auto-created)
 ├── site/                     # The site dir contains the page content, and listens to the "/" route
 │   ├── index.html            # additional page content / templates
-│   ├── variables.yaml        # A YAML file containing variables. Inherited to all (sub-)pages
 │   └── ... more files/folder # add your source files/folders as needed
 └── templates                 # pongo2 templates for your html / markdown content
     ├── base.html             # a pongo2 template, e.g. a base html template
@@ -52,6 +57,8 @@ root folder
 ```
 
 - `pcms-config.yaml` is the configuration file for your site. It contains all the settings and global variables.
+- `pcms.db` is the SQLite index database. It is created and populated by `pcms index` (or automatically on first `pcms serve`). The path is configurable via `database_path` in `pcms-config.yaml`.
+- `.pcms-cache/` holds rendered HTML output cached by the serve process. The path is configurable via `server.cache_dir` in `pcms-config.yaml`.
 - `site/` is the folder where all your page content goes. If you reference pongo2 templates within your files, they are searched from the `templates/` folder.
 - `templates/` contains your pongo2 templates (if you need any).
 
@@ -64,31 +71,30 @@ This is the reference of the `pcms-config.yaml` config file.
 server:
   # listen address. This is an ip-address:port number pair, or a partial address: "localhost:3000", ":3000", "127.0.0.1", "0.0.0.0:3000"
   listen: ":3000"
-  # watch: if true, the source folder is watched for file changes, and a rebuild
-  # of changed / new files is triggered on the fly.
-  watch: true
-  # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "". The webroot can be accessed by the `variables.webroot` variable in templates. 
+  # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "". The webroot can be accessed by the `Paths.Webroot` variable or the `Webroot()` function in templates.
   prefix: ""
-  # Logging configuration: there are 2 diffenrent logs written:
+  # cache dir for rendered pages in serve mode. Relative to the config file dir, or absolute.
+  # Defaults to ".pcms-cache".
+  cache_dir: ".pcms-cache"
+  # Logging configuration: there are 2 different logs written:
   logging:
     # The access log: Logs all web access, like a webserver would.
     # Define the file (or STDOUT/STDERR), and the format (TBD).
     access:
       file: STDOUT
-      # not yet implemented:
       format: ""
     # The error, or system log. Define the file (or STDOUT/STDERR), and the max log level:
     error:
       file: STDERR
       level: DEBUG
-# The source folder of the site, containing the unbuilt site templates. Relative to
-# the config file dir:
-source: "site"
-# The destination folder of the site, containing the built static site. 
-# Note that this dir will be COMPLETELY EMPTIED on build.
+# Path to the SQLite database file. Relative to the config file dir, or absolute.
+# Defaults to "pcms.db" in the project dir.
+# Useful for Docker setups where the database should live on a separate volume.
+# database_path: "pcms.db"
+# The source folder of the site, containing the page content.
 # Relative to the config file dir:
-dest: "build"
-# Global variables for the pongo2 templates, available as "variables" pongo2 template variable as a map:
+source: "site"
+# Global variables available in pongo2 templates as "Config.Variables.xxx":
 variables:
   siteTitle: My Site Title
   siteMetaTags:
@@ -96,19 +102,15 @@ variables:
       content: bar
     - name: moo
       content: baz
-# Where to look for pongo2 templates when inheriting / defining a template file:
-# relative to the config file dir:
+# Where to look for pongo2 templates when inheriting / defining a template file.
+# Relative to the config file dir:
 template_dir: templates
-# Regular expression to exclude files/folders from the build process completely:
+# Regular expressions to exclude files/folders from indexing and serving:
 exclude_patterns:
   # Ignore .* files:
   - "/\\..*"
   # Ignore all files in the /restricted folder:
   - "^/restricted/?.*"
-processors:
-  scss:
-    # path to the dart-scss binary, if you want to convert scss files to css:
-    sass_bin: "/usr/bin/sass"
 ```
 
 ## The `site` folder
@@ -123,7 +125,7 @@ as soon as it contains a `page.json` file. The folder structure corresponds dire
 django-like template engine. For example, you can access the pre-defined and own variables in your HTML:
 
 ```html
-{% verbatim %}<div>Path of this file: {{ paths.relWebPath }}</div>{% endverbatim %}
+{% verbatim %}<div>Path of this file: {{ Paths.RelWebPath }}</div>{% endverbatim %}
 ```
 
 You can also inherit from a base template: Templates are searched within the `templates/` folder. As an example, define a base template,
@@ -134,8 +136,8 @@ then inherit from this base template in your site folder:
 <!doctype html>
 <html lang="en">
     <head>
-        <title>{%if variables.title %}{{variables.title}}{% endif%}</title>
-        {% for meta in variables.metaTags %}
+        <title>{%if Page.Title %}{{Page.Title}}{% endif%}</title>
+        {% for meta in Page.Metadata.metaTags %}
         <meta name="{{meta.name}}" content="{{meta.content}}" />
         {% endfor %}
     </head>
@@ -172,7 +174,7 @@ title: "Welcome"
 ---
 # Welcome!
 
-This **Markdown** partial file has the relative path: {% verbatim %}{{paths.relWebPath}}{% endverbatim %}.
+This **Markdown** partial file has the relative path: {% verbatim %}{{Paths.RelWebPath}}{% endverbatim %}.
 ```
 
 ```html
@@ -180,7 +182,7 @@ This **Markdown** partial file has the relative path: {% verbatim %}{{paths.relW
 <!doctype html>
 <html lang="en">
     <head>
-        <title>{%if variables.title %}{{variables.title}}{% endif%}</title>
+        <title>{%if Page.Title %}{{Page.Title}}{% endif%}</title>
     </head>
     <body>
         <main id="content">
@@ -194,35 +196,36 @@ This **Markdown** partial file has the relative path: {% verbatim %}{{paths.relW
 
 pcms defines the following variables which you can use in your templates:
 
-* `variables`: This is a map of the combined variables from `pcms-config.yaml::variables`, `variables.yaml` files and the actual file's YAML Front matter.<br>
+* `Page`: The page object from the index database. Contains the page's metadata (from YAML front matter) as `Page.Metadata`.<br>
   Example usage in a template:<br>
-  {% verbatim %}`Title: {{ variables.title|default:"My Site" }}`{% endverbatim %}
-* `paths`: a map of several path strings for the actual file:
-  * `paths.rootSourceDir`: The full file path to the used `site` folder
-  * `paths.absSourcePath`: The full file path to the actual source file
-  * `paths.absSourceDir`: The full file path to the actual source file's directory
-  * `paths.relSourcePath`: The relative file path of the actual file to the root source dir.
-  * `paths.relSourceDir`: The relative file path of the actual file's directory to the root source dir.
-  * `paths.relSourceRoot`: The relative file path of the actual file back to the `rootSourceDir` (e.g. `../../..`)
-  * `paths.rootDestDir`: The full file path to the used `build` (output) folder
-  * `paths.absDestPath`: The full file path to the actual dest file
-  * `paths.absDestDir`: The full file path to the actual dest file's directory
-  * `paths.relDestPath`: The relative file path of the actual file to the root sest dir.
-  * `paths.relDestDir`: The relative file path of the actual file's directory to the root dest dir.
-  * `paths.relDestRoot`: The relative file path of the actual file back to the `rootSourceDir` (e.g. `../../..`)
-  * `paths.webroot`: 	The Webroot prefix, "/" by default
-  * `paths.relWebPath`: relative (to Webroot) web path to the actual output file
-  * `paths.relWebDir`: relative (to Webroot) web path to the actual output file's folder
-  * `paths.relWebPathToRoot`: relative path from the actual output file back to the Webroot
-  * `paths.absWebPath`: absolute web path of the actual output file, including the Webroot, starting always with "/"
-  * `paths.absWebDir`: absolute web path of the actual output file's dir, including the Webroot, starting always with "/"
-* `webroot(string)`: Function to generate an absolute web path of a given relative path.<br>
+  {% verbatim %}`Title: {{ Page.Title|default:"My Site" }}`{% endverbatim %}
+* `ChildPages`: A list of child pages of the current page.
+* `ChildFiles`: A list of child files of the current page.
+* `Config`: The global configuration object. Access site-wide variables via `Config.Variables`.<br>
+  Example: {% verbatim %}`{{ Config.Variables.siteTitle }}`{% endverbatim %}
+* `Paths`: a map of several path strings for the actual file:
+  * `Paths.RootSourceDir`: The full file path to the used `site` folder
+  * `Paths.AbsSourcePath`: The full file path to the actual source file
+  * `Paths.AbsSourceDir`: The full file path to the actual source file's directory
+  * `Paths.RelSourcePath`: The relative file path of the actual file to the root source dir.
+  * `Paths.RelSourceDir`: The relative file path of the actual file's directory to the root source dir.
+  * `Paths.RelSourceRoot`: The relative file path of the actual file back to the `RootSourceDir` (e.g. `../../..`)
+  * `Paths.Webroot`: 	The Webroot prefix, "/" by default
+  * `Paths.RelWebPath`: relative (to Webroot) web path to the actual output file
+  * `Paths.RelWebDir`: relative (to Webroot) web path to the actual output file's folder
+  * `Paths.RelWebPathToRoot`: relative path from the actual output file back to the Webroot
+  * `Paths.AbsWebPath`: absolute web path of the actual output file, including the Webroot, starting always with "/"
+  * `Paths.AbsWebDir`: absolute web path of the actual output file's dir, including the Webroot, starting always with "/"
+* `Webroot(string)`: Function to generate an absolute web path of a given relative path.<br>
   Example usage, assuming the web prefix is set to `/mysite`:<br>
-  `webroot('rel/path/to/file')` => `/mysite/rel/path/to/file`
-* `startsWith(str: string, prefix: string)`: Checks if the given string `str` starts with `prefix`. Same as `strings.HasPrefix`. Useful if you want to highlight navigation markers.<br>
+  `Webroot('rel/path/to/file')` => `/mysite/rel/path/to/file`
+* `StartsWith(str: string, prefix: string)`: Checks if the given string `str` starts with `prefix`. Same as `strings.HasPrefix`. Useful if you want to highlight navigation markers.<br>
   Example:<br>
-  {% verbatim %}`<a href="/foo" class="{% if startsWith(paths.absWebDir, webroot('/foo')) %}active{% endif%}">Nav to foo</a>`{% endverbatim %}
-* `endsWith(str: string, suffix: string)`: Same as `startsWith()`, but checks if the given string `str` ends with `suffix`. Same as `strings.HasSuffix`. Useful if you want to highlight navigation markers.
+  {% verbatim %}`<a href="/foo" class="{% if StartsWith(Paths.AbsWebDir, Webroot('/foo')) %}active{% endif%}">Nav to foo</a>`{% endverbatim %}
+* `EndsWith(str: string, suffix: string)`: Same as `StartsWith()`, but checks if the given string `str` ends with `suffix`. Same as `strings.HasSuffix`. Useful if you want to highlight navigation markers.
+* `PageQuery()`: Returns a chainable query builder for searching indexed pages. See the [PageQuery](#pagequery--querying-pages-from-templates) section for full documentation.
+* `List(items: ...string)`: Helper function that creates a string list from its arguments. Used with `PageQuery()` filter methods that accept multiple field paths.<br>
+  Example: {% verbatim %}`List("tags", "categories")`{% endverbatim %}
 
 ### YAML front matter variables
 
@@ -238,7 +241,7 @@ Example: You want to output a page-specific title tag, which is defined in the b
 <html lang="en">
     <head>
       <!-- Output page-specific title: -->
-        <title>{{ variables.title|default:"My Page" }}</title>
+        <title>{{ Page.Title|default:"My Page" }}</title>
     </head>
     <body>
         <main id="content">
@@ -279,93 +282,354 @@ This generates the following output page:
 </html>{% endverbatim %}
 ```
 
-### hierarchical template variables with variables.yaml files 
+### Reserved front matter properties
 
-You can also define template variables outside the YAML front matter, in `variables.yaml` files. `variables.yaml` files must contain a variables map,
-and will be processed in the hierarchy of the actual file up to the site root folder.
+The following front matter properties have special meaning and are handled by pcms directly
+(they are not just passed through to `Page.Metadata`):
 
-An example:
+| Property  | Type    | Default | Description |
+|-----------|---------|---------|-------------|
+| `title`   | string  | directory name | Sets `Page.Title`. Used for page titles and navigation. |
+| `enabled` | boolean | `true`  | Controls whether the page is active. A disabled page returns 404 and is hidden from `ChildPages`. |
 
-Your site folder contains the following files:
+#### The `enabled` property
 
-```text
-└── site/
-    ├── index.html
-    ├── variables.yaml
-    └── subpage/
-        ├── index.md
-        └── variables.yaml
-```
-
-Say we process the file `site/subpage/index.md`, which has the following content:
-
-```text
----
-var3: "Ice man"
-var4: "Bruce Wayne"
----
-Some page content
-```
-
-The file `site/variables.yaml` contains site-wide variables:
+Each page can define an `enabled` property in its YAML front matter to control whether the page is active:
 
 ```yaml
-title: "Site title"
-var1: "Top"
-var2: "Batman"
+---
+title: "My hidden page"
+enabled: false
+---
 ```
 
-The file `site/subpage/variables.yaml` contains the following variables:
+**Behavior:**
 
+* If `enabled` is not set, the page defaults to **active** (`true`).
+* A disabled page returns **404** on direct requests.
+* Disabled pages are **excluded from `ChildPages`** lists, so they do not appear in navigation or template loops.
+* The flag is **resolved recursively through parent pages**: if any ancestor page is disabled, all its descendant pages are also treated as disabled — even if the child pages themselves have `enabled: true` or no `enabled` property at all.
 
-```yaml
-title: "Subpage"
-var1: "subfolder"
-var3: "Robin"
-```
-
-If the processor processes the file `site/subpage/index.md`, the `variables` template variable contain the merged variables from all files AND the front matter (deeper variables override top ones):
+**Example:** Given this page tree:
 
 ```text
-variables:
-  title: Subpage
-  var1: subfolder
-  var2: Batman
-  var3: Ice man
-  var4: Bruce Wayne
+/           (enabled: true)
+/blog       (enabled: false)
+/blog/post1 (enabled: true)
+```
+
+Both `/blog` and `/blog/post1` will return 404, because `/blog` is disabled and `/blog/post1` inherits that state.
+
+## PageQuery — querying pages from templates
+
+`PageQuery()` is a chainable query builder that lets you search and filter indexed pages directly from pongo2 templates. It queries the SQLite page index and returns `IndexedPage` objects.
+
+### Creating a query
+
+Call the `PageQuery()` function to get a new builder instance:
+
+```text
+{% verbatim %}{% with qb=PageQuery() %}...{% endwith %}{% endverbatim %}
+```
+
+### The `List()` helper
+
+Several filter methods accept a list of JSON field paths. Since pongo2 does not support inline array literals, use the `List()` helper to create string lists:
+
+```text
+{% verbatim %}{{ List("tags", "categories") }}{% endverbatim %}
+```
+
+### Filter methods
+
+All filter methods return a new builder copy and can be chained. Multiple filters are ANDed.
+
+#### `WhereParentRoute(route: string)`
+
+Filters pages by their parent page route.
+
+```html
+{% verbatim %}{% for child in PageQuery().WhereParentRoute("/blog").FetchAll() %}
+    <li>{{ child.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereRoute(route: string)`
+
+Filters pages by their route. Supports exact match or prefix match with a trailing wildcard (`*`).
+
+```html
+{% verbatim %}{# exact match — find a single page by route: #}
+{% with p=PageQuery().WhereRoute("/blog/post-1").First() %}
+    <h2>{{ p.Title }}</h2>
+{% endwith %}
+
+{# wildcard — find all pages under /blog/ (including /blog itself): #}
+{% for p in PageQuery().WhereRoute("/blog/*").OrderBy("title", "asc").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataEquals(fields: List, value: string)`
+
+Matches pages where at least one of the given metadata JSON paths has the exact value. Multiple fields are ORed.
+
+```html
+{% verbatim %}{# find all pages by author "alice": #}
+{% for p in PageQuery().WhereMetadataEquals(List("author"), "alice").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}
+
+{# search in multiple fields (ORed): #}
+{% for p in PageQuery().WhereMetadataEquals(List("author", "editor"), "alice").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataContains(fields: List, value: string)`
+
+Matches pages where at least one of the given metadata fields contains the value. Works for both string values (substring match) and JSON array values (element match).
+
+```html
+{% verbatim %}{# find pages where the "tags" array contains "go": #}
+{% for p in PageQuery().WhereMetadataContains(List("tags"), "go").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}
+
+{# substring match on a string field: #}
+{% for p in PageQuery().WhereMetadataContains(List("description"), "tutorial").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataIsOneOf(fields: List, values: List)`
+
+Matches pages where at least one of the given metadata fields matches at least one of the given values. Works for both string and array metadata values.
+
+```html
+{% verbatim %}{# find pages tagged with "go" OR "rust": #}
+{% for p in PageQuery().WhereMetadataIsOneOf(List("tags"), List("go", "rust")).FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataLT(fields: List, value: string)`
+
+Matches pages where at least one of the given metadata fields is less than the value (string comparison).
+
+```html
+{% verbatim %}{# pages published before 2025-06-01: #}
+{% for p in PageQuery().WhereMetadataLT(List("publish_date"), "2025-06-01").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataLTE(fields: List, value: string)`
+
+Same as `WhereMetadataLT`, but less than or equal.
+
+#### `WhereMetadataGT(fields: List, value: string)`
+
+Matches pages where at least one of the given metadata fields is greater than the value.
+
+```html
+{% verbatim %}{# pages published after 2025-01-01: #}
+{% for p in PageQuery().WhereMetadataGT(List("publish_date"), "2025-01-01").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `WhereMetadataGTE(fields: List, value: string)`
+
+Same as `WhereMetadataGT`, but greater than or equal.
+
+```html
+{% verbatim %}{% for p in PageQuery().WhereMetadataGTE(List("publish_date"), "2025-01-01").FetchAll() %}
+    <li>{{ p.Title }} ({{ p.Metadata.publish_date }})</li>
+{% endfor %}{% endverbatim %}
+```
+
+### Ordering and paging methods
+
+#### `OrderBy(field: string, direction: string)`
+
+Adds a sort clause. The field can be a standard page column (`route`, `title`, `updated_at`, `created_at`, `enabled`) or a metadata JSON path. The direction must be `"asc"` or `"desc"`. Multiple calls are cumulative.
+
+```html
+{% verbatim %}{# order by title ascending: #}
+{% for p in PageQuery().WhereParentRoute("/blog").OrderBy("title", "asc").FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}
+
+{# order by a metadata field, e.g. publish_date descending: #}
+{% for p in PageQuery().OrderBy("publish_date", "desc").FetchAll() %}
+    <li>{{ p.Title }} — {{ p.Metadata.publish_date }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+#### `PageSize(size: int)`
+
+Sets the maximum number of results per page. Non-cumulative: the last call wins.
+
+#### `Page(page: int)`
+
+Sets the 1-based page number for pagination. Has no effect unless `PageSize` is set.
+
+```html
+{% verbatim %}{# paginated blog listing, 5 per page, showing page 2: #}
+{% for p in PageQuery().WhereParentRoute("/blog").OrderBy("publish_date", "desc").PageSize(5).Page(2).FetchAll() %}
+    <li>{{ p.Title }}</li>
+{% endfor %}{% endverbatim %}
+```
+
+### Terminal methods
+
+These methods execute the query and return results. They end the builder chain.
+
+#### `FetchAll() -> []IndexedPage`
+
+Executes the query and returns all matching pages as a list.
+
+```html
+{% verbatim %}{% for p in PageQuery().WhereParentRoute(Page.Route).OrderBy("title", "asc").FetchAll() %}
+    <a href="{{ p.Route }}">{{ p.Title }}</a>
+{% endfor %}{% endverbatim %}
+```
+
+#### `First() -> IndexedPage or nil`
+
+Returns the first matching result, or nil if no result is found.
+
+```html
+{% verbatim %}{% with featured=PageQuery().WhereMetadataEquals(List("featured"), "true").First() %}
+    {% if featured %}<h2>Featured: {{ featured.Title }}</h2>{% endif %}
+{% endwith %}{% endverbatim %}
+```
+
+#### `Count() -> int`
+
+Returns the total number of matching pages (ignoring `PageSize`/`Page`).
+
+```html
+{% verbatim %}<p>Total blog posts: {{ PageQuery().WhereParentRoute("/blog").Count() }}</p>{% endverbatim %}
+```
+
+#### `NrOfPages() -> int`
+
+Returns the number of available result pages based on `Count()` and `PageSize`. Returns 1 if `PageSize` is not set.
+
+```html
+{% verbatim %}{% with qb=PageQuery().WhereParentRoute("/blog").PageSize(10) %}
+    <p>Page count: {{ qb.NrOfPages() }}</p>
+{% endwith %}{% endverbatim %}
+```
+
+### Enabled page filtering
+
+The query builder automatically filters out disabled pages. A page is excluded if:
+
+* its own `enabled` flag is `false`, or
+* any of its ancestor pages is disabled.
+
+This matches the behavior described in the [enabled property](#the-enabled-property) section.
+
+### Complete example
+
+```html
+{% verbatim %}{# Blog listing with tag filter and pagination: #}
+{% with qb=PageQuery().WhereParentRoute("/blog").WhereMetadataContains(List("tags"), "go").OrderBy("publish_date", "desc").PageSize(5) %}
+
+<h2>Blog posts tagged "go" ({{ qb.Count() }} total, {{ qb.NrOfPages() }} pages)</h2>
+
+<ul>
+{% for post in qb.Page(1).FetchAll() %}
+    <li>
+        <a href="{{ post.Route }}">{{ post.Title }}</a>
+        <small>{{ post.Metadata.publish_date }}</small>
+    </li>
+{% endfor %}
+</ul>
+
+{% endwith %}{% endverbatim %}
 ```
 
 ## pcms cli reference
 
 ```text
-bin/pcms -h
-
-Usage:
-
-pcms [options] <sub-command> [sub-command options]
-
-options:
-
-  -c string
-    	path to the pcms-config.yaml file. The base dir used is the path of the config file. (default "pcms-config.yaml")
-  -h	Prints this help
-
-A sub-command is expected. Supported sub-commands:
-
-build:      Builds the site to the dest folder
-Usage of build:
-
-serve:      Starts the web server and serves the page
-Usage of serve:
-  -listen string
-    	TCP/IP Listen address, e.g. '-listen :3000' or '-listen 127.0.0.1:8888' (default ":3000")
-
-serve-doc:      Starts a webserver and serves the embedded documentation
-Usage of serve-doc:
-  -listen string
-    	TCP/IP Listen address, e.g. '-listen :3000' or '-listen 127.0.0.1:8888' (default ":3000")
-
-init:      initializes a new pcms project dir using a skeleton
-Usage of init:
-init [path]: initializes a new pcms skeleton in the given path, creating it if does not exist
+pcms [options] <command> [command options]
 ```
+
+**Global options** (must appear before the command):
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-c <path>` | `pcms-config.yaml` | Path to the config file. All relative paths in the config are resolved relative to the config file's directory. |
+| `-h` | — | Print help and exit. |
+
+---
+
+### init
+
+Creates a new pcms project skeleton in the given directory. The directory is created if it does not exist.
+
+```bash
+pcms init <path>
+```
+
+**Example:**
+
+```bash
+pcms init /path/to/my-site
+cd /path/to/my-site
+pcms serve
+```
+
+---
+
+### index
+
+Builds (or rebuilds) the SQLite page index from the source folder. Walks the `source` directory tree, extracts front matter metadata, and stores all pages and files in `pcms.db`. Run this after adding or changing content outside of `pcms serve`.
+
+```bash
+pcms index
+pcms -c /path/to/pcms-config.yaml index
+```
+
+The database path defaults to `pcms.db` next to the config file and can be changed via `database_path` in `pcms-config.yaml`.
+
+**Note:** `pcms serve` runs an initial index automatically when the database is empty, so a separate `pcms index` call is only needed when you want to pre-build the index or refresh it without starting the server.
+
+---
+
+### serve
+
+Starts the web server and serves the indexed site. On the first start, if the page index is empty, it builds the index automatically.
+
+```bash
+pcms serve
+pcms -c /path/to/pcms-config.yaml serve
+pcms serve -listen :8080
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-listen <addr>` | `:3000` | TCP/IP listen address. Accepts `host:port`, `:port`, or a full address such as `127.0.0.1:8888`. Overrides `server.listen` from the config file. |
+
+---
+
+### serve-doc
+
+Starts a web server that serves the built-in pcms documentation. No config file or project directory is required.
+
+```bash
+pcms serve-doc
+pcms serve-doc -listen :9000
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-listen <addr>` | `:3000` | TCP/IP listen address, same format as in `serve`. |

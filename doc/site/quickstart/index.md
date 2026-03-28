@@ -55,8 +55,6 @@ $ pcms serve
 
 And done! Your site is serving on http://localhost:3000/!
 
-Your static pages are also generated to the `build/` folder.
-
 
 ## Step 3 - Generate content!
 
@@ -79,10 +77,9 @@ After initializing a skeleton app with `pcms init`, you get the following file s
 │   ├── markdown-page
 │   │   ├── index.md
 │   │   └── sunset.webp
-│   ├── static
-│   │   └── css
-│   │       └── main.css
-│   └── variables.yaml
+│   └── static
+│       └── css
+│           └── main.css
 └── templates               # pongo2 templates for your html / markdown content
     ├── base.html
     ├── error.html
@@ -95,16 +92,15 @@ static content and whatnot.
 Inspect the folder structure to see how they work. It is really simple:
 
 * the main config file is `pcms-config.yaml` in the base directory. It stores all the important information to run your site.
-* The `site/` folder contains your source files: html, markdown partials, static content, scss files etc. You mainly work in here
+* The `site/` folder contains your source files: html, markdown partials, static content etc. You mainly work in here
   to generate content.
-  * `.html` files are processed as [`pongo2`](https://github.com/flosch/pongo2) templates, and support a YAML frontmatter (see next chapter)
-  * `.md` files are processed as [`pongo2`](https://github.com/flosch/pongo2) templates, converted to `.html` and support a YAML frontmatter (see next chapter)
-  * `.scss` files are processed with the [`dart-sass`](https://sass-lang.com/dart-sass/) compiler (need to be installed separately)
+  * `index.html` files are processed as [`pongo2`](https://github.com/flosch/pongo2) templates, and support a YAML frontmatter (see next chapter)
+  * `index.md` files are processed as [`pongo2`](https://github.com/flosch/pongo2) templates, converted to `.html` and support a YAML frontmatter (see next chapter)
 * The `templates/` folder contains your `pongo2` base templates for your site, if needed
 
 ### YAML front matter
 
-`.html` and `.md` files support a YAML front matter to define template variables: See `site/markdown-page/index.md` as an example:
+`index.html` and `index.md` files support a YAML front matter to define template variables: See `site/markdown-page/index.md` as an example:
 
 ```text
 ---
@@ -121,35 +117,27 @@ metaTags:
 ---
 # Markdown Demo Page
 
-[<i class="fas fa-home"></i> Back to home]({{webroot("/")}})
+[<i class="fas fa-home"></i> Back to home]({{Webroot("/")}})
 
-Your actual Route: {{paths.absWebPath}}
+Your actual Route: {{Paths.AbsWebPath}}
 
 Access to pongo2 syntax, e.g. actual time: {% now "02.01.2006 15:04:05" %}
 
-Use an icon: <i class="{{variales.iconCls}}"></i>
+Use an icon: <i class="{{Config.Variables.iconCls}}"></i>
 ```
 
 The YAML front matter is the start part beteween the `---` separators, and (may) contain valid YAML content.
-This content then will become availabe in your `pongo2` templates in the `variables` map.
+This content then will become available in your `pongo2` templates via the `Page.Metadata` object.
 For Markdown files, the only needed entry is `template: `, which defines the HTML template to be used from the `templates/` folder
 to generate the final HTML.
 
-## Step 4: Build and serve
+## Step 4: Index and serve
 
-`pcms serve` watches your files for changes and re-builds the output when any file changes in the `site/` or `template/` folder.
-If you just want to build your files without starting a server and watch, you can just issue 
+`pcms index` builds the sqlite-based page index. Issue this if any of your page contents change to update the page index.
 
-```
-pcms build
-```
-
-The final static site is built into the `build/` folder. You can now copy this folder to your public web server, if needed.
+`pcms serve` starts the web server and processes your page files and other static content. 
 
 ## Step 5: ... and beyond!
 
 Please have a look at the other chapters for a more detailed description on how to configure
 and use `pcms`.
-
-
-

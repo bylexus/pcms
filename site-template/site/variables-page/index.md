@@ -4,7 +4,7 @@ shortTitle: "Variables"
 template: "markdown.html"
 iconCls: "fab fa-markdown"
 mainClass: "markdown"
-metaTags: 
+metaTags:
   - name: "keywords"
     content": "pcms,cms"
   - name: "description"
@@ -34,11 +34,11 @@ var1: value1
 ---
 # Hello, Markdown
 
-Access var: {{variables.var1}}
+Access var: {{Config.Variables.var1}}
 ```
 
 Defined variables in the actual context:
 
 <pre>
-{{variables | stringformat:"%#v"}}
+{{Config.Variables | stringformat:"%#v"}}
 </pre>

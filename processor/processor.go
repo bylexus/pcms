@@ -2,24 +2,24 @@ package processor
 
 import (
 	"fmt"
-	"os"
+	"io/fs"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 
+	"alexi.ch/pcms/lib"
 	"alexi.ch/pcms/model"
-	"alexi.ch/pcms/stdlib"
-	"github.com/flosch/pongo2/v4"
-	"gopkg.in/yaml.v3"
+	"github.com/flosch/pongo2/v6"
 )
 
+// Processor is the interface for processors that can render a page's index file.
 type Processor interface {
-	Name() string
-	ProcessFile(sourceFile string, config model.Config) (destFile string, err error)
+	RenderFileForServe(siteFS fs.FS, sourceFSPath string, sourceFile string, config model.Config, filePaths PageInfo) ([]byte, error)
 }
+type PageInfo struct {
+	// the actual page record from the index
+	ActPage model.IndexedPage `yaml:"-"`
 
-type ProcessingFileInfo struct {
 	// file paths:
 	// start / top path of the source folder
 	RootSourceDir string `yaml:"rootSourceDir"`
@@ -33,19 +33,6 @@ type ProcessingFileInfo struct {
 	RelSourceDir string `yaml:"relSourceDir"`
 	// relative path from the actual source file back to the RootSourceDir
 	RelSourceRoot string `yaml:"relSourceRoot"`
-
-	// start / top path of the destination folder
-	RootDestDir string `yaml:"rootDestDir"`
-	// absolute path of the actual destination file
-	AbsDestPath string `yaml:"absDestPath"`
-	// absolute path of the actual destination file
-	AbsDestDir string `yaml:"absDestDir"`
-	// file path of the actual destination file relative to the RootDestDir
-	RelDestPath string `yaml:"relDestPath"`
-	// dir path of the actual destination file relative to the RootSourceDir
-	RelDestDir string `yaml:"relDestDir"`
-	// relative path from the actual dest file back to the RootSourceDir
-	RelDestRoot string `yaml:"relDestRoot"`
 
 	// web paths:
 	// the Webroot prefix, "/" by default
@@ -62,139 +49,123 @@ type ProcessingFileInfo struct {
 	AbsWebDir string `yaml:"absWebDir"`
 }
 
-func (p ProcessingFileInfo) GetStdObject() (map[string]interface{}, error) {
-	yamlStr, err := yaml.Marshal(p)
-	if err != nil {
-		return nil, err
+
+func BuildPageTemplateVariables(route string, indexFile string, config model.Config, page model.IndexedPage) (PageInfo, error) {
+	result := PageInfo{}
+	result.ActPage = page
+	result.RootSourceDir = config.SourcePath
+	result.Webroot = config.Server.Prefix
+
+	routeDir := strings.TrimPrefix(path.Clean(route), "/")
+	if routeDir == "." {
+		routeDir = ""
 	}
-	obj := make(map[string]interface{})
-	err = yaml.Unmarshal(yamlStr, &obj)
-	if err != nil {
-		return nil, err
+
+	sourceRelPath := indexFile
+	if routeDir != "" {
+		sourceRelPath = filepath.Join(filepath.FromSlash(routeDir), indexFile)
 	}
-	return obj, err
+
+	result.AbsSourcePath = filepath.Join(result.RootSourceDir, sourceRelPath)
+	result.AbsSourceDir = filepath.Dir(result.AbsSourcePath)
+
+	var err error
+	result.RelSourcePath, err = filepath.Rel(config.SourcePath, result.AbsSourcePath)
+	if err != nil {
+		return result, err
+	}
+	result.RelSourceDir, err = filepath.Rel(config.SourcePath, result.AbsSourceDir)
+	if err != nil {
+		return result, err
+	}
+	if result.RelSourceDir == "" {
+		result.RelSourceDir = "."
+	}
+	result.RelSourceRoot, err = filepath.Rel(result.AbsSourceDir, config.SourcePath)
+	if err != nil {
+		return result, err
+	}
+
+	if routeDir == "" {
+		result.RelWebPath = "index.html"
+		result.RelWebDir = "."
+		result.RelWebPathToRoot = "."
+	} else {
+		result.RelWebPath = routeDir + "/index.html"
+		result.RelWebDir = routeDir
+		result.RelWebPathToRoot, err = filepath.Rel(filepath.FromSlash(routeDir), ".")
+		if err != nil {
+			return result, err
+		}
+		result.RelWebPathToRoot = filepath.ToSlash(result.RelWebPathToRoot)
+	}
+	result.AbsWebPath = path.Clean(path.Join("/", result.Webroot, result.RelWebPath))
+	result.AbsWebDir = path.Clean(path.Join("/", result.Webroot, result.RelWebDir))
+
+	return result, nil
 }
 
-func GetProcessor(sourceFile string, config model.Config) Processor {
-	fileExt := filepath.Ext(sourceFile)
-	switch strings.ToLower(fileExt) {
+// GetProcessor returns the appropriate PageRenderer for the given index file,
+// based on its file extension.
+func GetProcessor(indexFile string) (Processor, error) {
+	switch strings.ToLower(path.Ext(indexFile)) {
 	case ".html":
-		return HtmlProcessor{}
+		return HtmlProcessor{}, nil
 	case ".md":
-		return MdProcessor{}
-	case ".scss":
-		return ScssProcessor{}
+		return MdProcessor{}, nil
 	default:
-		return RawProcessor{}
+		return nil, fmt.Errorf("unsupported page index file type: %s", indexFile)
 	}
-}
-
-// Checks if the given file matches a set of exclude regex patterns.
-// The relative path within the source dir is used as input.
-//
-// Returns true and the matching pattern if the file name matches a exclude pattern.
-func IsFileExcluded(filePath string, excludePatterns []string) (bool, string) {
-	skipfiles := []string{"variables.yaml"}
-	if stdlib.InSlice(&skipfiles, filepath.Base(filePath)) {
-		return true, filepath.Base(filePath)
-	}
-	for _, pattern := range excludePatterns {
-		r := regexp.MustCompile(pattern)
-		if r.MatchString(filePath) {
-			return true, pattern
-		}
-	}
-
-	return false, ""
-}
-
-// Takes multiple string maps, and merges them.
-// later map entries override previous ones.
-func mergeStringMaps(maps ...map[string]interface{}) map[string]interface{} {
-	resultMap := make(map[string]interface{})
-	for _, m := range maps {
-		for k, v := range m {
-			resultMap[k] = v
-		}
-	}
-	return resultMap
 }
 
 func AbsUrl(relPath string, Webroot string) string {
 	return path.Clean(path.Join("/", Webroot, relPath))
 }
 
-func prepareTemplateContext(sourceFile string, config model.Config, filePaths ProcessingFileInfo, yamlFrontMatter stdlib.YamlFrontMatter) (pongo2.Context, error) {
-
-	// combined variables object:
-	variables := collectPageVariables(sourceFile, config, yamlFrontMatter)
-
-	// convert paths object to an anonymous, lower-cased map:
-	pathObj, err := filePaths.GetStdObject()
+func prepareTemplateContext(config model.Config, fileInfo PageInfo) (pongo2.Context, error) {
+	dbh, err := lib.GetDBH()
+	if err != nil {
+		return nil, err
+	}
+	childPages, err := dbh.GetChildPages(fileInfo.ActPage.Route)
+	if err != nil {
+		return nil, err
+	}
+	childFiles, err := dbh.GetChildFiles(fileInfo.ActPage.Route)
 	if err != nil {
 		return nil, err
 	}
 
 	var context = pongo2.Context{
-		// contains the combined variables
-		"variables": variables,
+		"Page": fileInfo.ActPage,
+
+		"ChildPages": childPages,
+		"ChildFiles": childFiles,
+
+		"Config": config,
+
 		// several file path variants for the actual file:
-		"paths": pathObj,
+		"Paths": fileInfo,
 		// creates an absolute, webroot-based url from a relative url
-		"webroot": func(relPath string) string {
-			return AbsUrl(relPath, filePaths.Webroot)
+		"Webroot": func(relPath string) string {
+			return AbsUrl(relPath, fileInfo.Webroot)
 		},
 		// helper function to check a string for a prefix
-		"startsWith": strings.HasPrefix,
+		"StartsWith": strings.HasPrefix,
 		// helper function to check a string for a postfix
-		"endsWith": strings.HasSuffix,
+		"EndsWith": strings.HasSuffix,
+
+		// PageQuery returns a new PageQueryBuilder for querying indexed pages.
+		// Usage: PageQuery().WhereParentRoute(page.Route).OrderBy("title","asc").FetchAll()
+		"PageQuery": func() *lib.PageQueryBuilder {
+			return lib.NewPageQueryBuilder(dbh)
+		},
+		// List creates a string slice from its arguments, for use with
+		// WhereMetadata* methods that accept []string field paths.
+		// Usage: WhereMetadataEquals(List("foo.bar", "baz"), "value")
+		"List": func(items ...string) []string {
+			return items
+		},
 	}
 	return context, nil
-}
-
-func collectPageVariables(sourceFile string, config model.Config, yamlFrontMatter stdlib.YamlFrontMatter) stdlib.YamlFrontMatter {
-	// The variables content is prepared in the follwing priority (higher prio overrides lower prio).
-	// 4. frontmatter content
-	// 3. variables.yaml file in the actual source file's directory
-	// 2. variables.yaml files further up the directory tree, until the root source dir is reached
-	// 1. global variables from pcms-config.yaml
-	variables := make(stdlib.YamlFrontMatter)
-
-	// merge pcms-config variables:
-	variables = mergeStringMaps(variables, config.Variables)
-
-	// find and combine all variables.yaml files in the hierarchy:
-	variableFiles := make([]string, 0)
-	for actPath := filepath.Dir(sourceFile); strings.HasPrefix(actPath, config.SourcePath); actPath = filepath.Dir(actPath) {
-		yamlFile := filepath.Join(actPath, "variables.yaml")
-		fileInfo, err := os.Stat(yamlFile)
-		if err != nil {
-			continue
-		}
-		if !fileInfo.IsDir() {
-			variableFiles = append(variableFiles, yamlFile)
-		}
-	}
-	// process the collected variables.yaml file backward (top file first):
-	for i := len(variableFiles) - 1; i >= 0; i-- {
-		yamlFile := variableFiles[i]
-		fileContent, err := os.ReadFile(yamlFile)
-		if err != nil {
-			continue
-		}
-
-		// parse yaml file
-		variablesObj := make(stdlib.YamlFrontMatter)
-		err = yaml.Unmarshal(fileContent, &variablesObj)
-		if err != nil {
-			fmt.Printf("ERROR while reading yaml from %s: %s\n", yamlFile, err)
-			continue
-		}
-		variables = mergeStringMaps(variables, variablesObj)
-	}
-
-	// merge frontmatter variables:
-	variables = mergeStringMaps(variables, yamlFrontMatter)
-
-	return variables
 }

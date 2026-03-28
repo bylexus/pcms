@@ -2,27 +2,33 @@ header {
     display: flex;
     align-items: baseline;
     padding: 0.5rem;
-    background-color: #12134f;
+    background-color: var(--header-bg);
     color: white;
-    background: linear-gradient(to bottom, #374599 0%,#12134f 100%);
+    background: linear-gradient(to bottom, var(--header-gradient-start) 0%, var(--header-bg) 100%);
     box-shadow: 0 0 10px rgba(0,0,0,0.4);
+
     .title {
         flex-grow: 1;
+
         a {
             text-decoration: none;
             color: white;
+
             &:hover {
                 background-color: transparent;
             }
         }
-        font-family: "Roboto Mono";
+
+        font-family: var(--font-mono);
         font-weight: bold;
         font-size: 1.5rem;
     }
+
     .github {
-        a {
-            color: #aaa;
-        }
         text-align: right;
+
+        a {
+            color: var(--muted-text);
+        }
     }
 }

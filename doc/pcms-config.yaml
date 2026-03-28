@@ -1,6 +1,7 @@
 server:
   listen: ":3000"
   prefix: ""
+  cache_dir: ".pcms-cache"
   watch: true
   logging:
     access:
@@ -10,28 +11,23 @@ server:
       file: STDERR
       level: DEBUG
 source: "site"
-dest: "build"
 variables:
   siteTitle: pcms-go - Documentation
   siteMetaTags:
   toc:
     - title: Features
-      relDestDir: features
+      route: features
     - title: "Requirements"
-      relDestDir: requirements
+      route: requirements
     - title: "Quickstart"
-      relDestDir: quickstart
-    - title: Architecture
-      relDestDir: architecture
+      route: quickstart
     - title: "Install / setup"
-      relDestDir: install_setup
+      route: install_setup
+    - title: Architecture
+      route: architecture
     - title: "Reference"
-      relDestDir: reference
+      route: reference
 template_dir: templates
 exclude_patterns:
   - "^\\..*"
   - "^page\\.json$"
-processors:
-  scss:
-    sass_bin: "/Users/alex/.nvm/versions/node/v18.13.0/bin/sass"
-

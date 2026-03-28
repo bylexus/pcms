@@ -5,9 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path"
 
 	"alexi.ch/pcms/commands"
+	"alexi.ch/pcms/lib"
 	"alexi.ch/pcms/model"
 )
 
@@ -18,7 +18,7 @@ var templateContent embed.FS
 
 // embed the built doc folder:
 //
-//go:embed doc/build
+//go:embed doc
 var embeddedDocFS embed.FS
 
 func printUsage(flagMap map[string]*flag.FlagSet) {
@@ -44,10 +44,10 @@ The following global argument are supported:
 
 The following commands are supported:
 
-* build: Builds the site as static content
-* serve: Builds the site (same as build) and starts a webserver to serve the content
+* serve: Starts a webserver to serve the content
 * serve-doc: Serves the embedded (binary-built-in) documentation
 * init: initializes a directory with a skeleton page
+* index: initializes/updates the local pcms db structure
 */
 func parseCmdArgs() model.CmdArgs {
 	args := model.CmdArgs{}
@@ -64,17 +64,6 @@ func parseCmdArgs() model.CmdArgs {
 	}
 
 	subCommands["__main__"] = flag.CommandLine
-
-	// build command:
-	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
-	prevBuildUsage := buildCmd.Usage
-	buildCmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, "build:      Builds the site to the dest folder\n")
-		prevBuildUsage()
-		fmt.Fprintln(os.Stderr, "")
-
-	}
-	subCommands[buildCmd.Name()] = buildCmd
 
 	// serve command:
 	serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
@@ -111,6 +100,17 @@ func parseCmdArgs() model.CmdArgs {
 	}
 	subCommands[initCmd.Name()] = initCmd
 
+	// index command:
+	indexCmd := flag.NewFlagSet("index", flag.ExitOnError)
+	prevIndexUsage := indexCmd.Usage
+	indexCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "index:      initializes or updates the local pcms db schema\n")
+		prevIndexUsage()
+		fmt.Fprintln(os.Stderr, "index: creates or migrates the pcms.db to the current schema version (path configurable via database_path in pcms-config.yaml)")
+		fmt.Fprintln(os.Stderr, "")
+	}
+	subCommands[indexCmd.Name()] = indexCmd
+
 	if *helpFlag || flag.CommandLine.NArg() < 1 {
 		printUsage(subCommands)
 		os.Exit(1)
@@ -131,27 +131,27 @@ func main() {
 	args := parseCmdArgs()
 
 	confFilePath := model.GetConfFilePath(args.ConfigFilePath)
-
-	// change the app's CWD to the conf file location's dir:
-	cwd := path.Dir(confFilePath)
-	err := os.Chdir(cwd)
-	if err != nil {
-		panic(err)
+	if args.FlagSet.Name() == "serve-doc" {
+		confFilePath = "doc/pcms-config.yaml"
 	}
-	config := model.NewConfig(confFilePath, args)
-	config.EmbeddedDocFS = embeddedDocFS
+
+	config := model.NewConfig(confFilePath, args, embeddedDocFS)
+	lib.SetDBPath(config.DatabasePath)
+	var err error
 
 	switch args.FlagSet.Name() {
-	case "build":
-		err = commands.RunBuildCmd(config)
 	case "serve":
 		err = commands.RunServeCmd(config)
 	case "serve-doc":
 		config.Server.Logging.Access.File = "STDOUT"
 		config.Server.Logging.Error.File = "STDERR"
+		config.ServeMode = model.SERVE_MODE_EMBEDDED_DOC
+		lib.SetDBPath(":memory:")
 		err = commands.RunServeCmd(config)
 	case "init":
 		commands.RunInitCmd(args, &templateContent)
+	case "index":
+		err = commands.RunIndexCmd(config)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
