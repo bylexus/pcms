@@ -142,7 +142,7 @@ Handling a page request involves the following steps:
 3. deliver the processed file (from cache, as there IS now a cached variant) to the client
 
 
-The cache is just a directory (configurable in the pcms-config.yaml, `cacheDir` in the `server` section) that keeps the rendered / processed files.
+The cache is just a directory (configurable in the pcms-config.yaml, `cache_dir` in the `server` section) that keeps the rendered / processed files.
 
 ### handle file requests
    
@@ -157,12 +157,12 @@ File requests are just delivered back to the client using the correct mime type
 - Reuse existing processing behavior where feasible, especially index-file rendering logic already implemented in `processor`.
 	- If template variables change caused by the new structure, update the documentation in `doc/site/**/*.md` 
 	- goal for now is to keep the available variables - we will refactor them later for the new structure.
-- Add page cache support based on configured `server.cacheDir` (`cacheDir` in `pcms-config.yaml`).
+- Add page cache support based on configured `server.cache_dir` (`cache_dir` in `pcms-config.yaml`).
 
 ### 1) Config and startup wiring [DONE]
 
 1. Extend `model.Config`:
-   - add `Server.CacheDir string \`yaml:"cacheDir"\``.
+   - add `Server.CacheDir string \`yaml:"cache_dir"\``.
    - resolve it to absolute path in `NewConfig` for `serve` mode.
    - define a safe default when missing (e.g. `.pcms-cache` relative to config dir).
 2. In `commands.RunServeCmd`:
@@ -197,11 +197,11 @@ This preserves existing middleware and logging behavior while changing only rout
 
 ### 4) Page cache design [DONE]
 
-Cache storage uses a dedicated directory tree under `server.cacheDir`:
+Cache storage uses a dedicated directory tree under `server.cache_dir`:
 
 1. Deterministic cache path by route:
-   - `/` -> `<cacheDir>/index.html`
-   - `/blog` -> `<cacheDir>/blog/index.html`
+   - `/` -> `<cache_dir>/index.html`
+   - `/blog` -> `<cache_dir>/blog/index.html`
 2. Cache validity rule:
    - valid if cache file exists and cache mtime >= source index file mtime.
 3. Source index file path reconstruction from DB page record:

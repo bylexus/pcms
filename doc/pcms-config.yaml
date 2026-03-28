@@ -1,7 +1,7 @@
 server:
   listen: ":3000"
   prefix: ""
-  cacheDir: ".pcms-cache"
+  cache_dir: ".pcms-cache"
   watch: true
   logging:
     access:

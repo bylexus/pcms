@@ -35,7 +35,7 @@ type Config struct {
 		Listen   string        `yaml:"listen"`
 		Watch    bool          `yaml:"watch"`
 		Prefix   string        `yaml:"prefix"`
-		CacheDir string        `yaml:"cacheDir"`
+		CacheDir string        `yaml:"cache_dir"`
 		Logging  LoggingConfig `yaml:"logging"`
 	} `yaml:"server"`
 	Variables       map[string]interface{} `yaml:"variables"`

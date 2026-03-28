@@ -81,7 +81,7 @@ The web server resolves every incoming request **against the SQLite index**, not
 3. Check the page's effective `enabled` state (resolved recursively through parent pages).
    If disabled, return 404.
 4. Check if the source index file is newer than the DB record — if so, re-index the single page on the fly.
-5. Check the page cache (`server.cacheDir`):
+5. Check the page cache (`server.cache_dir`):
    - If a valid cached file exists (cache mtime >= source file mtime), serve it directly.
    - Otherwise, render the page via the appropriate processor and write the result to the cache.
 6. Serve the cached HTML file to the client.
@@ -207,7 +207,7 @@ template_dir: "templates" # pongo2 template directory
 server:
   listen: ":8080"
   prefix: ""              # URL prefix (webroot), e.g. "/app"
-  cacheDir: ".pcms-cache" # Rendered page cache directory
+  cache_dir: ".pcms-cache" # Rendered page cache directory
   watch: true
 
 exclude_patterns:

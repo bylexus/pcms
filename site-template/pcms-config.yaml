@@ -5,7 +5,7 @@ server:
   # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "".
   prefix: ""
   # cache dir for rendered pages in serve mode.
-  cacheDir: ".pcms-cache"
+  cache_dir: ".pcms-cache"
   # Logging configuration: there are 2 diffenrent logs written:
   logging:
     # The access log: Logs all web access, like a webserver would.

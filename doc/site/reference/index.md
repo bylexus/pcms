@@ -20,6 +20,10 @@ metaTags:
   - [YAML front matter variables](#yaml-front-matter-variables)
 - [PageQuery — querying pages from templates](#pagequery--querying-pages-from-templates)
 - [pcms cli reference](#pcms-cli-reference)
+  - [init](#init)
+  - [index](#index)
+  - [serve](#serve)
+  - [serve-doc](#serve-doc)
 
 
 ## Generating a site
@@ -42,6 +46,8 @@ $ pcms serve
 ```sh
 root folder
 ├── pcms-config.yaml          # The config file for the site
+├── pcms.db                   # SQLite page index (auto-created)
+├── .pcms-cache/              # Rendered page cache (auto-created)
 ├── site/                     # The site dir contains the page content, and listens to the "/" route
 │   ├── index.html            # additional page content / templates
 │   └── ... more files/folder # add your source files/folders as needed
@@ -51,6 +57,8 @@ root folder
 ```
 
 - `pcms-config.yaml` is the configuration file for your site. It contains all the settings and global variables.
+- `pcms.db` is the SQLite index database. It is created and populated by `pcms index` (or automatically on first `pcms serve`). The path is configurable via `database_path` in `pcms-config.yaml`.
+- `.pcms-cache/` holds rendered HTML output cached by the serve process. The path is configurable via `server.cache_dir` in `pcms-config.yaml`.
 - `site/` is the folder where all your page content goes. If you reference pongo2 templates within your files, they are searched from the `templates/` folder.
 - `templates/` contains your pongo2 templates (if you need any).
 
@@ -63,31 +71,30 @@ This is the reference of the `pcms-config.yaml` config file.
 server:
   # listen address. This is an ip-address:port number pair, or a partial address: "localhost:3000", ":3000", "127.0.0.1", "0.0.0.0:3000"
   listen: ":3000"
-  # watch: if true, the source folder is watched for file changes, and a rebuild
-  # of changed / new files is triggered on the fly.
-  watch: true
   # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "". The webroot can be accessed by the `Paths.Webroot` variable or the `Webroot()` function in templates.
   prefix: ""
-  # Logging configuration: there are 2 diffenrent logs written:
+  # cache dir for rendered pages in serve mode. Relative to the config file dir, or absolute.
+  # Defaults to ".pcms-cache".
+  cache_dir: ".pcms-cache"
+  # Logging configuration: there are 2 different logs written:
   logging:
     # The access log: Logs all web access, like a webserver would.
     # Define the file (or STDOUT/STDERR), and the format (TBD).
     access:
       file: STDOUT
-      # not yet implemented:
       format: ""
     # The error, or system log. Define the file (or STDOUT/STDERR), and the max log level:
     error:
       file: STDERR
       level: DEBUG
-# The source folder of the site, containing the unbuilt site templates. Relative to
-# the config file dir:
-source: "site"
-# The destination folder of the site, containing the built static site. 
-# Note that this dir will be COMPLETELY EMPTIED on build.
+# Path to the SQLite database file. Relative to the config file dir, or absolute.
+# Defaults to "pcms.db" in the project dir.
+# Useful for Docker setups where the database should live on a separate volume.
+# database_path: "pcms.db"
+# The source folder of the site, containing the page content.
 # Relative to the config file dir:
-dest: "build"
-# Global variables for the pongo2 templates (kept for migration, will be removed in the future):
+source: "site"
+# Global variables available in pongo2 templates as "Config.Variables.xxx":
 variables:
   siteTitle: My Site Title
   siteMetaTags:
@@ -95,19 +102,15 @@ variables:
       content: bar
     - name: moo
       content: baz
-# Where to look for pongo2 templates when inheriting / defining a template file:
-# relative to the config file dir:
+# Where to look for pongo2 templates when inheriting / defining a template file.
+# Relative to the config file dir:
 template_dir: templates
-# Regular expression to exclude files/folders from the build process completely:
+# Regular expressions to exclude files/folders from indexing and serving:
 exclude_patterns:
   # Ignore .* files:
   - "/\\..*"
   # Ignore all files in the /restricted folder:
   - "^/restricted/?.*"
-processors:
-  scss:
-    # path to the dart-scss binary, if you want to convert scss files to css:
-    sass_bin: "/usr/bin/sass"
 ```
 
 ## The `site` folder
@@ -553,34 +556,80 @@ This matches the behavior described in the [enabled property](#the-enabled-prope
 ## pcms cli reference
 
 ```text
-bin/pcms -h
-
-Usage:
-
-pcms [options] <sub-command> [sub-command options]
-
-options:
-
-  -c string
-    	path to the pcms-config.yaml file. The base dir used is the path of the config file. (default "pcms-config.yaml")
-  -h	Prints this help
-
-A sub-command is expected. Supported sub-commands:
-
-build:      Builds the site to the dest folder
-Usage of build:
-
-serve:      Starts the web server and serves the page
-Usage of serve:
-  -listen string
-    	TCP/IP Listen address, e.g. '-listen :3000' or '-listen 127.0.0.1:8888' (default ":3000")
-
-serve-doc:      Starts a webserver and serves the embedded documentation
-Usage of serve-doc:
-  -listen string
-    	TCP/IP Listen address, e.g. '-listen :3000' or '-listen 127.0.0.1:8888' (default ":3000")
-
-init:      initializes a new pcms project dir using a skeleton
-Usage of init:
-init [path]: initializes a new pcms skeleton in the given path, creating it if does not exist
+pcms [options] <command> [command options]
 ```
+
+**Global options** (must appear before the command):
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-c <path>` | `pcms-config.yaml` | Path to the config file. All relative paths in the config are resolved relative to the config file's directory. |
+| `-h` | — | Print help and exit. |
+
+---
+
+### init
+
+Creates a new pcms project skeleton in the given directory. The directory is created if it does not exist.
+
+```bash
+pcms init <path>
+```
+
+**Example:**
+
+```bash
+pcms init /path/to/my-site
+cd /path/to/my-site
+pcms serve
+```
+
+---
+
+### index
+
+Builds (or rebuilds) the SQLite page index from the source folder. Walks the `source` directory tree, extracts front matter metadata, and stores all pages and files in `pcms.db`. Run this after adding or changing content outside of `pcms serve`.
+
+```bash
+pcms index
+pcms -c /path/to/pcms-config.yaml index
+```
+
+The database path defaults to `pcms.db` next to the config file and can be changed via `database_path` in `pcms-config.yaml`.
+
+**Note:** `pcms serve` runs an initial index automatically when the database is empty, so a separate `pcms index` call is only needed when you want to pre-build the index or refresh it without starting the server.
+
+---
+
+### serve
+
+Starts the web server and serves the indexed site. On the first start, if the page index is empty, it builds the index automatically.
+
+```bash
+pcms serve
+pcms -c /path/to/pcms-config.yaml serve
+pcms serve -listen :8080
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-listen <addr>` | `:3000` | TCP/IP listen address. Accepts `host:port`, `:port`, or a full address such as `127.0.0.1:8888`. Overrides `server.listen` from the config file. |
+
+---
+
+### serve-doc
+
+Starts a web server that serves the built-in pcms documentation. No config file or project directory is required.
+
+```bash
+pcms serve-doc
+pcms serve-doc -listen :9000
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-listen <addr>` | `:3000` | TCP/IP listen address, same format as in `serve`. |
