@@ -169,3 +169,32 @@ If the content is already present in the cache, it checks if the un-cached versi
 Based on the requested URL route, the apropriate `Page` object is searched in the pre-generated content tree. If found, the page is being processed (see [Generating content](#generating-content)) and output. If not, the system checks if it is an (allowed) file from within a page. 
 
 So an URL route either matches with a `Page` object, a raw file, or it ends in a 404.
+
+---
+
+## Changelog
+
+### v0.10.0
+
+- `PageQuery()` builder available in templates to query, filter, sort, and paginate indexed pages
+- `enabled`/`disabled` page flag resolved recursively at index time (disabling a parent hides all children)
+- `disable-page` and `enable-page` CLI commands to toggle pages without editing front matter
+- `cache-clear` CLI command to wipe the rendered page cache
+- Page routes redirect to trailing slash (`/page/`) for consistent URL handling
+- Docker image build cleaned up with multistage builder
+
+### v0.9.0
+
+- Full rewrite: page tree indexed in an in-process SQLite database
+- Folder-based routing — the file structure is the URL structure
+- HTML pages processed as pongo2 (Django-like) templates
+- Markdown pages rendered via a pongo2 base template defined in YAML front matter
+- YAML front matter for page metadata (`title`, `template`, `enabled`, arbitrary fields)
+- File cache for rendered pages, invalidated when source is newer
+- Automatic re-indexing when files change on disk
+- Configurable exclusion patterns (regex) in `pcms-config.yaml`
+- Separate, configurable access log and system log
+- `init` command to scaffold a starter project from the embedded skeleton
+- `serve` and `serve-doc` commands
+- Embedded documentation served from the single binary
+- Docker support
