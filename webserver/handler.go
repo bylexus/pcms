@@ -73,6 +73,10 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			h.errorHandler(w, fmt.Errorf("not found: %s", route), http.StatusNotFound)
 			return
 		}
+		if rawRoutePath != "/" && !strings.HasSuffix(rawRoutePath, "/") {
+			http.Redirect(w, req, rawRoutePath+"/", http.StatusMovedPermanently)
+			return
+		}
 		h.servePage(w, req, route, page)
 		return
 	}
