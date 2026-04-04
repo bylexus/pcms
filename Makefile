@@ -4,6 +4,7 @@ GOBIN=$(GOBASE)/bin
 GOFILES=$(wildcard *.go)
 VERSION=$(shell git describe --tags)
 RELEASE_DIR=./releases
+DOCKER_REGISTRY=registry.alexi.ch
 
 
 .PHONY: build
@@ -13,10 +14,6 @@ build:
 .PHONY: exec
 exec:
 	@GOBIN=$(GOBIN) $(run)
-
-.PHONY: build-doc
-build-doc: build
-	$(GOBIN)/$(PROJECTNAME) -c $(GOBASE)/doc/pcms-config.yaml build
 
 .PHONY: serve-doc
 serve-doc: build
@@ -42,7 +39,7 @@ build-docker-image-arm64:
 #     docker buildx use multiplatform-builder
 .PHONY: docker-multibuild-to-registry
 docker-multibuild-to-registry:
-	docker buildx build --pull --no-cache --push --platform=linux/arm64,linux/amd64 -t $(PROJECTNAME):$(VERSION) $(GOBASE)
+	docker buildx build --pull --no-cache --push --platform=linux/arm64,linux/amd64 -t $(DOCKER_REGISTRY)/$(PROJECTNAME):$(VERSION) $(GOBASE)
 # 	docker image tag $(PROJECTNAME):$(VERSION) registry.alexi.ch/pcms:$(VERSION)
 # 	docker image tag $(PROJECTNAME):$(VERSION) registry.alexi.ch/pcms:latest
 # 	docker push registry.alexi.ch/pcms:$(VERSION)
@@ -50,10 +47,9 @@ docker-multibuild-to-registry:
 
 
 .PHONY: build-release
-build-release: build-doc
+build-release:
 	# cleanup:
 	rm -rf ./$(RELEASE_DIR)/
-	rm -rf ./$(GOBASE)/site-template/build/
 	mkdir ./$(RELEASE_DIR)
 	mkdir -p $(RELEASE_DIR)/linux-{amd64,arm64}-$(VERSION) $(RELEASE_DIR)/windows-amd64-$(VERSION) $(RELEASE_DIR)/darwin-{amd64,arm64}-$(VERSION)
 
