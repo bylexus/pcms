@@ -111,6 +111,16 @@ func parseCmdArgs() model.CmdArgs {
 	}
 	subCommands[indexCmd.Name()] = indexCmd
 
+	// cache-clear command:
+	cacheClearCmd := flag.NewFlagSet("cache-clear", flag.ExitOnError)
+	prevCacheClearUsage := cacheClearCmd.Usage
+	cacheClearCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "cache-clear:      clears the page file cache completely\n")
+		prevCacheClearUsage()
+		fmt.Fprintln(os.Stderr, "")
+	}
+	subCommands[cacheClearCmd.Name()] = cacheClearCmd
+
 	if *helpFlag || flag.CommandLine.NArg() < 1 {
 		printUsage(subCommands)
 		os.Exit(1)
@@ -152,6 +162,8 @@ func main() {
 		commands.RunInitCmd(args, &templateContent)
 	case "index":
 		err = commands.RunIndexCmd(config)
+	case "cache-clear":
+		err = commands.RunCacheClearCmd(config)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())

@@ -24,6 +24,7 @@ metaTags:
   - [index](#index)
   - [serve](#serve)
   - [serve-doc](#serve-doc)
+  - [cache-clear](#cache-clear)
 
 
 ## Generating a site
@@ -633,3 +634,16 @@ pcms serve-doc -listen :9000
 | Option | Default | Description |
 |--------|---------|-------------|
 | `-listen <addr>` | `:3000` | TCP/IP listen address, same format as in `serve`. |
+
+---
+
+### cache-clear
+
+Removes all files in the page file cache directory (configured via `server.cache_dir` in `pcms-config.yaml`, defaults to `.pcms-cache`). The cache is rebuilt automatically on the next `pcms serve` request.
+
+Use this when cached HTML is stale and you want to force a full re-render without restarting the server, or before deploying updated templates.
+
+```bash
+pcms cache-clear
+pcms -c /path/to/pcms-config.yaml cache-clear
+```
