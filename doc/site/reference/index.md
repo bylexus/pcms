@@ -25,6 +25,8 @@ metaTags:
   - [serve](#serve)
   - [serve-doc](#serve-doc)
   - [cache-clear](#cache-clear)
+  - [enable-page](#enable-page)
+  - [disable-page](#disable-page)
 
 
 ## Generating a site
@@ -308,8 +310,8 @@ enabled: false
 
 * If `enabled` is not set, the page defaults to **active** (`true`).
 * A disabled page returns **404** on direct requests.
-* Disabled pages are **excluded from `ChildPages`** lists, so they do not appear in navigation or template loops.
-* The flag is **resolved recursively through parent pages**: if any ancestor page is disabled, all its descendant pages are also treated as disabled — even if the child pages themselves have `enabled: true` or no `enabled` property at all.
+* Disabled pages are **excluded from `ChildPages`** lists and `PageQuery` results, so they do not appear in navigation or template loops.
+* The flag is **propagated downward at index time**: when a parent page is disabled, all its descendant pages are stored as disabled in the index — even if the child pages themselves have `enabled: true` or no `enabled` property at all.
 
 **Example:** Given this page tree:
 
@@ -319,7 +321,9 @@ enabled: false
 /blog/post1 (enabled: true)
 ```
 
-Both `/blog` and `/blog/post1` will return 404, because `/blog` is disabled and `/blog/post1` inherits that state.
+Both `/blog` and `/blog/post1` will return 404. When the index is built, `/blog/post1` is stored as disabled because its parent is disabled.
+
+> **Note:** After changing the `enabled` flag in a page's front matter, run `pcms index` to rebuild the index so the new state is propagated to all descendant pages.
 
 ## PageQuery — querying pages from templates
 
@@ -527,12 +531,7 @@ Returns the number of available result pages based on `Count()` and `PageSize`. 
 
 ### Enabled page filtering
 
-The query builder automatically filters out disabled pages. A page is excluded if:
-
-* its own `enabled` flag is `false`, or
-* any of its ancestor pages is disabled.
-
-This matches the behavior described in the [enabled property](#the-enabled-property) section.
+The query builder automatically filters out disabled pages. The `enabled` flag stored in the index already encodes the full ancestor chain (propagated downward at index time), so a page is excluded whenever its stored `enabled` value is `false` — no recursive parent lookup is needed at query time.
 
 ### Complete example
 
@@ -647,3 +646,55 @@ Use this when cached HTML is stale and you want to force a full re-render withou
 pcms cache-clear
 pcms -c /path/to/pcms-config.yaml cache-clear
 ```
+
+---
+
+### enable-page
+
+Enables a page in the index database. By default only the specified page and its direct files are enabled; child pages are left unchanged. Pass `-r` to also enable all descendant pages and their files recursively.
+
+```bash
+pcms enable-page <route>
+pcms enable-page -r <route>
+pcms -c /path/to/pcms-config.yaml enable-page /blog
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `-r` | Recursively enable all descendant pages and files. |
+
+**Example:**
+
+```bash
+# Enable only /blog (its child pages remain as-is):
+pcms enable-page /blog
+
+# Enable /blog and every page and file beneath it:
+pcms enable-page -r /blog
+```
+
+> **Cache note:** Enabling a page updates the index database, but any previously rendered HTML in the cache may still reflect the old state. For example, a parent page whose template lists child pages will continue to show the cached version — the newly enabled child will not appear until the cache entry is invalidated. Run `pcms cache-clear` after enabling pages to ensure the next request re-renders all affected pages.
+
+---
+
+### disable-page
+
+Disables a page and all its descendant pages and files in the index database. Disabled pages return 404 and are excluded from `ChildPages` and `PageQuery` results.
+
+Disabling always cascades to all descendants — there is no non-recursive variant.
+
+```bash
+pcms disable-page <route>
+pcms -c /path/to/pcms-config.yaml disable-page /blog
+```
+
+**Example:**
+
+```bash
+# Disable /blog and every page and file beneath it:
+pcms disable-page /blog
+```
+
+> **Cache note:** Disabling a page updates the index database, but previously cached HTML may still be served until it is invalidated. A parent page that lists child pages in its template will continue to show the disabled child in the cache until that entry is rebuilt. Run `pcms cache-clear` after disabling pages to prevent stale content from being served.

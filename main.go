@@ -121,6 +121,29 @@ func parseCmdArgs() model.CmdArgs {
 	}
 	subCommands[cacheClearCmd.Name()] = cacheClearCmd
 
+	// enable-page command:
+	enablePageCmd := flag.NewFlagSet("enable-page", flag.ExitOnError)
+	enablePageCmd.Bool("r", false, "recursively enable all descendant pages and files")
+	prevEnablePageUsage := enablePageCmd.Usage
+	enablePageCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "enable-page:      enables a page (and optionally its descendants) in the index\n")
+		prevEnablePageUsage()
+		fmt.Fprintln(os.Stderr, "enable-page [-r] <route>: enable the given page route")
+		fmt.Fprintln(os.Stderr, "")
+	}
+	subCommands[enablePageCmd.Name()] = enablePageCmd
+
+	// disable-page command:
+	disablePageCmd := flag.NewFlagSet("disable-page", flag.ExitOnError)
+	prevDisablePageUsage := disablePageCmd.Usage
+	disablePageCmd.Usage = func() {
+		fmt.Fprintf(os.Stderr, "disable-page:     disables a page and all its descendants in the index\n")
+		prevDisablePageUsage()
+		fmt.Fprintln(os.Stderr, "disable-page <route>: disable the given page route and all descendants")
+		fmt.Fprintln(os.Stderr, "")
+	}
+	subCommands[disablePageCmd.Name()] = disablePageCmd
+
 	if *helpFlag || flag.CommandLine.NArg() < 1 {
 		printUsage(subCommands)
 		os.Exit(1)
@@ -164,6 +187,19 @@ func main() {
 		err = commands.RunIndexCmd(config)
 	case "cache-clear":
 		err = commands.RunCacheClearCmd(config)
+	case "enable-page":
+		recursive := args.FlagSet.Lookup("r").Value.String() == "true"
+		if args.FlagSet.NArg() < 1 {
+			fmt.Fprintln(os.Stderr, "enable-page: missing <route> argument")
+			os.Exit(1)
+		}
+		err = commands.RunEnablePageCmd(config, args.FlagSet.Arg(0), recursive)
+	case "disable-page":
+		if args.FlagSet.NArg() < 1 {
+			fmt.Fprintln(os.Stderr, "disable-page: missing <route> argument")
+			os.Exit(1)
+		}
+		err = commands.RunDisablePageCmd(config, args.FlagSet.Arg(0))
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())

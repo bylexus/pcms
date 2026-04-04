@@ -179,17 +179,22 @@ func (h *DBH) ReplacePage(record model.IndexedPage) error {
 
 func (h *DBH) ReplaceFile(record model.IndexedFile) error {
 	stmt := `
-		INSERT INTO files (route, parent_page_route, file_name, mime_type, file_size)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO files (route, parent_page_route, file_name, mime_type, file_size, enabled)
+		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(route) DO UPDATE SET
 			parent_page_route = excluded.parent_page_route,
 			file_name = excluded.file_name,
 			mime_type = excluded.mime_type,
 			file_size = excluded.file_size,
+			enabled = excluded.enabled,
 			updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
 	`
 
-	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.FileName, record.MimeType, record.FileSize); err != nil {
+	enabled := 1
+	if !record.Enabled {
+		enabled = 0
+	}
+	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.FileName, record.MimeType, record.FileSize, enabled); err != nil {
 		return fmt.Errorf("replace file %s: %w", record.Route, err)
 	}
 
@@ -285,18 +290,20 @@ func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 
 func (h *DBH) GetFileByRoute(route string) (model.IndexedFile, bool, error) {
 	stmt := `
-		SELECT route, parent_page_route, file_name, mime_type, file_size
+		SELECT route, parent_page_route, file_name, mime_type, file_size, enabled
 		FROM files
 		WHERE route = ?
 	`
 
 	var record model.IndexedFile
+	var enabledInt int
 	err := h.queryRowIndex(stmt, route).Scan(
 		&record.Route,
 		&record.ParentPageRoute,
 		&record.FileName,
 		&record.MimeType,
 		&record.FileSize,
+		&enabledInt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -304,6 +311,7 @@ func (h *DBH) GetFileByRoute(route string) (model.IndexedFile, bool, error) {
 		}
 		return model.IndexedFile{}, false, fmt.Errorf("query file by route %s: %w", route, err)
 	}
+	record.Enabled = enabledInt != 0
 
 	return record, true, nil
 }
@@ -362,9 +370,10 @@ func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 
 func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
 	stmt := `
-		SELECT route, parent_page_route, file_name, mime_type, file_size
+		SELECT route, parent_page_route, file_name, mime_type, file_size, enabled
 		FROM files
 		WHERE parent_page_route = ?
+		  AND enabled = 1
 		ORDER BY route
 	`
 
@@ -377,15 +386,18 @@ func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
 	var files []model.IndexedFile
 	for rows.Next() {
 		var record model.IndexedFile
+		var enabledInt int
 		if err := rows.Scan(
 			&record.Route,
 			&record.ParentPageRoute,
 			&record.FileName,
 			&record.MimeType,
 			&record.FileSize,
+			&enabledInt,
 		); err != nil {
 			return nil, fmt.Errorf("scan child file for %s: %w", route, err)
 		}
+		record.Enabled = enabledInt != 0
 		files = append(files, record)
 	}
 
@@ -394,6 +406,77 @@ func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
 	}
 
 	return files, nil
+}
+
+// SetPageEnabled updates the enabled flag for the given page and all its direct
+// files. When enabled is false, all descendant pages and their files are also
+// disabled (always recursive for disable). When enabled is true, descendants are
+// only updated when recursive is true; without it only the target page and its
+// direct files are updated.
+//
+// Returns an error if the page does not exist.
+func (h *DBH) SetPageEnabled(route string, enabled bool, recursive bool) error {
+	_, found, err := h.GetPageByRoute(route)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("page not found: %s", route)
+	}
+
+	enabledInt := 0
+	if enabled {
+		enabledInt = 1
+	}
+
+	// Disable always cascades to all descendants; enable only cascades with -r.
+	if !enabled || recursive {
+		pageStmt := `
+			WITH RECURSIVE subtree(route) AS (
+				SELECT route FROM pages WHERE route = ?
+				UNION ALL
+				SELECT p.route FROM pages p
+				INNER JOIN subtree s ON p.parent_page_route = s.route
+			)
+			UPDATE pages
+			SET enabled = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+			WHERE route IN (SELECT route FROM subtree)
+		`
+		if _, err := h.db.Exec(pageStmt, route, enabledInt); err != nil {
+			return fmt.Errorf("update pages enabled in subtree of %s: %w", route, err)
+		}
+
+		fileStmt := `
+			WITH RECURSIVE subtree(route) AS (
+				SELECT route FROM pages WHERE route = ?
+				UNION ALL
+				SELECT p.route FROM pages p
+				INNER JOIN subtree s ON p.parent_page_route = s.route
+			)
+			UPDATE files
+			SET enabled = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+			WHERE parent_page_route IN (SELECT route FROM subtree)
+		`
+		if _, err := h.db.Exec(fileStmt, route, enabledInt); err != nil {
+			return fmt.Errorf("update files enabled in subtree of %s: %w", route, err)
+		}
+	} else {
+		// Enable non-recursive: update only this page and its direct files.
+		if _, err := h.db.Exec(
+			"UPDATE pages SET enabled = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE route = ?",
+			route,
+		); err != nil {
+			return fmt.Errorf("update page enabled for %s: %w", route, err)
+		}
+		if _, err := h.db.Exec(
+			"UPDATE files SET enabled = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE parent_page_route = ?",
+			route,
+		); err != nil {
+			return fmt.Errorf("update files enabled for %s: %w", route, err)
+		}
+	}
+
+	return nil
 }
 
 func (h *DBH) ensureSchema() error {
@@ -487,6 +570,7 @@ func (h *DBH) ensureFilesTable() error {
 			file_name         TEXT NOT NULL,
 			mime_type         TEXT NOT NULL DEFAULT 'application/octet-stream',
 			file_size         INTEGER NOT NULL DEFAULT 0 CHECK (file_size >= 0),
+			enabled           INTEGER NOT NULL DEFAULT 1,
 			created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
 			updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 		)
@@ -506,6 +590,9 @@ func (h *DBH) ensureFilesTable() error {
 		return err
 	}
 	if err := h.ensureTableColumn("files", "file_size", "INTEGER NOT NULL DEFAULT 0 CHECK (file_size >= 0)"); err != nil {
+		return err
+	}
+	if err := h.ensureTableColumn("files", "enabled", "INTEGER NOT NULL DEFAULT 1"); err != nil {
 		return err
 	}
 	if err := h.ensureTableColumn("files", "created_at", "TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))"); err != nil {

@@ -152,6 +152,7 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 			FileName:        entry.Name(),
 			MimeType:        mimeType,
 			FileSize:        entryInfo.Size(),
+			Enabled:         childEffectivelyEnabled,
 		})
 		fmt.Printf("type=file file=%s route=%s mime=%s\n", filePath, entryRoute, mimeType)
 	}

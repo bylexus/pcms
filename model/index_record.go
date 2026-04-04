@@ -18,6 +18,7 @@ type IndexedFile struct {
 	FileName        string
 	MimeType        string
 	FileSize        int64
+	Enabled         bool
 }
 
 type IndexSnapshot struct {

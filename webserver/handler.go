@@ -88,16 +88,9 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if found {
-		if file.ParentPageRoute != "" {
-			parent, parentFound, err := h.DBH.GetPageByRoute(file.ParentPageRoute)
-			if err != nil {
-				h.errorHandler(w, err, http.StatusInternalServerError)
-				return
-			}
-			if !parentFound || !parent.Enabled {
-				h.errorHandler(w, fmt.Errorf("not found: %s", route), http.StatusNotFound)
-				return
-			}
+		if !file.Enabled {
+			h.errorHandler(w, fmt.Errorf("not found: %s", route), http.StatusNotFound)
+			return
 		}
 		h.serveFile(w, req, file)
 		return
@@ -201,6 +194,19 @@ func (h *RequestHandler) reindexPageIfStale(route string, page model.IndexedPage
 	updatedPage, err := lib.ReindexSinglePage(h.siteFS, route, page)
 	if err != nil {
 		return page, false, fmt.Errorf("re-index page %s: %w", route, err)
+	}
+
+	// Apply effective enabled: the raw frontmatter flag is true only if the
+	// parent chain is also enabled. The parent's Enabled in DB already encodes
+	// its full ancestor chain (pre-computed at index time), so one lookup suffices.
+	if updatedPage.Enabled && updatedPage.ParentPageRoute != nil {
+		parent, found, err := h.DBH.GetPageByRoute(*updatedPage.ParentPageRoute)
+		if err != nil {
+			return page, false, fmt.Errorf("lookup parent for re-index %s: %w", route, err)
+		}
+		if found && !parent.Enabled {
+			updatedPage.Enabled = false
+		}
 	}
 
 	if err := h.DBH.ReplacePage(updatedPage); err != nil {
