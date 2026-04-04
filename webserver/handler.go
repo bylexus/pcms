@@ -64,12 +64,7 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if found {
-		enabled, err := h.DBH.IsPageEffectivelyEnabled(page)
-		if err != nil {
-			h.errorHandler(w, err, http.StatusInternalServerError)
-			return
-		}
-		if !enabled {
+		if !page.Enabled {
 			h.errorHandler(w, fmt.Errorf("not found: %s", route), http.StatusNotFound)
 			return
 		}
@@ -93,6 +88,17 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if found {
+		if file.ParentPageRoute != "" {
+			parent, parentFound, err := h.DBH.GetPageByRoute(file.ParentPageRoute)
+			if err != nil {
+				h.errorHandler(w, err, http.StatusInternalServerError)
+				return
+			}
+			if !parentFound || !parent.Enabled {
+				h.errorHandler(w, fmt.Errorf("not found: %s", route), http.StatusNotFound)
+				return
+			}
+		}
 		h.serveFile(w, req, file)
 		return
 	}

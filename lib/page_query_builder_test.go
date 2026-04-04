@@ -8,16 +8,18 @@ import (
 	"github.com/flosch/pongo2/v6"
 )
 
-// setupQueryBuilderDB creates a test DB and populates it with a page tree:
+// setupQueryBuilderDB creates a test DB and populates it with a page tree.
+// The enabled flag stored here reflects the pre-computed effective enabled
+// state (own flag AND all ancestor flags), as the indexer would produce:
 //
-//	/              (root, enabled, metadata: {})
-//	/blog          (child of /, enabled, metadata: {"tags":["go","tutorial"], "publish_date":"2025-03-01", "author":"alice"})
-//	/blog/post-1   (child of /blog, enabled, metadata: {"tags":["go"], "publish_date":"2025-01-15", "author":"alice", "featured":"true"})
-//	/blog/post-2   (child of /blog, enabled, metadata: {"tags":["rust","tutorial"], "publish_date":"2025-02-20", "author":"bob"})
-//	/blog/draft    (child of /blog, DISABLED, metadata: {"tags":["go"], "publish_date":"2025-04-01", "author":"alice"})
-//	/about         (child of /, enabled, metadata: {"author":"alice"})
-//	/hidden        (child of /, DISABLED, metadata: {})
-//	/hidden/child  (child of /hidden, enabled, metadata: {"author":"carol"})
+//	/              (root, enabled)
+//	/blog          (child of /, enabled)
+//	/blog/post-1   (child of /blog, enabled)
+//	/blog/post-2   (child of /blog, enabled)
+//	/blog/draft    (child of /blog, effectively DISABLED — own flag false)
+//	/about         (child of /, enabled)
+//	/hidden        (child of /, effectively DISABLED — own flag false)
+//	/hidden/child  (child of /hidden, effectively DISABLED — parent disabled)
 func setupQueryBuilderDB(t *testing.T) *DBH {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "pcms-qb-test.db")
@@ -48,7 +50,7 @@ func setupQueryBuilderDB(t *testing.T) *DBH {
 			Metadata: map[string]any{"author": "alice"}},
 		{Route: "/hidden", ParentPageRoute: &root, Title: "Hidden Section", IndexFile: "index.html", Enabled: false,
 			Metadata: map[string]any{}},
-		{Route: "/hidden/child", ParentPageRoute: &hidden, Title: "Hidden Child", IndexFile: "index.html", Enabled: true,
+		{Route: "/hidden/child", ParentPageRoute: &hidden, Title: "Hidden Child", IndexFile: "index.html", Enabled: false,
 			Metadata: map[string]any{"author": "carol"}},
 	}
 

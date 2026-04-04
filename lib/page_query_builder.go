@@ -318,7 +318,8 @@ func (b *PageQueryBuilder) Page(page int) *PageQueryBuilder {
 // ---------- terminal methods ----------
 
 // FetchAll executes the query and returns all matching pages.
-// Only effectively enabled pages (page and all ancestors enabled) are returned.
+// The enabled flag is pre-computed during indexing, so enabled = 1 in the SQL
+// filter is sufficient — no recursive ancestor check is needed at query time.
 //
 // Template example:
 //
@@ -333,12 +334,11 @@ func (b *PageQueryBuilder) FetchAll() []model.IndexedPage {
 	}
 	defer rows.Close()
 
-	pages := b.scanRows(rows)
-	return b.filterEffectivelyEnabled(pages)
+	return b.scanRows(rows)
 }
 
 // First executes the query and returns the first matching result, or nil if
-// no result is found. Only effectively enabled pages are considered.
+// no result is found.
 //
 // Template example:
 //
@@ -346,9 +346,8 @@ func (b *PageQueryBuilder) FetchAll() []model.IndexedPage {
 //	    {{ featured.Title }}
 //	{% endwith %}
 func (b *PageQueryBuilder) First() *model.IndexedPage {
-	// Fetch a small batch and apply enabled filter; if none pass, we have nil.
 	c := b.copy()
-	c.pageSize = 0 // remove limit so enabled filter has candidates
+	c.pageSize = 1
 	c.page = 1
 
 	query, args := c.buildSelectSQL()
@@ -358,23 +357,14 @@ func (b *PageQueryBuilder) First() *model.IndexedPage {
 	}
 	defer rows.Close()
 
-	for {
-		page, ok := c.scanNextRow(rows)
-		if !ok {
-			return nil
-		}
-		enabled, err := c.dbh.IsPageEffectivelyEnabled(page)
-		if err != nil {
-			return nil
-		}
-		if enabled {
-			return &page
-		}
+	page, ok := c.scanNextRow(rows)
+	if !ok {
+		return nil
 	}
+	return &page
 }
 
-// Count returns the total number of matching pages (ignoring PageSize/Page),
-// after filtering out pages that are not effectively enabled.
+// Count returns the total number of matching pages (ignoring PageSize/Page).
 //
 // Template example:
 //
@@ -387,18 +377,14 @@ func (b *PageQueryBuilder) Count() int {
 	}
 	defer rows.Close()
 
-	// We need to count only effectively enabled pages, so we fetch routes and
-	// check each one. For the count query we select full rows to check ancestors.
-	selectQuery, selectArgs := b.buildSelectSQLNoLimit()
-	selectRows, err := b.dbh.queryIndex(selectQuery, selectArgs...)
-	if err != nil {
+	if !rows.Next() {
 		return 0
 	}
-	defer selectRows.Close()
-
-	pages := b.scanRows(selectRows)
-	enabled := b.filterEffectivelyEnabled(pages)
-	return len(enabled)
+	var count int
+	if err := rows.Scan(&count); err != nil {
+		return 0
+	}
+	return count
 }
 
 // NrOfPages returns the number of available result pages based on Count() and
@@ -458,13 +444,6 @@ func (b *PageQueryBuilder) buildSelectSQL() (string, []any) {
 	limitSQL, limitArgs := b.buildLimitOffset()
 	query += limitSQL
 	args = append(args, limitArgs...)
-	return query, args
-}
-
-func (b *PageQueryBuilder) buildSelectSQLNoLimit() (string, []any) {
-	where, args := b.buildWhereClause()
-	query := "SELECT route, parent_page_route, title, index_file, enabled, metadata_json, updated_at FROM pages WHERE " + where
-	query += b.buildOrderClause()
 	return query, args
 }
 
@@ -531,25 +510,6 @@ func scanPageRow(rows *sql.Rows) (model.IndexedPage, bool) {
 	}
 
 	return record, true
-}
-
-// ---------- effectively-enabled post-filter ----------
-
-func (b *PageQueryBuilder) filterEffectivelyEnabled(pages []model.IndexedPage) []model.IndexedPage {
-	var result []model.IndexedPage
-	for _, p := range pages {
-		enabled, err := b.dbh.IsPageEffectivelyEnabled(p)
-		if err != nil {
-			continue
-		}
-		if enabled {
-			result = append(result, p)
-		}
-	}
-	if result == nil {
-		return []model.IndexedPage{}
-	}
-	return result
 }
 
 // ---------- helpers ----------

@@ -359,28 +359,6 @@ func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 	return pages, nil
 }
 
-// IsPageEffectivelyEnabled checks whether the page itself and all its ancestor
-// pages are enabled. Returns false if the page or any parent is disabled.
-func (h *DBH) IsPageEffectivelyEnabled(page model.IndexedPage) (bool, error) {
-	if !page.Enabled {
-		return false, nil
-	}
-	parentRoute := page.ParentPageRoute
-	for parentRoute != nil {
-		parent, found, err := h.GetPageByRoute(*parentRoute)
-		if err != nil {
-			return false, err
-		}
-		if !found {
-			break
-		}
-		if !parent.Enabled {
-			return false, nil
-		}
-		parentRoute = parent.ParentPageRoute
-	}
-	return true, nil
-}
 
 func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
 	stmt := `

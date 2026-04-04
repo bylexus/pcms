@@ -19,14 +19,17 @@ func BuildIndexSnapshot(srcFS fs.FS, excludePatterns []string) (*model.IndexSnap
 		Files: make([]model.IndexedFile, 0),
 	}
 
-	if err := walkIndexTree(srcFS, ".", "/", nil, excludePatterns, snapshot); err != nil {
+	if err := walkIndexTree(srcFS, ".", "/", nil, excludePatterns, snapshot, true); err != nil {
 		return nil, err
 	}
 
 	return snapshot, nil
 }
 
-func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPageRoute *string, excludePatterns []string, snapshot *model.IndexSnapshot) error {
+// walkIndexTree recursively walks the source filesystem and builds the index snapshot.
+// parentEffectivelyEnabled carries the effective enabled state of the nearest ancestor
+// page so that disabled parents force all descendants to also be disabled in the index.
+func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPageRoute *string, excludePatterns []string, snapshot *model.IndexSnapshot, parentEffectivelyEnabled bool) error {
 	entries, err := fs.ReadDir(srcFS, relDir)
 	if err != nil {
 		return fmt.Errorf("read dir %s: %w", relDir, err)
@@ -64,12 +67,17 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 		pageMetadata = fm.Metadata
 		pageTitle = fm.Title
 
+		// Effective enabled: own flag AND all ancestor pages must be enabled.
+		// parentEffectivelyEnabled already encodes the full ancestor chain, so
+		// a single AND is sufficient.
+		effectiveEnabled := fm.Enabled && parentEffectivelyEnabled
+
 		snapshot.Pages = append(snapshot.Pages, model.IndexedPage{
 			Route:           route,
 			ParentPageRoute: inheritedParentPageRoute,
 			Title:           pageTitle,
 			IndexFile:       indexFileName,
-			Enabled:         fm.Enabled,
+			Enabled:         effectiveEnabled,
 			Metadata:        pageMetadata,
 		})
 
@@ -84,8 +92,15 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 	}
 
 	activeParentPageRoute := inheritedParentPageRoute
+	// childEffectivelyEnabled tracks the effective enabled state to pass into
+	// subdirectories. If this directory introduced a page, use its effective
+	// enabled state; otherwise propagate the inherited one.
+	childEffectivelyEnabled := parentEffectivelyEnabled
 	if currentPageRoute != nil {
 		activeParentPageRoute = currentPageRoute
+		// Look up the effective enabled that was stored for this page.
+		// Since snapshot.Pages is append-only and we just added it, it's the last element.
+		childEffectivelyEnabled = snapshot.Pages[len(snapshot.Pages)-1].Enabled
 	}
 
 	for _, entry := range entries {
@@ -100,7 +115,7 @@ func walkIndexTree(srcFS fs.FS, relDir string, route string, inheritedParentPage
 			if relDir != "." {
 				nextRelDir = path.Join(relDir, entry.Name())
 			}
-			if err := walkIndexTree(srcFS, nextRelDir, entryRoute, activeParentPageRoute, excludePatterns, snapshot); err != nil {
+			if err := walkIndexTree(srcFS, nextRelDir, entryRoute, activeParentPageRoute, excludePatterns, snapshot, childEffectivelyEnabled); err != nil {
 				return err
 			}
 			continue
