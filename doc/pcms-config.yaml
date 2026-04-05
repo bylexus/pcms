@@ -25,6 +25,8 @@ variables:
       route: install_setup
     - title: Architecture
       route: architecture
+    - title: "Backend Services"
+      route: backend-services
     - title: "Reference"
       route: reference
 template_dir: templates

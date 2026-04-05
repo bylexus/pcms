@@ -6,6 +6,8 @@ server:
   prefix: ""
   # cache dir for rendered pages in serve mode.
   cache_dir: ".pcms-cache"
+  # Maximum source image size accepted by the image resizer (bytes). Defaults to 32 MB.
+  max_body_size: 33554432
   # Logging configuration: there are 2 diffenrent logs written:
   logging:
     # The access log: Logs all web access, like a webserver would.

@@ -58,6 +58,12 @@ func (h *RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	rawRoutePath := req.URL.Path
 	route := normalizeRoute(rawRoutePath)
 
+	if strings.HasPrefix(rawRoutePath, imageResizerPrefix) {
+		tail := strings.TrimPrefix(rawRoutePath, imageResizerPrefix)
+		h.serveResizedImage(w, req, tail)
+		return
+	}
+
 	page, found, err := h.DBH.GetPageByRoute(route)
 	if err != nil {
 		h.errorHandler(w, err, http.StatusInternalServerError)

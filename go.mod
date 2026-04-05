@@ -3,9 +3,12 @@ module alexi.ch/pcms
 go 1.25
 
 require (
+	github.com/chai2010/webp v1.4.0
+	github.com/disintegration/imaging v1.6.2
 	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/gabriel-vasile/mimetype v1.4.13
 	github.com/russross/blackfriday/v2 v2.1.0
+	golang.org/x/image v0.0.0-20211028202545-6944b10bf410
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.46.1
 )

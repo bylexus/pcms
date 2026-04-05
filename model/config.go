@@ -32,11 +32,12 @@ const (
 
 type Config struct {
 	Server struct {
-		Listen   string        `yaml:"listen"`
-		Watch    bool          `yaml:"watch"`
-		Prefix   string        `yaml:"prefix"`
-		CacheDir string        `yaml:"cache_dir"`
-		Logging  LoggingConfig `yaml:"logging"`
+		Listen      string        `yaml:"listen"`
+		Watch       bool          `yaml:"watch"`
+		Prefix      string        `yaml:"prefix"`
+		CacheDir    string        `yaml:"cache_dir"`
+		MaxBodySize int64         `yaml:"max_body_size"`
+		Logging     LoggingConfig `yaml:"logging"`
 	} `yaml:"server"`
 	Variables       map[string]interface{} `yaml:"variables"`
 	ConfigFile      string
@@ -120,6 +121,9 @@ func NewConfig(conffilePath string, cliArgs CmdArgs, embeddedDocFS embed.FS) Con
 	}
 	if config.Server.CacheDir == "" {
 		config.Server.CacheDir = ".pcms-cache"
+	}
+	if config.Server.MaxBodySize == 0 {
+		config.Server.MaxBodySize = 32 * 1024 * 1024 // 32 MB
 	}
 	if config.DatabasePath == "" {
 		config.DatabasePath = "pcms.db"
