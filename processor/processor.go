@@ -122,6 +122,36 @@ func AbsUrl(relPath string, Webroot string) string {
 	return path.Clean(path.Join("/", Webroot, relPath))
 }
 
+// BuildGlobalTemplateContext builds the template context entries that are not
+// specific to a single page: Config, Webroot, helper functions, and PageQuery.
+// It is suitable for use in both normal page rendering and error pages.
+func BuildGlobalTemplateContext(config model.Config) (pongo2.Context, error) {
+	dbh, err := lib.GetDBH()
+	if err != nil {
+		return nil, err
+	}
+	webroot := config.Server.Prefix
+	return pongo2.Context{
+		"Config": config,
+		// creates an absolute, webroot-based url from a relative url
+		"Webroot": func(relPath string) string {
+			return AbsUrl(relPath, webroot)
+		},
+		// helper function to check a string for a prefix
+		"StartsWith": strings.HasPrefix,
+		// helper function to check a string for a postfix
+		"EndsWith": strings.HasSuffix,
+		// PageQuery returns a new PageQueryBuilder for querying indexed pages.
+		"PageQuery": func() *lib.PageQueryBuilder {
+			return lib.NewPageQueryBuilder(dbh)
+		},
+		// List creates a string slice from its arguments.
+		"List": func(items ...string) []string {
+			return items
+		},
+	}, nil
+}
+
 func prepareTemplateContext(config model.Config, fileInfo PageInfo) (pongo2.Context, error) {
 	dbh, err := lib.GetDBH()
 	if err != nil {
@@ -136,36 +166,24 @@ func prepareTemplateContext(config model.Config, fileInfo PageInfo) (pongo2.Cont
 		return nil, err
 	}
 
-	var context = pongo2.Context{
+	globalCtx, err := BuildGlobalTemplateContext(config)
+	if err != nil {
+		return nil, err
+	}
+
+	// Override Webroot with the page-specific webroot from fileInfo:
+	globalCtx["Webroot"] = func(relPath string) string {
+		return AbsUrl(relPath, fileInfo.Webroot)
+	}
+
+	globalCtx.Update(pongo2.Context{
 		"Page": fileInfo.ActPage,
 
 		"ChildPages": childPages,
 		"ChildFiles": childFiles,
 
-		"Config": config,
-
 		// several file path variants for the actual file:
 		"Paths": fileInfo,
-		// creates an absolute, webroot-based url from a relative url
-		"Webroot": func(relPath string) string {
-			return AbsUrl(relPath, fileInfo.Webroot)
-		},
-		// helper function to check a string for a prefix
-		"StartsWith": strings.HasPrefix,
-		// helper function to check a string for a postfix
-		"EndsWith": strings.HasSuffix,
-
-		// PageQuery returns a new PageQueryBuilder for querying indexed pages.
-		// Usage: PageQuery().WhereParentRoute(page.Route).OrderBy("title","asc").FetchAll()
-		"PageQuery": func() *lib.PageQueryBuilder {
-			return lib.NewPageQueryBuilder(dbh)
-		},
-		// List creates a string slice from its arguments, for use with
-		// WhereMetadata* methods that accept []string field paths.
-		// Usage: WhereMetadataEquals(List("foo.bar", "baz"), "value")
-		"List": func(items ...string) []string {
-			return items
-		},
-	}
-	return context, nil
+	})
+	return globalCtx, nil
 }

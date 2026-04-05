@@ -288,11 +288,29 @@ func writeCacheFile(cacheFile string, content []byte) error {
 }
 
 /*
- * Generic error handler, sets an HTTP error code and outputs the specified error
+ * Generic error handler, sets an HTTP error code and renders the error.html template.
+ * Falls back to plain text if the template cannot be loaded or rendered.
  */
 func (h *RequestHandler) errorHandler(w http.ResponseWriter, err error, status int) {
 	if h.ErrorLogger != nil {
 		h.ErrorLogger.Error("request failed (%d): %s", status, err.Error())
+	}
+	tpl, tplErr := pongo2.FromFile("error.html")
+	if tplErr == nil {
+		ctx, tplErr := processor.BuildGlobalTemplateContext(h.ServerConfig)
+		if tplErr == nil {
+			ctx.Update(pongo2.Context{
+				"statusCode": status,
+				"error":      err.Error(),
+			})
+			rendered, tplErr := tpl.ExecuteBytes(ctx)
+			if tplErr == nil {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(status)
+				w.Write(rendered)
+				return
+			}
+		}
 	}
 	w.WriteHeader(status)
 	w.Write([]byte(fmt.Sprintf("error: %v\n", err)))
