@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
 	_ "golang.org/x/image/webp" // register WebP decoder
 )
@@ -296,7 +295,7 @@ func encodeImage(img image.Image, params ResizeParams, srcFormat string) ([]byte
 		err = imaging.Encode(&buf, img, imaging.JPEG, imaging.JPEGQuality(params.JpgQuality))
 	case fmtWebP:
 		contentType = "image/webp"
-		err = webp.Encode(&buf, img, &webp.Options{Lossless: false, Quality: float32(params.WebpQuality)})
+		err = encodeWebP(&buf, img, params.WebpQuality)
 	default:
 		contentType = "image/png"
 		err = png.Encode(&buf, img)

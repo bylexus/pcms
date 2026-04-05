@@ -174,6 +174,11 @@ So an URL route either matches with a `Page` object, a raw file, or it ends in a
 
 ## Changelog
 
+### v0.11.1
+
+- [bugfix] Fixed `make build-release` cross-platform builds failing on `github.com/chai2010/webp` when compiled without `cgo`
+- [change] WebP encoding now uses build-tagged implementations: `cgo` builds keep full WebP encoding, `!cgo` builds compile cleanly and return a clear runtime error if WebP output is requested
+
 ### v0.11.0
 
 - [feature] Image Resizer backend service for on-the-fly image resizing
