@@ -174,6 +174,11 @@ So an URL route either matches with a `Page` object, a raw file, or it ends in a
 
 ## Changelog
 
+### v0.11.0
+
+- [feature] Image Resizer backend service for on-the-fly image resizing
+- [bugfix] Fixed error template rendering broken since v0.9.0
+
 ### v0.10.0
 
 - `PageQuery()` builder available in templates to query, filter, sort, and paginate indexed pages
