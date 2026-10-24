@@ -45,6 +45,8 @@ func TestParseResizeParams(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
+		maxW    int // 0 = 1920
+		maxH    int // 0 = 1920
 		want    ResizeParams
 		wantErr bool
 	}{
@@ -56,37 +58,37 @@ func TestParseResizeParams(t *testing.T) {
 		{
 			name:  "width only",
 			input: "width:200",
-			want: ResizeParams{Width: 200, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
+			want:  ResizeParams{Width: 200, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
 		},
 		{
 			name:  "height only",
 			input: "height:300",
-			want: ResizeParams{Height: 300, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
+			want:  ResizeParams{Height: 300, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
 		},
 		{
 			name:  "maxWidth and maxHeight",
 			input: "maxWidth:800,maxHeight:600",
-			want: ResizeParams{MaxWidth: 800, MaxHeight: 600, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
+			want:  ResizeParams{MaxWidth: 800, MaxHeight: 600, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
 		},
 		{
 			name:  "width height fit cover",
 			input: "width:400,height:300,fit:cover",
-			want: ResizeParams{Width: 400, Height: 300, Fit: fitCover, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
+			want:  ResizeParams{Width: 400, Height: 300, Fit: fitCover, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
 		},
 		{
 			name:  "contain with fillColor",
 			input: "width:400,height:300,fit:contain,fillColor:ff0000",
-			want: ResizeParams{Width: 400, Height: 300, Fit: fitContain, FillColor: color.RGBA{255, 0, 0, 255}, JpgQuality: 80, WebpQuality: 80},
+			want:  ResizeParams{Width: 400, Height: 300, Fit: fitContain, FillColor: color.RGBA{255, 0, 0, 255}, JpgQuality: 80, WebpQuality: 80},
 		},
 		{
 			name:  "format webp with quality",
 			input: "format:webp,webpQuality:90",
-			want: ResizeParams{Format: fmtWebP, WebpQuality: 90, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80},
+			want:  ResizeParams{Format: fmtWebP, WebpQuality: 90, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80},
 		},
 		{
 			name:  "format jpg with quality",
 			input: "format:jpg,jpgQuality:70",
-			want: ResizeParams{Format: fmtJPG, JpgQuality: 70, FillColor: color.RGBA{255, 255, 255, 255}, WebpQuality: 80},
+			want:  ResizeParams{Format: fmtJPG, JpgQuality: 70, FillColor: color.RGBA{255, 255, 255, 255}, WebpQuality: 80},
 		},
 		{
 			name:    "unknown parameter",
@@ -128,11 +130,70 @@ func TestParseResizeParams(t *testing.T) {
 			input:   "width200",
 			wantErr: true,
 		},
+		{
+			name:  "width at default max",
+			input: "width:1920",
+			want:  ResizeParams{Width: 1920, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
+		},
+		{
+			name:    "width above default max",
+			input:   "width:2000",
+			wantErr: true,
+		},
+		{
+			name:  "width at custom max",
+			input: "width:800",
+			maxW:  800, maxH: 600,
+			want: ResizeParams{Width: 800, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
+		},
+		{
+			name:  "width above custom max",
+			input: "width:900",
+			maxW:  800, maxH: 600,
+			wantErr: true,
+		},
+		{
+			name:  "maxWidth above custom max",
+			input: "maxWidth:801",
+			maxW:  800, maxH: 600,
+			wantErr: true,
+		},
+		{
+			name:  "height above custom max",
+			input: "height:601",
+			maxW:  800, maxH: 600,
+			wantErr: true,
+		},
+		{
+			name:  "maxHeight above custom max",
+			input: "maxHeight:601",
+			maxW:  800, maxH: 600,
+			wantErr: true,
+		},
+		{
+			name:  "height uses height limit, not width limit",
+			input: "height:700",
+			maxW:  600, maxH: 800,
+			want: ResizeParams{Height: 700, FillColor: color.RGBA{255, 255, 255, 255}, JpgQuality: 80, WebpQuality: 80},
+		},
+		{
+			name:  "width uses width limit, not height limit",
+			input: "width:700",
+			maxW:  600, maxH: 800,
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseResizeParams(tc.input)
+			maxW, maxH := tc.maxW, tc.maxH
+			if maxW == 0 {
+				maxW = 1920
+			}
+			if maxH == 0 {
+				maxH = 1920
+			}
+			got, err := parseResizeParams(tc.input, maxW, maxH)
 			if tc.wantErr {
 				if err == nil {
 					t.Errorf("expected error, got nil (result: %+v)", got)
@@ -186,106 +247,204 @@ func TestComputeTargetDimensions(t *testing.T) {
 	white := color.RGBA{255, 255, 255, 255}
 
 	tests := []struct {
-		name    string
-		srcW    int
-		srcH    int
-		params  ResizeParams
-		wantOp  string
-		wantW   int
-		wantH   int
+		name   string
+		srcW   int
+		srcH   int
+		maxW   int // 0 = 1920
+		maxH   int // 0 = 1920
+		params ResizeParams
+		wantOp string
+		wantW  int
+		wantH  int
 	}{
 		{
-			name:   "width only",
-			srcW:   800, srcH: 600,
+			name: "width only",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{Width: 200, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "resize-ar", wantW: 200, wantH: 0,
 		},
 		{
-			name:   "height only",
-			srcW:   800, srcH: 600,
+			name: "height only",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{Height: 300, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "resize-ar", wantW: 0, wantH: 300,
 		},
 		{
-			name:   "maxWidth and maxHeight",
-			srcW:   800, srcH: 600,
+			name: "maxWidth and maxHeight",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{MaxWidth: 400, MaxHeight: 300, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "fit", wantW: 400, wantH: 300,
 		},
 		{
-			name:   "maxWidth only image larger",
-			srcW:   800, srcH: 600,
+			name: "maxWidth only image larger",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{MaxWidth: 400, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "resize-ar", wantW: 400, wantH: 0,
 		},
 		{
-			name:   "maxWidth only image smaller",
-			srcW:   300, srcH: 200,
+			name: "maxWidth only image smaller",
+			srcW: 300, srcH: 200,
 			params: ResizeParams{MaxWidth: 400, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "noop", wantW: 0, wantH: 0,
 		},
 		{
-			name:   "maxHeight only image larger",
-			srcW:   800, srcH: 600,
+			name: "maxHeight only image larger",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{MaxHeight: 300, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "resize-ar", wantW: 0, wantH: 300,
 		},
 		{
-			name:   "maxHeight only image smaller",
-			srcW:   800, srcH: 200,
+			name: "maxHeight only image smaller",
+			srcW: 800, srcH: 200,
 			params: ResizeParams{MaxHeight: 300, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "noop", wantW: 0, wantH: 0,
 		},
 		{
-			name:   "width + maxHeight height fits",
-			srcW:   1000, srcH: 500,
+			name: "height + maxWidth width fits",
+			srcW: 500, srcH: 1000,
+			params: ResizeParams{Height: 1000, MaxWidth: 1000, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			// scale=1.0, projW=500 <= 1000 => resize-ar
+			wantOp: "resize-ar", wantW: 0, wantH: 1000,
+		},
+		{
+			name: "height + maxWidth width exceeds",
+			srcW: 1000, srcH: 200,
+			params: ResizeParams{Height: 1000, MaxWidth: 1000, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			// scale=5.0, projW=5000 > 1000 => resize-distort
+			wantOp: "resize-distort", wantW: 1000, wantH: 1000,
+		},
+		{
+			name: "width + maxHeight height fits",
+			srcW: 1000, srcH: 500,
 			params: ResizeParams{Width: 1000, MaxHeight: 1000, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			// scale=1.0, projH=500 <= 1000 => resize-ar
 			wantOp: "resize-ar", wantW: 1000, wantH: 0,
 		},
 		{
-			name:   "width + maxHeight height exceeds",
-			srcW:   200, srcH: 1000,
+			name: "width + maxHeight height exceeds",
+			srcW: 200, srcH: 1000,
 			params: ResizeParams{Width: 1000, MaxHeight: 1000, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			// scale=5.0, projH=5000 > 1000 => resize-distort
 			wantOp: "resize-distort", wantW: 1000, wantH: 1000,
 		},
 		{
-			name:   "width + height fit cover",
-			srcW:   800, srcH: 600,
+			name: "width + height fit cover",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{Width: 400, Height: 300, Fit: fitCover, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "fill", wantW: 400, wantH: 300,
 		},
 		{
-			name:   "width + height fit contain",
-			srcW:   800, srcH: 600,
+			name: "width + height fit contain",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{Width: 400, Height: 300, Fit: fitContain, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "contain", wantW: 400, wantH: 300,
 		},
 		{
-			name:   "width + height fit distort",
-			srcW:   800, srcH: 600,
+			name: "width + height fit distort",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{Width: 400, Height: 300, Fit: fitDistort, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "resize-distort", wantW: 400, wantH: 300,
 		},
 		{
-			name:   "width + height no fit (distort)",
-			srcW:   800, srcH: 600,
+			name: "width + height no fit (distort)",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{Width: 400, Height: 300, FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "resize-distort", wantW: 400, wantH: 300,
 		},
 		{
-			name:   "nothing set",
-			srcW:   800, srcH: 600,
+			name: "nothing set",
+			srcW: 800, srcH: 600,
 			params: ResizeParams{FillColor: white, JpgQuality: 80, WebpQuality: 80},
 			wantOp: "noop", wantW: 0, wantH: 0,
+		},
+		// output cap: result must fit into the max box
+		{
+			name: "nothing set big landscape source fit to box",
+			srcW: 4000, srcH: 3000,
+			params: ResizeParams{FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			wantOp: "resize-ar", wantW: 1920, wantH: 0,
+		},
+		{
+			name: "nothing set big portrait source fit to box",
+			srcW: 3000, srcH: 4000,
+			params: ResizeParams{FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			wantOp: "resize-ar", wantW: 0, wantH: 1920,
+		},
+		{
+			name: "format only big source fit to custom box",
+			srcW: 2000, srcH: 1000,
+			maxW: 800, maxH: 600,
+			params: ResizeParams{Format: fmtWebP, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			wantOp: "resize-ar", wantW: 800, wantH: 0,
+		},
+		{
+			name: "format only height limits in custom box",
+			srcW: 1000, srcH: 1000,
+			maxW: 800, maxH: 600,
+			params: ResizeParams{Format: fmtWebP, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			wantOp: "resize-ar", wantW: 0, wantH: 600,
+		},
+		{
+			name: "nothing set small source unchanged",
+			srcW: 800, srcH: 600,
+			maxW: 800, maxH: 600,
+			params: ResizeParams{FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			wantOp: "noop", wantW: 0, wantH: 0,
+		},
+		{
+			name: "width only tall image capped at max height",
+			srcW: 1000, srcH: 4000,
+			params: ResizeParams{Width: 1920, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			// derived height 7680 > 1920 => fit into 1920 x 1920, width becomes 480
+			wantOp: "resize-ar", wantW: 0, wantH: 1920,
+		},
+		{
+			name: "width only derived height exactly max",
+			srcW: 1000, srcH: 2000,
+			params: ResizeParams{Width: 960, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			wantOp: "resize-ar", wantW: 960, wantH: 0,
+		},
+		{
+			name: "width only small image upscale within box kept",
+			srcW: 100, srcH: 100,
+			params: ResizeParams{Width: 400, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			wantOp: "resize-ar", wantW: 400, wantH: 0,
+		},
+		{
+			name: "height only wide image capped at max width",
+			srcW: 4000, srcH: 1000,
+			maxW: 800, maxH: 600,
+			params: ResizeParams{Height: 600, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			// derived width 2400 > 800 => fit into 800 x 600, height becomes 200
+			wantOp: "resize-ar", wantW: 800, wantH: 0,
+		},
+		{
+			name: "maxWidth only tall image capped at max height",
+			srcW: 1000, srcH: 4000,
+			params: ResizeParams{MaxWidth: 1000, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			// srcW <= maxWidth, but srcH > 1920 => fit into 1000 x 1920
+			wantOp: "resize-ar", wantW: 0, wantH: 1920,
+		},
+		{
+			name: "maxHeight only wide image capped at max width",
+			srcW: 4000, srcH: 1000,
+			params: ResizeParams{MaxHeight: 1000, FillColor: white, JpgQuality: 80, WebpQuality: 80},
+			// srcH <= maxHeight, but srcW > 1920 => fit into 1920 x 1000
+			wantOp: "resize-ar", wantW: 1920, wantH: 0,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			maxW, maxH := tc.maxW, tc.maxH
+			if maxW == 0 {
+				maxW = 1920
+			}
+			if maxH == 0 {
+				maxH = 1920
+			}
 			src := makeTestImage(tc.srcW, tc.srcH)
-			gotOp, gotW, gotH := computeTargetDimensions(src, tc.params)
+			gotOp, gotW, gotH := computeTargetDimensions(src, tc.params, maxW, maxH)
 			if gotOp != tc.wantOp || gotW != tc.wantW || gotH != tc.wantH {
 				t.Errorf("got op=%q w=%d h=%d, want op=%q w=%d h=%d",
 					gotOp, gotW, gotH, tc.wantOp, tc.wantW, tc.wantH)

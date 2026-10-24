@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math/rand/v2"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +27,8 @@ type RequestHandler struct {
 	DBH          *lib.DBH
 	// the site FS is the root of the served file system
 	siteFS fs.FS
+	// limits concurrent uncached image renders (size: server.image_resizer.max_concurrent)
+	resizeSem resizeSemaphore
 }
 
 func NewRequestHandler(
@@ -39,6 +43,7 @@ func NewRequestHandler(
 		ErrorLogger:  errorLogger,
 		siteFS:       siteFS,
 		DBH:          dbh,
+		resizeSem:    newResizeSemaphore(config.Server.ImageResizer.MaxConcurrent),
 	}
 	return &r
 }
@@ -181,7 +186,14 @@ func (h *RequestHandler) servePage(w http.ResponseWriter, req *http.Request, rou
 			return
 		}
 		if err := writeCacheFile(cachePath, rendered); err != nil {
-			h.errorHandler(w, err, http.StatusInternalServerError)
+			// Fallback: the cache cannot be written (e.g. disk full, read-only),
+			// serve the rendered page from memory.
+			if h.ErrorLogger != nil {
+				h.ErrorLogger.Warning("write page cache %s: %s (serving from memory)", cachePath, err.Error())
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.WriteHeader(http.StatusOK)
+			w.Write(rendered)
 			return
 		}
 	}
@@ -278,13 +290,52 @@ func isPageCacheValid(cacheFile string, sourceModTime time.Time) (bool, error) {
 	return !cacheInfo.ModTime().Before(sourceModTime), nil
 }
 
-func writeCacheFile(cacheFile string, content []byte) error {
+// cacheTempFilePrefix is the name prefix of temporary cache files (see writeCacheFile).
+const cacheTempFilePrefix = ".tmp-"
+
+// writeCacheFile writes content atomically to cacheFile: the content is written to a
+// temp file in the same directory, which is then renamed to cacheFile. On any error the
+// temp file is removed, so there is never a partial file at cacheFile.
+func writeCacheFile(cacheFile string, content []byte) (err error) {
 	dir := filepath.Dir(cacheFile)
 	if err := os.MkdirAll(dir, 0o777); err != nil {
 		return err
 	}
 
-	return os.WriteFile(cacheFile, content, 0o666)
+	tmp, err := createCacheTempFile(dir, filepath.Base(cacheFile))
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		if err != nil {
+			tmp.Close()
+			os.Remove(tmpName)
+		}
+	}()
+
+	if _, err = tmp.Write(content); err != nil {
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, cacheFile)
+}
+
+// createCacheTempFile creates a new, unique temp file in dir, named
+// "<cacheTempFilePrefix><base>-<random>". Unlike os.CreateTemp (mode 0o600), the file is
+// created with mode 0o666 (before umask), so the cache file has the same effective mode
+// as a file written with os.WriteFile(…, 0o666).
+func createCacheTempFile(dir, base string) (*os.File, error) {
+	for try := 0; ; try++ {
+		name := filepath.Join(dir, cacheTempFilePrefix+base+"-"+strconv.FormatUint(rand.Uint64(), 36))
+		f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
+		if errors.Is(err, fs.ErrExist) && try < 100 {
+			continue
+		}
+		return f, err
+	}
 }
 
 /*

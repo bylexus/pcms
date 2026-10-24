@@ -27,6 +27,9 @@ variables:
       route: architecture
     - title: "Backend Services"
       route: backend-services
+      children:
+        - title: "Image Resizer"
+          route: backend-services/image-resizer
     - title: "Reference"
       route: reference
 template_dir: templates

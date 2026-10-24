@@ -3,6 +3,7 @@ package webserver
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -15,13 +16,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/disintegration/imaging"
 	_ "golang.org/x/image/webp" // register WebP decoder
 )
 
 const imageResizerPrefix = "/_imageResizer/"
-const maxResizeDimension = 1920
 
 type fitMode string
 type outFormat string
@@ -54,7 +55,9 @@ func defaultResizeParams() ResizeParams {
 	}
 }
 
-func parseResizeParams(paramStr string) (ResizeParams, error) {
+// parseResizeParams parses the resizer parameter string. width and maxWidth must be
+// <= maxWidthLimit, height and maxHeight must be <= maxHeightLimit.
+func parseResizeParams(paramStr string, maxWidthLimit, maxHeightLimit int) (ResizeParams, error) {
 	p := defaultResizeParams()
 	if paramStr == "" {
 		return p, nil
@@ -141,14 +144,15 @@ func parseResizeParams(paramStr string) (ResizeParams, error) {
 	}
 
 	for _, dim := range []struct {
-		name string
-		val  int
+		name  string
+		val   int
+		limit int
 	}{
-		{"width", p.Width}, {"height", p.Height},
-		{"maxWidth", p.MaxWidth}, {"maxHeight", p.MaxHeight},
+		{"width", p.Width, maxWidthLimit}, {"height", p.Height, maxHeightLimit},
+		{"maxWidth", p.MaxWidth, maxWidthLimit}, {"maxHeight", p.MaxHeight, maxHeightLimit},
 	} {
-		if dim.val > maxResizeDimension {
-			return p, fmt.Errorf("%s: must be <= %d, got %d", dim.name, maxResizeDimension, dim.val)
+		if dim.val > dim.limit {
+			return p, fmt.Errorf("%s: must be <= %d, got %d", dim.name, dim.limit, dim.val)
 		}
 	}
 
@@ -209,31 +213,37 @@ func cacheKey(params ResizeParams, urlTail string) string {
 	return fmt.Sprintf("%x", h[:16])
 }
 
-func computeTargetDimensions(src image.Image, p ResizeParams) (op string, w, h int) {
+// computeTargetDimensions returns the resize operation and target dimensions for
+// applyResize. The result always fits into the max box maxWidthLimit x maxHeightLimit
+// (with a single resample). The params must be validated by parseResizeParams with
+// the same limits.
+func computeTargetDimensions(src image.Image, p ResizeParams, maxWidthLimit, maxHeightLimit int) (op string, w, h int) {
 	srcW := src.Bounds().Dx()
 	srcH := src.Bounds().Dy()
 
 	switch {
 	case p.Width > 0 && p.Height == 0 && p.MaxWidth == 0 && p.MaxHeight == 0:
+		// derived height = srcH * Width / srcW; cap it at maxHeightLimit
+		if int64(srcH)*int64(p.Width) > int64(maxHeightLimit)*int64(srcW) {
+			return "resize-ar", 0, maxHeightLimit
+		}
 		return "resize-ar", p.Width, 0
 
 	case p.Height > 0 && p.Width == 0 && p.MaxWidth == 0 && p.MaxHeight == 0:
+		// derived width = srcW * Height / srcH; cap it at maxWidthLimit
+		if int64(srcW)*int64(p.Height) > int64(maxWidthLimit)*int64(srcH) {
+			return "resize-ar", maxWidthLimit, 0
+		}
 		return "resize-ar", 0, p.Height
 
 	case p.MaxWidth > 0 && p.MaxHeight > 0 && p.Width == 0 && p.Height == 0:
 		return "fit", p.MaxWidth, p.MaxHeight
 
 	case p.MaxWidth > 0 && p.MaxHeight == 0 && p.Width == 0 && p.Height == 0:
-		if srcW <= p.MaxWidth {
-			return "noop", 0, 0
-		}
-		return "resize-ar", p.MaxWidth, 0
+		return fitIntoBox(srcW, srcH, p.MaxWidth, maxHeightLimit)
 
 	case p.MaxHeight > 0 && p.MaxWidth == 0 && p.Width == 0 && p.Height == 0:
-		if srcH <= p.MaxHeight {
-			return "noop", 0, 0
-		}
-		return "resize-ar", 0, p.MaxHeight
+		return fitIntoBox(srcW, srcH, maxWidthLimit, p.MaxHeight)
 
 	case p.Width > 0 && p.MaxHeight > 0 && p.Height == 0 && p.MaxWidth == 0:
 		scale := float64(p.Width) / float64(srcW)
@@ -242,6 +252,14 @@ func computeTargetDimensions(src image.Image, p ResizeParams) (op string, w, h i
 			return "resize-ar", p.Width, 0
 		}
 		return "resize-distort", p.Width, p.MaxHeight
+
+	case p.Height > 0 && p.MaxWidth > 0 && p.Width == 0 && p.MaxHeight == 0:
+		scale := float64(p.Height) / float64(srcH)
+		projW := int(math.Round(float64(srcW) * scale))
+		if projW <= p.MaxWidth {
+			return "resize-ar", 0, p.Height
+		}
+		return "resize-distort", p.MaxWidth, p.Height
 
 	case p.Width > 0 && p.Height > 0:
 		switch p.Fit {
@@ -254,8 +272,21 @@ func computeTargetDimensions(src image.Image, p ResizeParams) (op string, w, h i
 		}
 
 	default:
+		return fitIntoBox(srcW, srcH, maxWidthLimit, maxHeightLimit)
+	}
+}
+
+// fitIntoBox returns "noop" if the source fits into boxW x boxH, else a
+// downscale ("resize-ar") that keeps the aspect ratio and fits into the box.
+func fitIntoBox(srcW, srcH, boxW, boxH int) (op string, w, h int) {
+	if srcW <= boxW && srcH <= boxH {
 		return "noop", 0, 0
 	}
+	// width is the limiting side if srcW/boxW >= srcH/boxH
+	if int64(srcW)*int64(boxH) >= int64(srcH)*int64(boxW) {
+		return "resize-ar", boxW, 0
+	}
+	return "resize-ar", 0, boxH
 }
 
 func applyResize(src image.Image, op string, w, h int, p ResizeParams) image.Image {
@@ -276,40 +307,46 @@ func applyResize(src image.Image, op string, w, h int, p ResizeParams) image.Ima
 	}
 }
 
-func encodeImage(img image.Image, params ResizeParams, srcFormat string) ([]byte, string, error) {
-	targetFmt := string(params.Format)
-	if targetFmt == "" {
-		targetFmt = srcFormat
-		if targetFmt == "jpeg" {
-			targetFmt = "jpg"
-		}
+// resolveOutputFormat returns the output format of a resize request: params.Format if
+// set, else derived from the source format name (as returned by image.Decode /
+// image.DecodeConfig): "jpeg" -> jpg, "webp" -> webp, everything else -> png.
+func resolveOutputFormat(params ResizeParams, srcFormat string) outFormat {
+	if params.Format != "" {
+		return params.Format
 	}
-
-	var buf bytes.Buffer
-	var contentType string
-	var err error
-
-	switch outFormat(targetFmt) {
-	case fmtJPG:
-		contentType = "image/jpeg"
-		err = imaging.Encode(&buf, img, imaging.JPEG, imaging.JPEGQuality(params.JpgQuality))
-	case fmtWebP:
-		contentType = "image/webp"
-		err = encodeWebP(&buf, img, params.WebpQuality)
+	switch srcFormat {
+	case "jpeg":
+		return fmtJPG
+	case "webp":
+		return fmtWebP
 	default:
-		contentType = "image/png"
-		err = png.Encode(&buf, img)
+		return fmtPNG
 	}
-
-	return buf.Bytes(), contentType, err
 }
 
-func cachedContentType(cachePath string, params ResizeParams) string {
-	data, err := os.ReadFile(cachePath + ".ct")
-	if err == nil && len(data) > 0 {
-		return strings.TrimSpace(string(data))
+// detectOutputFormat returns the output format of a resize request before the source
+// image is decoded. If params.Format is not set, only the image header of the source
+// file is read (image.DecodeConfig).
+func detectOutputFormat(fsys fs.FS, fsPath string, params ResizeParams) (outFormat, error) {
+	if params.Format != "" {
+		return params.Format, nil
 	}
-	switch params.Format {
+	f, err := fsys.Open(fsPath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	_, srcFormat, err := image.DecodeConfig(f)
+	if err != nil {
+		return "", err
+	}
+	return resolveOutputFormat(params, srcFormat), nil
+}
+
+// formatContentType returns the Content-Type of an output format.
+func formatContentType(format outFormat) string {
+	switch format {
 	case fmtJPG:
 		return "image/jpeg"
 	case fmtWebP:
@@ -317,6 +354,44 @@ func cachedContentType(cachePath string, params ResizeParams) string {
 	default:
 		return "image/png"
 	}
+}
+
+// formatExtension returns the cache file extension (without dot) of an output format.
+func formatExtension(format outFormat) string {
+	switch format {
+	case fmtJPG, fmtWebP:
+		return string(format)
+	default:
+		return string(fmtPNG)
+	}
+}
+
+// imageCachePath returns the image cache file path: <cacheDir>/_imageResizer/<key>.<ext>.
+func imageCachePath(cacheDir, key string, format outFormat) string {
+	return filepath.Join(cacheDir, "_imageResizer", key+"."+formatExtension(format))
+}
+
+// touchCacheFile sets the access and modification time of a cache file to now, so the
+// file mtime is the time of the last use.
+func touchCacheFile(cacheFile string, now time.Time) error {
+	return os.Chtimes(cacheFile, now, now)
+}
+
+// encodeImage encodes img in the given output format.
+func encodeImage(img image.Image, params ResizeParams, format outFormat) ([]byte, error) {
+	var buf bytes.Buffer
+	var err error
+
+	switch format {
+	case fmtJPG:
+		err = imaging.Encode(&buf, img, imaging.JPEG, imaging.JPEGQuality(params.JpgQuality))
+	case fmtWebP:
+		err = encodeWebP(&buf, img, params.WebpQuality)
+	default:
+		err = png.Encode(&buf, img)
+	}
+
+	return buf.Bytes(), err
 }
 
 func (h *RequestHandler) serveResizedImage(w http.ResponseWriter, req *http.Request, rawPath string) {
@@ -337,7 +412,10 @@ func (h *RequestHandler) serveResizedImage(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	params, err := parseResizeParams(paramStr)
+	maxW := h.ServerConfig.Server.ImageResizer.MaxWidth
+	maxH := h.ServerConfig.Server.ImageResizer.MaxHeight
+
+	params, err := parseResizeParams(paramStr, maxW, maxH)
 	if err != nil {
 		h.errorHandler(w, fmt.Errorf("parse resize params: %w", err), http.StatusBadRequest)
 		return
@@ -359,19 +437,26 @@ func (h *RequestHandler) serveResizedImage(w http.ResponseWriter, req *http.Requ
 
 	fsPath := routeToFSPath(fileRoute)
 
-	key := cacheKey(params, fileRoute)
-	cachePath := filepath.Join(h.ServerConfig.Server.CacheDir, "_imageResizer", key)
-
 	info, statErr := fs.Stat(h.siteFS, fsPath)
 	if statErr != nil {
 		h.errorHandler(w, statErr, http.StatusInternalServerError)
 		return
 	}
-	if info.Size() > h.ServerConfig.Server.MaxBodySize {
+	if info.Size() > h.ServerConfig.Server.ImageResizer.MaxSourceSize {
 		h.errorHandler(w, fmt.Errorf("image too large"), http.StatusRequestEntityTooLarge)
 		return
 	}
 	sourceModTime := info.ModTime()
+
+	format, err := detectOutputFormat(h.siteFS, fsPath, params)
+	if err != nil {
+		h.errorHandler(w, fmt.Errorf("detect image format: %w", err), http.StatusInternalServerError)
+		return
+	}
+	contentType := formatContentType(format)
+
+	key := cacheKey(params, fileRoute)
+	cachePath := imageCachePath(h.ServerConfig.Server.CacheDir, key, format)
 
 	cacheValid, err := isPageCacheValid(cachePath, sourceModTime)
 	if err != nil {
@@ -380,11 +465,43 @@ func (h *RequestHandler) serveResizedImage(w http.ResponseWriter, req *http.Requ
 	}
 
 	if cacheValid {
-		contentType := cachedContentType(cachePath, params)
+		if err := touchCacheFile(cachePath, time.Now()); err != nil && h.ErrorLogger != nil {
+			h.ErrorLogger.Warning("touch image cache file %s: %s", cachePath, err.Error())
+		}
+		cacheFile, err := os.Open(cachePath)
+		if err != nil {
+			h.errorHandler(w, fmt.Errorf("open image cache: %w", err), http.StatusInternalServerError)
+			return
+		}
+		defer cacheFile.Close()
 		w.Header().Set("Content-Type", contentType)
-		http.ServeFile(w, req, cachePath)
+		http.ServeContent(w, req, filepath.Base(cachePath), sourceModTime, cacheFile)
 		return
 	}
+
+	// Uncached render: take a slot of the concurrency limit for decode + resize + encode.
+	// The slot is released right after encoding; cache write and response writing do not
+	// hold it (a slow client must not block a render slot).
+	if err := h.resizeSem.acquire(req.Context(), h.ServerConfig.Server.ImageResizer.WaitTimeout); err != nil {
+		if errors.Is(err, errResizeSlotTimeout) {
+			w.Header().Set("Retry-After", "5")
+			h.errorHandler(w, err, http.StatusServiceUnavailable)
+			return
+		}
+		// Client disconnected while waiting: no response possible, nothing to render.
+		if h.ErrorLogger != nil {
+			h.ErrorLogger.Debug("image resize cancelled while waiting for a slot: %s: %s", fileRoute, err.Error())
+		}
+		return
+	}
+	slotHeld := true
+	releaseSlot := func() {
+		if slotHeld {
+			slotHeld = false
+			h.resizeSem.release()
+		}
+	}
+	defer releaseSlot()
 
 	f, err := h.siteFS.Open(fsPath)
 	if err != nil {
@@ -393,26 +510,27 @@ func (h *RequestHandler) serveResizedImage(w http.ResponseWriter, req *http.Requ
 	}
 	defer f.Close()
 
-	img, srcFmt, err := image.Decode(f)
+	img, _, err := image.Decode(f)
 	if err != nil {
 		h.errorHandler(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	op, tw, th := computeTargetDimensions(img, params)
+	op, tw, th := computeTargetDimensions(img, params, maxW, maxH)
 	resized := applyResize(img, op, tw, th, params)
 
-	data, contentType, err := encodeImage(resized, params, srcFmt)
+	data, err := encodeImage(resized, params, format)
 	if err != nil {
 		h.errorHandler(w, fmt.Errorf("encode image: %w", err), http.StatusInternalServerError)
 		return
 	}
+	releaseSlot()
 
-	if err := writeCacheFile(cachePath, data); err != nil {
-		h.errorHandler(w, fmt.Errorf("write image cache: %w", err), http.StatusInternalServerError)
-		return
+	if err := writeCacheFile(cachePath, data); err != nil && h.ErrorLogger != nil {
+		// Fallback: the cache cannot be written (e.g. disk full, read-only),
+		// the rendered image is served from memory below.
+		h.ErrorLogger.Warning("write image cache %s: %s (serving from memory)", cachePath, err.Error())
 	}
-	_ = writeCacheFile(cachePath+".ct", []byte(contentType))
 
 	w.Header().Set("Content-Type", contentType)
 	w.WriteHeader(http.StatusOK)

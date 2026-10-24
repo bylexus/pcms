@@ -1,4 +1,4 @@
-FROM alpine:3.23 AS builder
+FROM alpine:3.24 AS builder
 LABEL author="Alexander Schenkel <alex@alexi.ch>"
 
 RUN apk update && apk add \
@@ -22,7 +22,7 @@ WORKDIR ${PCMS_PATH}
 RUN make build
 
 # -------------
-FROM alpine:3.23 AS pcms
+FROM alpine:3.24 AS pcms
 LABEL author="Alexander Schenkel <alex@alexi.ch>"
 EXPOSE 3000
 

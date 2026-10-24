@@ -29,7 +29,17 @@
                     <li class="{% if Paths.RelWebDir== "." %}active{% endif %}"><a href="{{Webroot("/")}}">[home]</a></li>
                     {% for child in Config.Variables.toc %}
                     <li class="{% if child.route == Paths.RelWebDir %}active{% endif %}">
-                        <a href="{{Webroot(child.route)}}/">{{child.title}}</a></li>
+                        <a href="{{Webroot(child.route)}}/">{{child.title}}</a>
+                        {% if child.children %}
+                        <ul>
+                            {% for subchild in child.children %}
+                            <li class="{% if subchild.route == Paths.RelWebDir %}active{% endif %}">
+                                <a href="{{Webroot(subchild.route)}}/">{{subchild.title}}</a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </li>
                     {% endfor %}
                     </ul>
                 </div>

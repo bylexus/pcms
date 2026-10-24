@@ -1,32 +1,61 @@
 # This is the pcms configuration file. It configures the whole system.
+# All relative paths are relative to the directory of this config file.
 server:
-  # listen address. This could also be e.g. "localhost:3000"
+  # Listen address: an ip-address:port pair, or a partial address,
+  # e.g. "localhost:3000", ":3000", "127.0.0.1:8080".
+  # The "-listen" command line flag of "serve" / "serve-doc" overrides this value.
   listen: ":3000"
-  # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "".
+  # Webroot prefix: the content is served under this prefix (e.g. "/site").
+  # Available in templates as "Paths.Webroot" or with the "Webroot()" function. Defaults to "".
   prefix: ""
-  # cache dir for rendered pages in serve mode.
+  # Cache dir for rendered pages and resized images in serve mode. Relative or absolute.
+  # If a cache file cannot be written (e.g. disk full), the content is rendered on the fly
+  # and a warning is logged. Defaults to ".pcms-cache".
   cache_dir: ".pcms-cache"
-  # Maximum source image size accepted by the image resizer (bytes). Defaults to 32 MB.
-  max_body_size: 33554432
-  # Logging configuration: there are 2 diffenrent logs written:
+  # Maximum age of cache files: the cache cleanup removes files older than this.
+  # For resized images, the age counts from the last use; for rendered pages, from the time
+  # they were rendered. Removed files are created again on the next request.
+  # Format: a quoted duration string, e.g. "30m", "24h". "0s" disables the cleanup.
+  # A bare number (e.g. 0) is not accepted. Defaults to "24h".
+  cache_max_age: "24h"
+  # How often the cache cleanup runs. It runs once at server startup, then every interval.
+  # Format: a quoted duration string, e.g. "10m", "1h". Defaults to "1h".
+  cache_cleanup_interval: "1h"
+  # Image resizer settings (/_imageResizer/...):
+  image_resizer:
+    # Maximum source image file size in bytes. Larger images are rejected with HTTP 413.
+    # Defaults to 33554432 (32 MB).
+    max_source_size: 33554432
+    # Maximum image width / height in pixels. Requests with a width / maxWidth parameter above
+    # max_width, or a height / maxHeight parameter above max_height, are rejected with HTTP 400.
+    # The output image always fits into max_width x max_height, also when no resize is requested.
+    # Defaults to 1920 / 1920.
+    max_width: 1920
+    max_height: 1920
+    # Maximum number of resize operations (for images that are not cached yet) running at the
+    # same time. Cached images are not limited. 0 means: the number of CPUs. Defaults to 0.
+    max_concurrent: 0
+    # How long a request waits for a free resize slot. After this time, the request gets
+    # HTTP 503 with a "Retry-After" header. Format: a quoted duration string. Defaults to "10s".
+    wait_timeout: "10s"
+  # Logging configuration: there are 2 different logs written.
+  # "file" is required for both: a file path, or STDOUT / STDERR.
   logging:
-    # The access log: Logs all web access, like a webserver would.
-    # Define the file (or STDOUT/STDERR), and the format (TBD).
+    # The access log: logs all web access, like a webserver would.
     access:
       file: STDOUT
-      format: ""
-    # The error, or system log. Define the file (or STDOUT/STDERR), and the max log level:
+    # The error, or system log, with the max log level:
+    # DEBUG, INFO, WARNING, ERROR or FATAL. Defaults to DEBUG.
     error:
       file: STDERR
       level: DEBUG
-# Path to the sqlite database file. Relative to the config file dir, or absolute.
-# Defaults to "pcms.db" in the project dir. Useful for Docker setups where the
-# database should live on a separate volume.
-# database_path: "pcms.db"
-# The source folder of the site, containing the page content.
-# Relative to the config file dir:
+# Path to the SQLite database file. Relative or absolute.
+# Useful for Docker setups where the database should live on a separate volume.
+# Defaults to "pcms.db".
+database_path: "pcms.db"
+# The source folder of the site, containing the page content. Relative or absolute. Required.
 source: "site"
-# Global variables available in pongo2 templates as "Config.Variables.xxx":
+# Global variables, available in pongo2 templates as "Config.Variables.xxx":
 variables:
   siteTitle: My Site Title
   siteMetaTags:
@@ -35,9 +64,11 @@ variables:
     - name: moo
       content: baz
 # Where to look for pongo2 templates when inheriting / defining a template file.
-# Relative to the config file dir:
+# Relative or absolute. Defaults to the config file dir.
 template_dir: templates
-# Regular expression to exclude files/folders from indexing and serving:
+# Regular expressions to exclude files/folders from indexing and serving.
+# The patterns are matched against the route, which starts with "/" (e.g. "/restricted/file.txt").
+# Defaults to no exclusions.
 exclude_patterns:
   # Ignore .* files:
   - "/\\..*"

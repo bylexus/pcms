@@ -174,6 +174,20 @@ So an URL route either matches with a `Page` object, a raw file, or it ends in a
 
 ## Changelog
 
+### v0.12.0
+
+- [breaking] Config key `server.max_body_size` moved and renamed to `server.image_resizer.max_source_size`; the old key is ignored without a message, so existing configs must be updated
+- [breaking] Image Resizer: the output image is always fitted into `max_width` × `max_height`, also when no resize is requested (e.g. format conversion only)
+- [breaking] Image Resizer cache files are now named `<key>.<jpg|png|webp>` (no `.ct` files); old cache files are removed by the cache cleanup
+- [security] Image Resizer: max image size configurable via `server.image_resizer.max_width` / `max_height` (default 1920 × 1920, was hardcoded)
+- [security] Image Resizer: concurrency limit for uncached resizes (`server.image_resizer.max_concurrent`, `wait_timeout`); requests that wait too long get HTTP 503 with `Retry-After`
+- [security] Background cache cleanup removes cache files older than `server.cache_max_age` (default 24h, last use for images), every `server.cache_cleanup_interval` (default 1h)
+- [security] Cache files are written atomically (no partial files); if the cache cannot be written (e.g. disk full), pages and images are rendered on the fly and a warning is logged
+- [feature] Image Resizer: `height` + `maxWidth` parameter combination supported (mirror of `width` + `maxHeight`)
+- [change] Image Resizer: `Last-Modified` header is the source image modification time, so browser revalidation (304) works for cached images
+- [change] Updated dependencies: `golang.org/x/image` v0.47.0, `pongo2` v6.1.0, `modernc.org/sqlite` v1.61.0; Go 1.26
+- [docs] `site-template/pcms-config.yaml` documents all config options with their defaults
+
 ### v0.11.1
 
 - [bugfix] Fixed `make build-release` cross-platform builds failing on `github.com/chai2010/webp` when compiled without `cgo`

@@ -54,14 +54,15 @@ a {
             li {
                 margin-bottom: 0;
 
-                &.active {
-                    background-color: var(--toc-active-bg);
+                &.active > a {
+                        background-color: var(--toc-active-bg);
                 }
 
                 a {
                     display: block;
                     padding: 0.2rem;
                 }
+                
             }
         }
     }

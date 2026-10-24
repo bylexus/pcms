@@ -18,7 +18,32 @@ metaTags:
   - [using Markdown files with templates](#using-markdown-files-with-templates)
   - [available template variables](#available-template-variables)
   - [YAML front matter variables](#yaml-front-matter-variables)
-- [PageQuery — querying pages from templates](#pagequery--querying-pages-from-templates)
+  - [Reserved front matter properties](#reserved-front-matter-properties)
+    - [The `enabled` property](#the-enabled-property)
+- [PageQuery — querying pages from templates](#pagequery-querying-pages-from-templates)
+  - [Creating a query](#creating-a-query)
+  - [The `List()` helper](#the-list-helper)
+  - [Filter methods](#filter-methods)
+    - [`WhereParentRoute(route: string)`](#whereparentrouteroute-string)
+    - [`WhereRoute(route: string)`](#whererouteroute-string)
+    - [`WhereMetadataEquals(fields: List, value: string)`](#wheremetadataequalsfields-list-value-string)
+    - [`WhereMetadataContains(fields: List, value: string)`](#wheremetadatacontainsfields-list-value-string)
+    - [`WhereMetadataIsOneOf(fields: List, values: List)`](#wheremetadataisoneoffields-list-values-list)
+    - [`WhereMetadataLT(fields: List, value: string)`](#wheremetadataltfields-list-value-string)
+    - [`WhereMetadataLTE(fields: List, value: string)`](#wheremetadataltefields-list-value-string)
+    - [`WhereMetadataGT(fields: List, value: string)`](#wheremetadatagtfields-list-value-string)
+    - [`WhereMetadataGTE(fields: List, value: string)`](#wheremetadatagtefields-list-value-string)
+  - [Ordering and paging methods](#ordering-and-paging-methods)
+    - [`OrderBy(field: string, direction: string)`](#orderbyfield-string-direction-string)
+    - [`PageSize(size: int)`](#pagesizesize-int)
+    - [`Page(page: int)`](#pagepage-int)
+  - [Terminal methods](#terminal-methods)
+    - [`FetchAll() -> []IndexedPage`](#fetchall-indexedpage)
+    - [`First() -> IndexedPage or nil`](#first-indexedpage-or-nil)
+    - [`Count() -> int`](#count-int)
+    - [`NrOfPages() -> int`](#nrofpages-int)
+  - [Enabled page filtering](#enabled-page-filtering)
+  - [Complete example](#complete-example)
 - [pcms cli reference](#pcms-cli-reference)
   - [init](#init)
   - [index](#index)
@@ -50,7 +75,7 @@ $ pcms serve
 root folder
 ├── pcms-config.yaml          # The config file for the site
 ├── pcms.db                   # SQLite page index (auto-created)
-├── .pcms-cache/              # Rendered page cache (auto-created)
+├── .pcms-cache/              # Cache for rendered pages and resized images (auto-created)
 ├── site/                     # The site dir contains the page content, and listens to the "/" route
 │   ├── index.html            # additional page content / templates
 │   └── ... more files/folder # add your source files/folders as needed
@@ -61,7 +86,7 @@ root folder
 
 - `pcms-config.yaml` is the configuration file for your site. It contains all the settings and global variables.
 - `pcms.db` is the SQLite index database. It is created and populated by `pcms index` (or automatically on first `pcms serve`). The path is configurable via `database_path` in `pcms-config.yaml`.
-- `.pcms-cache/` holds rendered HTML output cached by the serve process. The path is configurable via `server.cache_dir` in `pcms-config.yaml`.
+- `.pcms-cache/` holds the rendered HTML pages and the resized images (from the image resizer) cached by the serve process. The path is configurable via `server.cache_dir` in `pcms-config.yaml`. Old cache files are removed automatically (see `server.cache_max_age`). If the cache cannot be written (e.g. the disk is full), pcms renders the content on the fly and logs a warning.
 - `site/` is the folder where all your page content goes. If you reference pongo2 templates within your files, they are searched from the `templates/` folder.
 - `templates/` contains your pongo2 templates (if you need any).
 
@@ -76,13 +101,36 @@ server:
   listen: ":3000"
   # webroot prefix: the content is served under this webroot prefix (e.g. "/site"). Defaults to "". The webroot can be accessed by the `Paths.Webroot` variable or the `Webroot()` function in templates.
   prefix: ""
-  # cache dir for rendered pages in serve mode. Relative to the config file dir, or absolute.
+  # cache dir for rendered pages and resized images in serve mode. Relative to the config file dir, or absolute.
   # Defaults to ".pcms-cache".
+  # If a cache file cannot be written (e.g. disk full), the content is rendered on the fly and a warning is logged.
   cache_dir: ".pcms-cache"
-  # Maximum source image file size (in bytes) accepted by the image resizer endpoint
-  # (/_imageResizer/...). Requests for images larger than this limit are rejected with
-  # HTTP 413. Defaults to 33554432 (32 MB).
-  max_body_size: 33554432
+  # Maximum age of cache files: the cache cleanup removes files older than this. For resized images,
+  # the age counts from the last use; for rendered pages, from the time they were rendered.
+  # Removed files are created again on the next request.
+  # Format: a quoted duration string, e.g. "30m", "24h". "0s" disables the cleanup.
+  # A bare number (e.g. 0) is not accepted. Defaults to "24h".
+  cache_max_age: "24h"
+  # How often the cache cleanup runs. The cleanup runs once at server startup, then every interval.
+  # Format: a quoted duration string, e.g. "10m", "1h". Defaults to "1h".
+  cache_cleanup_interval: "1h"
+  # Limits for the image resizer endpoint (/_imageResizer/...):
+  image_resizer:
+    # Maximum source image file size (in bytes). Requests for images larger than this limit
+    # are rejected with HTTP 413. Defaults to 33554432 (32 MB).
+    max_source_size: 33554432
+    # Maximum image width / height in pixels. Requests with a width / maxWidth parameter above max_width,
+    # or a height / maxHeight parameter above max_height, are rejected with HTTP 400.
+    # The output image always fits into max_width x max_height, also when no resize is requested.
+    # Defaults to 1920 / 1920.
+    max_width: 1920
+    max_height: 1920
+    # Maximum number of resize operations (for images that are not cached yet) running at the same time.
+    # Cached images are not limited. Defaults to 0, which means: the number of CPUs.
+    max_concurrent: 0
+    # How long a request waits for a free resize slot. After this time, the request gets
+    # HTTP 503 with a "Retry-After" header. Format: a quoted duration string, e.g. "10s". Defaults to "10s".
+    wait_timeout: "10s"
   # Logging configuration: there are 2 different logs written:
   logging:
     # The access log: Logs all web access, like a webserver would.

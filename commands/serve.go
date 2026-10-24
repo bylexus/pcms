@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"io/fs"
 	"log"
 	"net/http"
@@ -85,6 +86,17 @@ func RunServeCmd(config model.Config) error {
 
 	defer accessLogger.Close()
 	defer errorLogger.Close()
+
+	// background cache cleanup (runs until the process exits):
+	cleanupCtx, cancelCleanup := context.WithCancel(context.Background())
+	defer cancelCleanup()
+	webserver.StartCacheCleanup(
+		cleanupCtx,
+		config.Server.CacheDir,
+		*config.Server.CacheMaxAge,
+		config.Server.CacheCleanupInterval,
+		errorLogger,
+	)
 
 	// initialize web server:
 	// register own handler with the web prefix removed:

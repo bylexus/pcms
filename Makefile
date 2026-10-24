@@ -45,6 +45,10 @@ docker-multibuild-to-registry:
 # 	docker push registry.alexi.ch/pcms:$(VERSION)
 # 	docker push registry.alexi.ch/pcms:latest
 
+.PHONY: docker-multibuild-to-registry
+docker-multibuild-latest-to-registry:
+	docker buildx build --pull --no-cache --push --platform=linux/arm64,linux/amd64 -t $(DOCKER_REGISTRY)/$(PROJECTNAME):latest $(GOBASE)
+
 
 .PHONY: build-release
 build-release:

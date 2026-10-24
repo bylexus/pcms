@@ -9,6 +9,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
+	"time"
 
 	"github.com/flosch/pongo2/v6"
 	"gopkg.in/yaml.v3"
@@ -30,14 +32,42 @@ const (
 	SERVE_MODE_EMBEDDED_DOC = "EMBEDDED_DOC"
 )
 
+// ImageResizerConfig holds the limits for the /_imageResizer/ endpoint.
+type ImageResizerConfig struct {
+	// Maximum output width / height in pixels. Also the upper limit for the
+	// width/height/maxWidth/maxHeight request parameters.
+	MaxWidth  int `yaml:"max_width"`
+	MaxHeight int `yaml:"max_height"`
+	// Maximum number of uncached resize operations running at the same time.
+	// 0 means: number of CPUs.
+	MaxConcurrent int `yaml:"max_concurrent"`
+	// How long a request waits for a free resize slot before it gets a 503.
+	WaitTimeout time.Duration `yaml:"wait_timeout"`
+	// Maximum source image file size in bytes. Larger images get a 413.
+	MaxSourceSize int64 `yaml:"max_source_size"`
+}
+
+const (
+	DefaultImageMaxSourceSize   = 32 * 1024 * 1024 // 32 MB
+	DefaultImageMaxWidth        = 1920
+	DefaultImageMaxHeight       = 1920
+	DefaultImageWaitTimeout     = 10 * time.Second
+	DefaultCacheMaxAge          = 24 * time.Hour
+	DefaultCacheCleanupInterval = time.Hour
+)
+
 type Config struct {
 	Server struct {
-		Listen      string        `yaml:"listen"`
-		Watch       bool          `yaml:"watch"`
-		Prefix      string        `yaml:"prefix"`
-		CacheDir    string        `yaml:"cache_dir"`
-		MaxBodySize int64         `yaml:"max_body_size"`
-		Logging     LoggingConfig `yaml:"logging"`
+		Listen   string `yaml:"listen"`
+		Watch    bool   `yaml:"watch"`
+		Prefix   string `yaml:"prefix"`
+		CacheDir string `yaml:"cache_dir"`
+		// Cache files not used for this duration are removed by the cleanup job.
+		// nil (not set) means the default; 0 disables the cleanup.
+		CacheMaxAge          *time.Duration     `yaml:"cache_max_age"`
+		CacheCleanupInterval time.Duration      `yaml:"cache_cleanup_interval"`
+		ImageResizer         ImageResizerConfig `yaml:"image_resizer"`
+		Logging              LoggingConfig      `yaml:"logging"`
 	} `yaml:"server"`
 	Variables       map[string]interface{} `yaml:"variables"`
 	ConfigFile      string
@@ -122,11 +152,11 @@ func NewConfig(conffilePath string, cliArgs CmdArgs, embeddedDocFS embed.FS) Con
 	if config.Server.CacheDir == "" {
 		config.Server.CacheDir = ".pcms-cache"
 	}
-	if config.Server.MaxBodySize == 0 {
-		config.Server.MaxBodySize = 32 * 1024 * 1024 // 32 MB
-	}
 	if config.DatabasePath == "" {
 		config.DatabasePath = "pcms.db"
+	}
+	if err := config.applyCacheAndResizerDefaults(); err != nil {
+		log.Fatal(fmt.Errorf("invalid config: %w", err))
 	}
 
 	// Set current working dir to the conf file dir for subsequent commands,
@@ -172,6 +202,59 @@ func NewConfig(conffilePath string, cliArgs CmdArgs, embeddedDocFS embed.FS) Con
 	}
 
 	return config
+}
+
+// applyCacheAndResizerDefaults sets the defaults for the cache cleanup and
+// image resizer settings, and rejects negative values.
+func (config *Config) applyCacheAndResizerDefaults() error {
+	s := &config.Server
+	r := &s.ImageResizer
+
+	if s.CacheMaxAge == nil {
+		d := DefaultCacheMaxAge
+		s.CacheMaxAge = &d
+	}
+	if *s.CacheMaxAge < 0 {
+		return fmt.Errorf("server.cache_max_age must not be negative, got %s", *s.CacheMaxAge)
+	}
+	if s.CacheCleanupInterval < 0 {
+		return fmt.Errorf("server.cache_cleanup_interval must not be negative, got %s", s.CacheCleanupInterval)
+	}
+	if s.CacheCleanupInterval == 0 {
+		s.CacheCleanupInterval = DefaultCacheCleanupInterval
+	}
+
+	if r.MaxWidth < 0 {
+		return fmt.Errorf("server.image_resizer.max_width must not be negative, got %d", r.MaxWidth)
+	}
+	if r.MaxWidth == 0 {
+		r.MaxWidth = DefaultImageMaxWidth
+	}
+	if r.MaxHeight < 0 {
+		return fmt.Errorf("server.image_resizer.max_height must not be negative, got %d", r.MaxHeight)
+	}
+	if r.MaxHeight == 0 {
+		r.MaxHeight = DefaultImageMaxHeight
+	}
+	if r.MaxConcurrent < 0 {
+		return fmt.Errorf("server.image_resizer.max_concurrent must not be negative, got %d", r.MaxConcurrent)
+	}
+	if r.MaxConcurrent == 0 {
+		r.MaxConcurrent = runtime.NumCPU()
+	}
+	if r.WaitTimeout < 0 {
+		return fmt.Errorf("server.image_resizer.wait_timeout must not be negative, got %s", r.WaitTimeout)
+	}
+	if r.WaitTimeout == 0 {
+		r.WaitTimeout = DefaultImageWaitTimeout
+	}
+	if r.MaxSourceSize < 0 {
+		return fmt.Errorf("server.image_resizer.max_source_size must not be negative, got %d", r.MaxSourceSize)
+	}
+	if r.MaxSourceSize == 0 {
+		r.MaxSourceSize = DefaultImageMaxSourceSize
+	}
+	return nil
 }
 
 func configPongoTemplatePathLoader(conf Config) {
