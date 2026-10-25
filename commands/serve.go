@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -20,6 +21,8 @@ func RunServeCmd(config model.Config) error {
 	var err error = nil
 	var dbh *lib.DBH
 	var shouldCloseDBH bool
+	// re-index in the background after start (files mode with an existing index only):
+	var backgroundIndex bool
 	// setup logging:
 	accessLogger := logging.NewLogger(
 		config.Server.Logging.Access.File,
@@ -45,10 +48,12 @@ func RunServeCmd(config model.Config) error {
 			os.RemoveAll(config.Server.CacheDir)
 		}
 
+		// index the doc on every start:
 		if err := RunIndexCmd(config); err != nil {
 			return err
 		}
 
+		// determine the embedded doc FS:
 		errorLogger.Info("Serving embedded doc site")
 		siteFS, _, err = model.GetEmbeddedSourceFS(config)
 		if err != nil {
@@ -59,7 +64,7 @@ func RunServeCmd(config model.Config) error {
 		if err != nil {
 			return err
 		}
-	default:
+	case model.SERVE_MODE_FILES:
 		errorLogger.Info("Serving content from %s", config.SourcePath)
 		siteFS = os.DirFS(config.SourcePath)
 		dbh, shouldCloseDBH, err = lib.GetDBHForConfig(config)
@@ -78,7 +83,11 @@ func RunServeCmd(config model.Config) error {
 			if err := RunIndexCmd(config); err != nil {
 				return err
 			}
+		} else {
+			backgroundIndex = true
 		}
+	default:
+		return fmt.Errorf("unknown serve mode: %s", config.ServeMode)
 	}
 	if shouldCloseDBH {
 		defer dbh.Close()
@@ -87,11 +96,18 @@ func RunServeCmd(config model.Config) error {
 	defer accessLogger.Close()
 	defer errorLogger.Close()
 
-	// background cache cleanup (runs until the process exits):
-	cleanupCtx, cancelCleanup := context.WithCancel(context.Background())
-	defer cancelCleanup()
+	// background jobs (run until the process exits):
+	bgCtx, cancelBg := context.WithCancel(context.Background())
+	defer cancelBg()
+
+	// background re-index (runs once):
+	if backgroundIndex {
+		lib.StartBackgroundIndex(bgCtx, config, dbh, errorLogger)
+	}
+
+	// background cache cleanup:
 	webserver.StartCacheCleanup(
-		cleanupCtx,
+		bgCtx,
 		config.Server.CacheDir,
 		*config.Server.CacheMaxAge,
 		config.Server.CacheCleanupInterval,

@@ -29,7 +29,8 @@ func setupEnableTestDB(t *testing.T) *DBH {
 		t.Fatalf("OpenDBH: %v", err)
 	}
 
-	if err := dbh.BeginIndexRun(); err != nil {
+	run, err := dbh.BeginIndexRun()
+	if err != nil {
 		t.Fatalf("BeginIndexRun: %v", err)
 	}
 
@@ -46,7 +47,7 @@ func setupEnableTestDB(t *testing.T) *DBH {
 		{Route: "/other", ParentPageRoute: &root, Title: "Other", IndexFile: "index.html", Enabled: true, Metadata: map[string]any{}},
 	}
 	for _, p := range pages {
-		if err := dbh.ReplacePage(p); err != nil {
+		if err := run.ReplacePage(p); err != nil {
 			t.Fatalf("ReplacePage(%s): %v", p.Route, err)
 		}
 	}
@@ -57,12 +58,12 @@ func setupEnableTestDB(t *testing.T) *DBH {
 		{Route: "/other/doc.pdf", ParentPageRoute: "/other", FileName: "doc.pdf", MimeType: "application/pdf", FileSize: 300, Enabled: true},
 	}
 	for _, f := range files {
-		if err := dbh.ReplaceFile(f); err != nil {
+		if err := run.ReplaceFile(f); err != nil {
 			t.Fatalf("ReplaceFile(%s): %v", f.Route, err)
 		}
 	}
 
-	if err := dbh.CommitIndexRun(); err != nil {
+	if err := run.Commit(); err != nil {
 		t.Fatalf("CommitIndexRun: %v", err)
 	}
 

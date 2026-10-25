@@ -29,6 +29,9 @@ func TestCacheAndResizerDefaults(t *testing.T) {
 	if s.CacheCleanupInterval != DefaultCacheCleanupInterval {
 		t.Errorf("CacheCleanupInterval: got %s, want %s", s.CacheCleanupInterval, DefaultCacheCleanupInterval)
 	}
+	if s.IndexOnStart == nil || !*s.IndexOnStart {
+		t.Errorf("IndexOnStart: got %v, want true", s.IndexOnStart)
+	}
 	r := s.ImageResizer
 	if r.MaxWidth != DefaultImageMaxWidth || r.MaxHeight != DefaultImageMaxHeight {
 		t.Errorf("max size: got %dx%d, want %dx%d", r.MaxWidth, r.MaxHeight, DefaultImageMaxWidth, DefaultImageMaxHeight)
@@ -105,5 +108,15 @@ func TestCacheAndResizerNegativeValues(t *testing.T) {
 				t.Errorf("expected error for negative %s, got nil", name)
 			}
 		})
+	}
+}
+
+func TestIndexOnStartFalse(t *testing.T) {
+	c, err := loadTestConfig(t, "server:\n  index_on_start: false\n")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if c.Server.IndexOnStart == nil || *c.Server.IndexOnStart {
+		t.Errorf("IndexOnStart: got %v, want false", c.Server.IndexOnStart)
 	}
 }

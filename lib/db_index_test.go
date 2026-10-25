@@ -15,25 +15,26 @@ func TestDBHIndexLifecycle(t *testing.T) {
 	}
 	defer dbh.Close()
 
-	if err := dbh.BeginIndexRun(); err != nil {
+	run, err := dbh.BeginIndexRun()
+	if err != nil {
 		t.Fatalf("BeginIndexRun() error = %v", err)
 	}
 
-	if err := dbh.CleanIndex(); err != nil {
+	if err := run.CleanIndex(); err != nil {
 		t.Fatalf("CleanIndex() error = %v", err)
 	}
 
-	if err := dbh.ReplacePage(model.IndexedPage{
-		Route:        "/",
-		Title:        "root",
-		IndexFile:    "index.md",
-		Metadata: map[string]any{"title": "root"},
+	if err := run.ReplacePage(model.IndexedPage{
+		Route:     "/",
+		Title:     "root",
+		IndexFile: "index.md",
+		Metadata:  map[string]any{"title": "root"},
 	}); err != nil {
 		t.Fatalf("ReplacePage(root) error = %v", err)
 	}
 
 	rootRoute := "/"
-	if err := dbh.ReplacePage(model.IndexedPage{
+	if err := run.ReplacePage(model.IndexedPage{
 		Route:           "/blog",
 		ParentPageRoute: &rootRoute,
 		Title:           "blog",
@@ -43,7 +44,7 @@ func TestDBHIndexLifecycle(t *testing.T) {
 		t.Fatalf("ReplacePage(/blog) error = %v", err)
 	}
 
-	if err := dbh.ReplaceFile(model.IndexedFile{
+	if err := run.ReplaceFile(model.IndexedFile{
 		Route:           "/blog/image.png",
 		ParentPageRoute: "/blog",
 		FileName:        "image.png",
@@ -53,11 +54,11 @@ func TestDBHIndexLifecycle(t *testing.T) {
 		t.Fatalf("ReplaceFile() error = %v", err)
 	}
 
-	if err := dbh.SetLastIndexInfo("test-source", 2, 1); err != nil {
+	if err := run.SetLastIndexInfo("test-source", 2, 1); err != nil {
 		t.Fatalf("SetLastIndexInfo() error = %v", err)
 	}
 
-	if err := dbh.CommitIndexRun(); err != nil {
+	if err := run.Commit(); err != nil {
 		t.Fatalf("CommitIndexRun() error = %v", err)
 	}
 
@@ -86,16 +87,17 @@ func TestDBHIndexForeignKeyIntegrity(t *testing.T) {
 	}
 	defer dbh.Close()
 
-	if err := dbh.BeginIndexRun(); err != nil {
+	run, err := dbh.BeginIndexRun()
+	if err != nil {
 		t.Fatalf("BeginIndexRun() error = %v", err)
 	}
-	defer dbh.RollbackIndexRun()
+	defer run.Rollback()
 
-	if err := dbh.CleanIndex(); err != nil {
+	if err := run.CleanIndex(); err != nil {
 		t.Fatalf("CleanIndex() error = %v", err)
 	}
 
-	err = dbh.ReplaceFile(model.IndexedFile{
+	err = run.ReplaceFile(model.IndexedFile{
 		Route:           "/orphan.txt",
 		ParentPageRoute: "/missing",
 		FileName:        "orphan.txt",
@@ -115,24 +117,25 @@ func TestDBHGetByRoute(t *testing.T) {
 	}
 	defer dbh.Close()
 
-	if err := dbh.BeginIndexRun(); err != nil {
+	run, err := dbh.BeginIndexRun()
+	if err != nil {
 		t.Fatalf("BeginIndexRun() error = %v", err)
 	}
 
-	if err := dbh.CleanIndex(); err != nil {
+	if err := run.CleanIndex(); err != nil {
 		t.Fatalf("CleanIndex() error = %v", err)
 	}
 
-	if err := dbh.ReplacePage(model.IndexedPage{
-		Route:        "/",
-		Title:        "root",
-		IndexFile:    "index.md",
-		Metadata: map[string]any{"title": "root"},
+	if err := run.ReplacePage(model.IndexedPage{
+		Route:     "/",
+		Title:     "root",
+		IndexFile: "index.md",
+		Metadata:  map[string]any{"title": "root"},
 	}); err != nil {
 		t.Fatalf("ReplacePage(root) error = %v", err)
 	}
 
-	if err := dbh.ReplaceFile(model.IndexedFile{
+	if err := run.ReplaceFile(model.IndexedFile{
 		Route:           "/robots.txt",
 		ParentPageRoute: "/",
 		FileName:        "robots.txt",
@@ -142,7 +145,7 @@ func TestDBHGetByRoute(t *testing.T) {
 		t.Fatalf("ReplaceFile(robots) error = %v", err)
 	}
 
-	if err := dbh.CommitIndexRun(); err != nil {
+	if err := run.Commit(); err != nil {
 		t.Fatalf("CommitIndexRun() error = %v", err)
 	}
 

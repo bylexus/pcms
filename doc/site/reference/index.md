@@ -114,6 +114,10 @@ server:
   # How often the cache cleanup runs. The cleanup runs once at server startup, then every interval.
   # Format: a quoted duration string, e.g. "10m", "1h". Defaults to "1h".
   cache_cleanup_interval: "1h"
+  # Re-index the site once in the background when `pcms serve` starts. The server serves the
+  # existing index until the new index is complete. If the index is empty, `pcms serve` always
+  # builds it before the server starts. Defaults to true.
+  index_on_start: true
   # Limits for the image resizer endpoint (/_imageResizer/...):
   image_resizer:
     # Maximum source image file size (in bytes). Requests for images larger than this limit
@@ -649,13 +653,13 @@ pcms -c /path/to/pcms-config.yaml index
 
 The database path defaults to `pcms.db` next to the config file and can be changed via `database_path` in `pcms-config.yaml`.
 
-**Note:** `pcms serve` runs an initial index automatically when the database is empty, so a separate `pcms index` call is only needed when you want to pre-build the index or refresh it without starting the server.
+**Note:** `pcms serve` runs an initial index automatically when the database is empty. When the database is not empty, `pcms serve` re-indexes the site once in the background (see `server.index_on_start`). A separate `pcms index` call is only needed when you want to pre-build the index or refresh it without starting the server.
 
 ---
 
 ### serve
 
-Starts the web server and serves the indexed site. On the first start, if the page index is empty, it builds the index automatically.
+Starts the web server and serves the indexed site. On the first start, if the page index is empty, it builds the index automatically before the server starts. If the page index is not empty, it re-indexes the site once in the background after start; the server serves the existing index until the new index is complete. Set `server.index_on_start: false` to disable the background re-index.
 
 ```bash
 pcms serve

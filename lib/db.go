@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"alexi.ch/pcms/model"
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 const (
@@ -18,9 +19,20 @@ const (
 )
 
 type DBH struct {
-	db      *sql.DB
-	path    string
-	indexTx *sql.Tx
+	db   *sql.DB
+	path string
+}
+
+// dbExecutor is the common part of *sql.DB and *sql.Tx used by the write helpers.
+type dbExecutor interface {
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
+// IndexRun is one index run in its own transaction. Other users of the DBH
+// (e.g. web requests) do not see its changes until Commit.
+// An IndexRun must only be used by one goroutine.
+type IndexRun struct {
+	tx *sql.Tx
 }
 
 var (
@@ -83,76 +95,96 @@ func (h *DBH) SchemaVersion() int {
 }
 
 func (h *DBH) Close() error {
-	if h.indexTx != nil {
-		if err := h.RollbackIndexRun(); err != nil {
-			return err
-		}
-	}
 	if h.db == nil {
 		return nil
 	}
 	return h.db.Close()
 }
 
-func (h *DBH) BeginIndexRun() error {
-	if h.indexTx != nil {
-		return fmt.Errorf("index transaction already active")
-	}
-
+// BeginIndexRun starts a new index run in its own transaction.
+// Call Commit to make the changes visible, or Rollback to discard them.
+func (h *DBH) BeginIndexRun() (*IndexRun, error) {
 	tx, err := h.db.Begin()
 	if err != nil {
-		return fmt.Errorf("begin index transaction: %w", err)
+		return nil, fmt.Errorf("begin index transaction: %w", err)
 	}
 	if _, err := tx.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		_ = tx.Rollback()
-		return fmt.Errorf("enable foreign keys for index transaction: %w", err)
+		return nil, fmt.Errorf("enable foreign keys for index transaction: %w", err)
 	}
 
-	h.indexTx = tx
-	return nil
+	return &IndexRun{tx: tx}, nil
 }
 
-func (h *DBH) CommitIndexRun() error {
-	if h.indexTx == nil {
-		return fmt.Errorf("no active index transaction")
-	}
-
-	err := h.indexTx.Commit()
-	h.indexTx = nil
-	if err != nil {
+func (r *IndexRun) Commit() error {
+	if err := r.tx.Commit(); err != nil {
 		return fmt.Errorf("commit index transaction: %w", err)
 	}
-
 	return nil
 }
 
-func (h *DBH) RollbackIndexRun() error {
-	if h.indexTx == nil {
-		return nil
-	}
-
-	err := h.indexTx.Rollback()
-	h.indexTx = nil
-	if err != nil && err != sql.ErrTxDone {
+// Rollback discards the changes of the run. It is a no-op after Commit.
+func (r *IndexRun) Rollback() error {
+	err := r.tx.Rollback()
+	if err != nil && !errors.Is(err, sql.ErrTxDone) {
 		return fmt.Errorf("rollback index transaction: %w", err)
 	}
-
 	return nil
 }
 
-func (h *DBH) CleanIndex() error {
-	if _, err := h.execIndex("DELETE FROM files"); err != nil {
+func (r *IndexRun) CleanIndex() error {
+	if _, err := r.tx.Exec("DELETE FROM files"); err != nil {
 		return fmt.Errorf("clean files index: %w", err)
 	}
 
-	if _, err := h.execIndex("DELETE FROM pages"); err != nil {
+	if _, err := r.tx.Exec("DELETE FROM pages"); err != nil {
 		return fmt.Errorf("clean pages index: %w", err)
 	}
 
 	return nil
 }
 
+func (r *IndexRun) ReplacePage(record model.IndexedPage) error {
+	return replacePage(r.tx, record)
+}
+
+func (r *IndexRun) ReplaceFile(record model.IndexedFile) error {
+	return replaceFile(r.tx, record)
+}
+
+func (r *IndexRun) SetLastIndexInfo(source string, pageCount int, fileCount int) error {
+	stmt := `
+		UPDATE app_settings
+		SET
+			settings_json = json_set(
+				coalesce(settings_json, '{}'),
+				'$.last_indexed_at', ?,
+				'$.last_index_source', ?,
+				'$.last_index_page_count', ?,
+				'$.last_index_file_count', ?
+			),
+			updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+		WHERE id = 1
+	`
+
+	if _, err := r.tx.Exec(stmt, time.Now().UTC().Format(time.RFC3339Nano), source, pageCount, fileCount); err != nil {
+		return fmt.Errorf("update index info setting: %w", err)
+	}
+
+	return nil
+}
+
+// ReplacePage inserts or updates a single page outside of an index run.
 func (h *DBH) ReplacePage(record model.IndexedPage) error {
+	return replacePage(h.db, record)
+}
+
+// ReplaceFile inserts or updates a single file outside of an index run.
+func (h *DBH) ReplaceFile(record model.IndexedFile) error {
+	return replaceFile(h.db, record)
+}
+
+func replacePage(ex dbExecutor, record model.IndexedPage) error {
 	stmt := `
 		INSERT INTO pages (route, parent_page_route, title, index_file, enabled, metadata_json)
 		VALUES (?, ?, ?, ?, ?, ?)
@@ -170,14 +202,14 @@ func (h *DBH) ReplacePage(record model.IndexedPage) error {
 		return fmt.Errorf("marshal metadata for page %s: %w", record.Route, err)
 	}
 
-	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.Title, record.IndexFile, record.Enabled, metadataJSON); err != nil {
+	if _, err := ex.Exec(stmt, record.Route, record.ParentPageRoute, record.Title, record.IndexFile, record.Enabled, metadataJSON); err != nil {
 		return fmt.Errorf("replace page %s: %w", record.Route, err)
 	}
 
 	return nil
 }
 
-func (h *DBH) ReplaceFile(record model.IndexedFile) error {
+func replaceFile(ex dbExecutor, record model.IndexedFile) error {
 	stmt := `
 		INSERT INTO files (route, parent_page_route, file_name, mime_type, file_size, enabled)
 		VALUES (?, ?, ?, ?, ?, ?)
@@ -194,37 +226,27 @@ func (h *DBH) ReplaceFile(record model.IndexedFile) error {
 	if !record.Enabled {
 		enabled = 0
 	}
-	if _, err := h.execIndex(stmt, record.Route, record.ParentPageRoute, record.FileName, record.MimeType, record.FileSize, enabled); err != nil {
+	if _, err := ex.Exec(stmt, record.Route, record.ParentPageRoute, record.FileName, record.MimeType, record.FileSize, enabled); err != nil {
 		return fmt.Errorf("replace file %s: %w", record.Route, err)
 	}
 
 	return nil
 }
 
-func (h *DBH) SetLastIndexInfo(source string, pageCount int, fileCount int) error {
-	stmt := `
-		UPDATE app_settings
-		SET
-			settings_json = json_set(
-				coalesce(settings_json, '{}'),
-				'$.last_indexed_at', ?,
-				'$.last_index_source', ?,
-				'$.last_index_page_count', ?,
-				'$.last_index_file_count', ?
-			),
-			updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
-		WHERE id = 1
-	`
-
-	if _, err := h.execIndex(stmt, time.Now().UTC().Format(time.RFC3339Nano), source, pageCount, fileCount); err != nil {
-		return fmt.Errorf("update index info setting: %w", err)
+// IsDBBusy reports whether err is an SQLite "database is busy / locked" error,
+// e.g. because an index run holds the write lock.
+func IsDBBusy(err error) bool {
+	var sqliteErr *sqlite.Error
+	if !errors.As(err, &sqliteErr) {
+		return false
 	}
-
-	return nil
+	// Code() can be an extended result code: the primary code is the low byte.
+	code := sqliteErr.Code() & 0xff
+	return code == sqlite3.SQLITE_BUSY || code == sqlite3.SQLITE_LOCKED
 }
 
 func (h *DBH) CountPages() (int, error) {
-	row := h.queryRowIndex("SELECT COUNT(1) FROM pages")
+	row := h.db.QueryRow("SELECT COUNT(1) FROM pages")
 	var count int
 	if err := row.Scan(&count); err != nil {
 		return 0, fmt.Errorf("count pages: %w", err)
@@ -233,7 +255,7 @@ func (h *DBH) CountPages() (int, error) {
 }
 
 func (h *DBH) CountFiles() (int, error) {
-	row := h.queryRowIndex("SELECT COUNT(1) FROM files")
+	row := h.db.QueryRow("SELECT COUNT(1) FROM files")
 	var count int
 	if err := row.Scan(&count); err != nil {
 		return 0, fmt.Errorf("count files: %w", err)
@@ -253,7 +275,7 @@ func (h *DBH) GetPageByRoute(route string) (model.IndexedPage, bool, error) {
 	var metadataJSON string
 	var updatedAtStr string
 	var enabledInt int
-	err := h.queryRowIndex(stmt, route).Scan(
+	err := h.db.QueryRow(stmt, route).Scan(
 		&record.Route,
 		&parentRoute,
 		&record.Title,
@@ -297,7 +319,7 @@ func (h *DBH) GetFileByRoute(route string) (model.IndexedFile, bool, error) {
 
 	var record model.IndexedFile
 	var enabledInt int
-	err := h.queryRowIndex(stmt, route).Scan(
+	err := h.db.QueryRow(stmt, route).Scan(
 		&record.Route,
 		&record.ParentPageRoute,
 		&record.FileName,
@@ -325,7 +347,7 @@ func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 		ORDER BY route
 	`
 
-	rows, err := h.queryIndex(stmt, route)
+	rows, err := h.db.Query(stmt, route)
 	if err != nil {
 		return nil, fmt.Errorf("query child pages for %s: %w", route, err)
 	}
@@ -367,7 +389,6 @@ func (h *DBH) GetChildPages(route string) ([]model.IndexedPage, error) {
 	return pages, nil
 }
 
-
 func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
 	stmt := `
 		SELECT route, parent_page_route, file_name, mime_type, file_size, enabled
@@ -377,7 +398,7 @@ func (h *DBH) GetChildFiles(route string) ([]model.IndexedFile, error) {
 		ORDER BY route
 	`
 
-	rows, err := h.queryIndex(stmt, route)
+	rows, err := h.db.Query(stmt, route)
 	if err != nil {
 		return nil, fmt.Errorf("query child files for %s: %w", route, err)
 	}
@@ -693,30 +714,6 @@ func (h *DBH) ensureTableColumn(tableName string, columnName string, columnDefin
 	}
 
 	return nil
-}
-
-func (h *DBH) execIndex(query string, args ...any) (sql.Result, error) {
-	if h.indexTx != nil {
-		return h.indexTx.Exec(query, args...)
-	}
-
-	return h.db.Exec(query, args...)
-}
-
-func (h *DBH) queryRowIndex(query string, args ...any) *sql.Row {
-	if h.indexTx != nil {
-		return h.indexTx.QueryRow(query, args...)
-	}
-
-	return h.db.QueryRow(query, args...)
-}
-
-func (h *DBH) queryIndex(query string, args ...any) (*sql.Rows, error) {
-	if h.indexTx != nil {
-		return h.indexTx.Query(query, args...)
-	}
-
-	return h.db.Query(query, args...)
 }
 
 func marshalMetadata(m map[string]any) (string, error) {

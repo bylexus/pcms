@@ -228,7 +228,14 @@ func (h *RequestHandler) reindexPageIfStale(route string, page model.IndexedPage
 	}
 
 	if err := h.DBH.ReplacePage(updatedPage); err != nil {
-		return page, false, fmt.Errorf("persist re-indexed page %s: %w", route, err)
+		if !lib.IsDBBusy(err) {
+			return page, false, fmt.Errorf("persist re-indexed page %s: %w", route, err)
+		}
+		// An index run holds the write lock: serve the fresh page data without persisting it.
+		if h.ErrorLogger != nil {
+			h.ErrorLogger.Warning("re-indexed stale page %s not persisted (database locked): %s", route, err.Error())
+		}
+		return updatedPage, true, nil
 	}
 
 	if h.ErrorLogger != nil {

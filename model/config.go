@@ -64,10 +64,13 @@ type Config struct {
 		CacheDir string `yaml:"cache_dir"`
 		// Cache files not used for this duration are removed by the cleanup job.
 		// nil (not set) means the default; 0 disables the cleanup.
-		CacheMaxAge          *time.Duration     `yaml:"cache_max_age"`
-		CacheCleanupInterval time.Duration      `yaml:"cache_cleanup_interval"`
-		ImageResizer         ImageResizerConfig `yaml:"image_resizer"`
-		Logging              LoggingConfig      `yaml:"logging"`
+		CacheMaxAge          *time.Duration `yaml:"cache_max_age"`
+		CacheCleanupInterval time.Duration  `yaml:"cache_cleanup_interval"`
+		// Re-index the site once in the background on serve start.
+		// nil (not set) means true.
+		IndexOnStart *bool              `yaml:"index_on_start"`
+		ImageResizer ImageResizerConfig `yaml:"image_resizer"`
+		Logging      LoggingConfig      `yaml:"logging"`
 	} `yaml:"server"`
 	Variables       map[string]interface{} `yaml:"variables"`
 	ConfigFile      string
@@ -222,6 +225,10 @@ func (config *Config) applyCacheAndResizerDefaults() error {
 	}
 	if s.CacheCleanupInterval == 0 {
 		s.CacheCleanupInterval = DefaultCacheCleanupInterval
+	}
+	if s.IndexOnStart == nil {
+		v := true
+		s.IndexOnStart = &v
 	}
 
 	if r.MaxWidth < 0 {

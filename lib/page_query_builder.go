@@ -328,7 +328,7 @@ func (b *PageQueryBuilder) Page(page int) *PageQueryBuilder {
 //	{% endfor %}
 func (b *PageQueryBuilder) FetchAll() []model.IndexedPage {
 	query, args := b.buildSelectSQL()
-	rows, err := b.dbh.queryIndex(query, args...)
+	rows, err := b.dbh.db.Query(query, args...)
 	if err != nil {
 		return nil
 	}
@@ -351,7 +351,7 @@ func (b *PageQueryBuilder) First() *model.IndexedPage {
 	c.page = 1
 
 	query, args := c.buildSelectSQL()
-	rows, err := c.dbh.queryIndex(query, args...)
+	rows, err := c.dbh.db.Query(query, args...)
 	if err != nil {
 		return nil
 	}
@@ -371,7 +371,7 @@ func (b *PageQueryBuilder) First() *model.IndexedPage {
 //	{{ PageQuery().WhereParentRoute("/blog").Count() }}
 func (b *PageQueryBuilder) Count() int {
 	query, args := b.buildCountSQL()
-	rows, err := b.dbh.queryIndex(query, args...)
+	rows, err := b.dbh.db.Query(query, args...)
 	if err != nil {
 		return 0
 	}

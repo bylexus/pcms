@@ -28,7 +28,8 @@ func setupQueryBuilderDB(t *testing.T) *DBH {
 		t.Fatalf("OpenDBH() error = %v", err)
 	}
 
-	if err := dbh.BeginIndexRun(); err != nil {
+	run, err := dbh.BeginIndexRun()
+	if err != nil {
 		t.Fatalf("BeginIndexRun() error = %v", err)
 	}
 
@@ -55,12 +56,12 @@ func setupQueryBuilderDB(t *testing.T) *DBH {
 	}
 
 	for _, p := range pages {
-		if err := dbh.ReplacePage(p); err != nil {
+		if err := run.ReplacePage(p); err != nil {
 			t.Fatalf("ReplacePage(%s) error = %v", p.Route, err)
 		}
 	}
 
-	if err := dbh.CommitIndexRun(); err != nil {
+	if err := run.Commit(); err != nil {
 		t.Fatalf("CommitIndexRun() error = %v", err)
 	}
 
