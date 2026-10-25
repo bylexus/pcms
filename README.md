@@ -174,6 +174,10 @@ So an URL route either matches with a `Page` object, a raw file, or it ends in a
 
 ## Changelog
 
+### v0.13.0
+
+- [feature] auto-index page in the background on webserver start
+
 ### v0.12.0
 
 - [breaking] Config key `server.max_body_size` moved and renamed to `server.image_resizer.max_source_size`; the old key is ignored without a message, so existing configs must be updated
